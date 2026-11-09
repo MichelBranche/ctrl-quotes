@@ -1,6 +1,6 @@
 export async function register(): Promise<void> {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    const { ensureMigrated } = await import("@/db/client");
-    await ensureMigrated();
-  }
+  // Migrations must not start here. With Cache Components this hook runs while
+  // static pages are prerendered, and the Turso fetch outlives that prerender.
+  // Apply them with `npm run db:migrate`, or at request time via ensureMigrated()
+  // after connection().
 }

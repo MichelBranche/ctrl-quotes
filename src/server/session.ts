@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
+import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { ensureMigrated, getDb } from "@/db/client";
 import type { ShellData } from "@/components/shell/types";
@@ -7,6 +8,7 @@ import { getAuth } from "@/server/auth";
 import { listWorkspaces } from "@/server/workspaces";
 
 export async function readSession() {
+  await connection();
   await ensureMigrated();
   return getAuth().api.getSession({ headers: await headers() });
 }

@@ -1,10 +1,21 @@
-import { EmptyState, PageHeader } from "@/components/ui/status";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { EmptyState, PageHeader, Skeleton } from "@/components/ui/status";
 import { greetingFor, messages } from "@/i18n/it";
 import { loadShell } from "@/server/session";
 
 export const metadata = { title: "Overview" };
 
-export default async function OverviewPage() {
+export default function OverviewPage() {
+  return (
+    <Suspense fallback={<Skeleton width="40%" />}>
+      <OverviewContent />
+    </Suspense>
+  );
+}
+
+async function OverviewContent() {
+  await connection();
   const shell = await loadShell();
   const firstName = shell.user.name.split(" ")[0] ?? shell.user.name;
   return (

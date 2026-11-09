@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { connection } from "next/server";
 import { AuthScreen } from "@/components/auth/auth-screen";
 import { messages } from "@/i18n/it";
 import { ensureMigrated } from "@/db/client";
@@ -24,6 +25,7 @@ async function VerifyContent({
 }: {
   searchParams: Promise<{ token?: string }>;
 }) {
+  await connection();
   const params = await searchParams;
   let ok = false;
   if (params.token) {

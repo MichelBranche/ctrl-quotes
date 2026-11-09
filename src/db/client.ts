@@ -34,9 +34,29 @@ export function getDb(): AppDatabase {
   return singleton.db;
 }
 
+/**
+ * True while `next build` is prerendering pages. A Turso query started in that
+ * phase is aborted with HANGING_PROMISE_REJECTION when the static shell ends.
+ */
+export function isBuildPhase(): boolean {
+  return (
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.NEXT_IS_EXPORT_WORKER === "true"
+  );
+}
+
 export async function ensureMigrated(): Promise<void> {
-  migrated ??= migrate(getDb(), {
+  if (isBuildPhase()) return;
+  migrated ??= runMigrations();
+  await migrated;
+}
+
+function runMigrations(): Promise<void> {
+  const pending = migrate(getDb(), {
     migrationsFolder: path.join(process.cwd(), "drizzle"),
   });
-  await migrated;
+  void pending.catch(() => {
+    if (migrated === pending) migrated = undefined;
+  });
+  return pending;
 }

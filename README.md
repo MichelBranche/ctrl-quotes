@@ -26,7 +26,7 @@ Apri `http://localhost:3000`. Senza variabili d'ambiente l'app usa `data/local.d
 | `npm run lint` | ESLint |
 | `npm test` | Vitest: prezzi, auth, isolamento tenant, audit, outbox |
 | `npm run test:e2e` | Playwright, screenshot in `qa/screenshots` |
-| `npm run db:migrate` | Applica le migrazioni in `drizzle/` |
+| `npm run db:migrate` | Applica le migrazioni in `drizzle/`. Idempotente. `next build` non le esegue: al runtime le applica la prima richiesta, dopo il confine dinamico |
 
 ## Variabili d'ambiente
 
