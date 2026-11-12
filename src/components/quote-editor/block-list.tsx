@@ -12,7 +12,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlignLeft, ArrowDown, ArrowUp, Calculator, CalendarRange, Copy, Eye, EyeOff, FileSignature, GripVertical, Image as ImageIcon, Layers, LayoutPanelTop, ListChecks, Plus, Sparkles, Trash2, Type, UserRound } from "lucide-react";
+import { AlignLeft, ArrowDown, ArrowUp, Calculator, CalendarRange, Copy, Eye, EyeOff, Lock, LockOpen, FileSignature, GripVertical, Image as ImageIcon, Layers, LayoutPanelTop, ListChecks, Plus, Sparkles, Trash2, Type, UserRound } from "lucide-react";
 import { ActionMenu } from "@/components/data/menu";
 import { blockHint, blockLabel, blockTypes, singletonBlocks, type BlockType, type QuoteBlock } from "@/domain/quote-document";
 import { cn } from "@/lib/cn";
@@ -46,6 +46,7 @@ export function BlockList({
   onToggle,
   onDuplicate,
   onRemove,
+  onLock,
   onAdd,
 }: {
   blocks: QuoteBlock[];
@@ -56,6 +57,7 @@ export function BlockList({
   onToggle: (id: string) => void;
   onDuplicate: (id: string) => void;
   onRemove: (id: string) => void;
+  onLock: (id: string, locked: boolean) => void;
   onAdd: (type: BlockType) => void;
 }) {
   const [adding, setAdding] = useState(false);
@@ -123,7 +125,7 @@ export function BlockList({
           })}
         </ul>
       ) : null}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <DndContext id="block-list" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
           <ol className="block-list" aria-label="Blocchi del preventivo">
             {blocks.map((block, index) => (
@@ -138,13 +140,14 @@ export function BlockList({
                 onToggle={() => onToggle(block.id)}
                 onDuplicate={() => onDuplicate(block.id)}
                 onRemove={() => onRemove(block.id)}
+                onLock={() => onLock(block.id, !block.locked)}
                 onMove={(delta) => move(block.id, delta)}
               />
             ))}
           </ol>
         </SortableContext>
       </DndContext>
-      <p className="muted small panel-foot">Trascina per riordinare, oppure usa le frecce del menu. I blocchi nascosti restano nella bozza ma non nel documento.</p>
+      <p className="muted small panel-foot">Trascina per riordinare, oppure usa le frecce del menu. I blocchi nascosti restano nella bozza ma non nel documento; quelli bloccati non si modificano finché non li sblocchi.</p>
     </section>
   );
 }
@@ -159,6 +162,7 @@ function SortableBlock({
   onToggle,
   onDuplicate,
   onRemove,
+  onLock,
   onMove,
 }: {
   block: QuoteBlock;
@@ -170,17 +174,19 @@ function SortableBlock({
   onToggle: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
+  onLock: () => void;
   onMove: (delta: -1 | 1) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id, disabled: readOnly });
   const Icon = blockIcon[block.type];
   const title = blockTitle(block);
   const singleton = singletonBlocks.has(block.type);
+  const locked = Boolean(block.locked);
   return (
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("block-item", selected && "is-selected", !block.visible && "is-hidden", isDragging && "is-dragging")}
+      className={cn("block-item", selected && "is-selected", !block.visible && "is-hidden", locked && "is-locked", isDragging && "is-dragging")}
     >
       <button type="button" className="drag-handle" aria-label={`Sposta ${title}`} disabled={readOnly} {...attributes} {...listeners}>
         <GripVertical size={14} aria-hidden="true" />
@@ -199,6 +205,27 @@ function SortableBlock({
       >
         {block.visible ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
       </button>
+      <button
+        type="button"
+        className={cn("icon-btn ghost block-lock", locked && "is-on")}
+        onClick={onLock}
+        aria-pressed={locked}
+        aria-label={locked ? `Sblocca ${title}` : `Blocca ${title}`}
+        title={locked ? "Contenuto bloccato: clic per sbloccare" : "Blocca il contenuto contro le modifiche"}
+        disabled={readOnly}
+      >
+        {locked ? <Lock size={14} aria-hidden="true" /> : <LockOpen size={14} aria-hidden="true" />}
+      </button>
+      <button
+        type="button"
+        className="icon-btn ghost block-trash"
+        onClick={onRemove}
+        aria-label={`Elimina ${title}`}
+        title={locked ? "Sblocca il blocco per eliminarlo" : "Elimina"}
+        disabled={readOnly || locked}
+      >
+        <Trash2 size={14} aria-hidden="true" />
+      </button>
       {readOnly ? null : (
         <ActionMenu
           label={`Azioni per ${title}`}
@@ -211,7 +238,7 @@ function SortableBlock({
               onSelect: onDuplicate,
               disabledReason: singleton ? "Questo blocco può comparire una sola volta." : undefined,
             },
-            { label: "Elimina", icon: <Trash2 size={16} aria-hidden="true" />, danger: true, onSelect: onRemove },
+            { label: "Elimina", icon: <Trash2 size={16} aria-hidden="true" />, danger: true, onSelect: onRemove, disabledReason: locked ? "Sblocca il blocco per eliminarlo." : undefined },
           ]}
         />
       )}

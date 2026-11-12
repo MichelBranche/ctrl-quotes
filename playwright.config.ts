@@ -124,5 +124,25 @@ export default defineConfig({
         storageState: "e2e/.auth/state.json",
       },
     },
+    {
+      name: "struttura-desktop",
+      dependencies: ["visuale-mobile"],
+      testMatch: /struttura\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
+        storageState: "e2e/.auth/state.json",
+      },
+    },
+    {
+      name: "struttura-mobile",
+      dependencies: ["struttura-desktop"],
+      testMatch: /struttura\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 375, height: 812 },
+        storageState: "e2e/.auth/state.json",
+      },
+    },
   ],
 });

@@ -20,6 +20,11 @@ export const AUTOSAVE_MS = 900;
  */
 export function useQuoteDraft({ data, initialMeta, readOnly, order = "free" }: { data: QuoteEditorData; initialMeta: Meta; readOnly: boolean; order?: CommandOptions["order"] }) {
   const [history, setHistory] = useState<History<Draft>>(() => createHistory({ document: data.document, meta: initialMeta }));
+  // Undo and redo read the latest history, so an "Annulla" in a toast created earlier still undoes the right step.
+  const historyRef = useRef(history);
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
   const { document, meta } = history.present;
   const [selectedId, setSelectedId] = useState<string | null>(data.document.blocks[0]?.id ?? null);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -140,13 +145,15 @@ export function useQuoteDraft({ data, initialMeta, readOnly, order = "free" }: {
   const step = useCallback(
     (direction: "undo" | "redo") => {
       if (readOnly) return;
-      const next = direction === "undo" ? undoStep(history) : redoStep(history);
-      if (next === history) return;
+      const current = historyRef.current;
+      const next = direction === "undo" ? undoStep(current) : redoStep(current);
+      if (next === current) return;
+      historyRef.current = next;
       latest.current = next.present;
       setHistory(next);
       touch();
     },
-    [history, readOnly, touch],
+    [readOnly, touch],
   );
   const undo = useCallback(() => step("undo"), [step]);
   const redo = useCallback(() => step("redo"), [step]);

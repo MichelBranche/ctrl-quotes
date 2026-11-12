@@ -102,6 +102,8 @@ export type DocumentCommand =
   | { kind: "duplicateBlock"; blockId: string }
   | { kind: "removeBlock"; blockId: string }
   | { kind: "toggleBlock"; blockId: string }
+  /** Locks or unlocks the content of a block. A locked block can still move, hide and be copied. */
+  | { kind: "lockBlock"; blockId: string; locked: boolean }
   | { kind: "setStyle"; style: DocumentStyle }
   | { kind: "setWithholding"; bp: number };
 
@@ -157,6 +159,19 @@ function copyBlock(block: QuoteBlock, makeId: () => string): QuoteBlock {
   }
 }
 
+/** A copy starts unlocked: it is new content to work on. */
+function unlockedCopy(block: QuoteBlock, makeId: () => string): QuoteBlock {
+  const copy = copyBlock(block, makeId);
+  delete copy.locked;
+  return copy;
+}
+
+export const lockedMessage = "Il blocco è bloccato: sbloccalo dalla struttura per modificarlo.";
+
+export function isLocked(block: QuoteBlock | undefined | null): boolean {
+  return Boolean(block?.locked);
+}
+
 function move<T>(list: T[], from: number, to: number): T[] {
   const next = [...list];
   const [item] = next.splice(from, 1);
@@ -176,6 +191,7 @@ export function applyCommand(document: QuoteDocument, command: DocumentCommand, 
       const at = index(command.block.id);
       if (at < 0) return missing;
       if (document.blocks[at]?.type !== command.block.type) return { ok: false, message: "Il tipo di blocco non può cambiare." };
+      if (isLocked(document.blocks[at])) return { ok: false, message: lockedMessage };
       next = withBlocks(document, document.blocks.map((block, position) => (position === at ? command.block : block)));
       break;
     }
@@ -183,6 +199,7 @@ export function applyCommand(document: QuoteDocument, command: DocumentCommand, 
       const at = index(command.blockId);
       const block = document.blocks[at];
       if (!block) return missing;
+      if (isLocked(block)) return { ok: false, message: lockedMessage };
       const result = setField(block, command.field, command.value);
       if (!result.ok) return result;
       next = withBlocks(document, document.blocks.map((entry, position) => (position === at ? result.value : entry)));
@@ -219,13 +236,14 @@ export function applyCommand(document: QuoteDocument, command: DocumentCommand, 
       if (!source) return missing;
       if (singletonBlocks.has(source.type)) return { ok: false, message: `Il blocco ${blockLabel[source.type]} può comparire una sola volta.` };
       const blocks = [...document.blocks];
-      blocks.splice(at + 1, 0, copyBlock(source, makeId));
+      blocks.splice(at + 1, 0, unlockedCopy(source, makeId));
       next = withBlocks(document, blocks);
       break;
     }
     case "removeBlock": {
       const at = index(command.blockId);
       if (at < 0) return missing;
+      if (isLocked(document.blocks[at])) return { ok: false, message: "Il blocco è bloccato: sbloccalo per eliminarlo." };
       if (document.blocks.length <= 1) return { ok: false, message: "Il preventivo deve avere almeno un blocco." };
       next = withBlocks(document, document.blocks.filter((block) => block.id !== command.blockId));
       break;
@@ -234,6 +252,20 @@ export function applyCommand(document: QuoteDocument, command: DocumentCommand, 
       const at = index(command.blockId);
       if (at < 0) return missing;
       next = withBlocks(document, document.blocks.map((block, position) => (position === at ? { ...block, visible: !block.visible } : block)));
+      break;
+    }
+    case "lockBlock": {
+      const at = index(command.blockId);
+      if (at < 0) return missing;
+      next = withBlocks(
+        document,
+        document.blocks.map((block, position) => {
+          if (position !== at) return block;
+          const copy = { ...block };
+          delete copy.locked;
+          return command.locked ? { ...copy, locked: true } : copy;
+        }),
+      );
       break;
     }
     case "setStyle":

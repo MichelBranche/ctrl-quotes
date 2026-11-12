@@ -33,7 +33,14 @@ export type QuoteDocumentProps = {
   kit?: Kit;
   /** Fixed scale of the sheets instead of fitting the width (visual editor zoom). */
   zoom?: number;
+  /**
+   * Editors only: an image block with no photo yet shows this picture instead of nothing,
+   * so a block just added is there to see. The PDF never gets it.
+   */
+  imagePlaceholder?: string;
 };
+
+const placeholderAsset = "__editor-placeholder__";
 
 /** Average tone and aspect of the logo, read in the browser so SVG logos work too. */
 function useLogo(src: string | null): LogoInfo | null {
@@ -80,7 +87,7 @@ function useLogo(src: string | null): LogoInfo | null {
   return info && info.src === src ? info : { src, tone: null, aspect: null };
 }
 
-/** Reveals [data-a] elements once, when about 15% visible. Reduced motion shows everything at once. */
+/** Reveals [data-a] elements once, when about 15% visible, including ones mounted later. Reduced motion shows everything at once. */
 function useReveal(root: React.RefObject<HTMLDivElement | null>, enabled: boolean, key: string) {
   useEffect(() => {
     const node = root.current;
@@ -97,10 +104,20 @@ function useReveal(root: React.RefObject<HTMLDivElement | null>, enabled: boolea
       },
       { threshold: 0.15 },
     );
-    for (const element of node.querySelectorAll("[data-a]")) {
-      if (!element.classList.contains("is-in")) observer.observe(element);
-    }
-    return () => observer.disconnect();
+    const watch = (scope: Element) => {
+      const elements = scope.matches("[data-a]") ? [scope, ...scope.querySelectorAll("[data-a]")] : [...scope.querySelectorAll("[data-a]")];
+      for (const element of elements) if (!element.classList.contains("is-in")) observer.observe(element);
+    };
+    watch(node);
+    // Blocks added while editing mount new [data-a] elements: watch them too, or they stay invisible.
+    const mutations = new MutationObserver((records) => {
+      for (const record of records) for (const added of record.addedNodes) if (added instanceof Element) watch(added);
+    });
+    mutations.observe(node, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      mutations.disconnect();
+    };
   }, [root, enabled, key]);
 }
 
@@ -138,6 +155,7 @@ export function QuoteDocumentView({
   className,
   kit = webKit,
   zoom,
+  imagePlaceholder,
 }: QuoteDocumentProps) {
   const logo = useLogo(logoSrc);
   const root = useRef<HTMLDivElement>(null);
@@ -149,12 +167,21 @@ export function QuoteDocumentView({
     const resources: Resources = {
       logo,
       photo: (key, option, slot) => photoUrl(key, option, slot),
-      image: (assetId) => `${assetBase}${encodeURIComponent(assetId)}`,
+      image: (assetId) => (imagePlaceholder && assetId === placeholderAsset ? imagePlaceholder : `${assetBase}${encodeURIComponent(assetId)}`),
       watermark: watermark ?? null,
       versionLabel: versionLabel ?? (watermark ? "Bozza" : null),
     };
-    return buildModel(snapshot, resources, renderer.numbering);
-  }, [snapshot, logo, assetBase, watermark, versionLabel, renderer.numbering]);
+    const source = imagePlaceholder
+      ? {
+          ...snapshot,
+          document: {
+            ...snapshot.document,
+            blocks: snapshot.document.blocks.map((block) => (block.type === "image" && !block.assetId ? { ...block, assetId: placeholderAsset } : block)),
+          },
+        }
+      : snapshot;
+    return buildModel(source, resources, renderer.numbering);
+  }, [snapshot, logo, assetBase, watermark, versionLabel, renderer.numbering, imagePlaceholder]);
   const pages = renderer.render(kit, model);
   useReveal(root, animate, `${snapshot.template}:${pages.length}`);
   return (

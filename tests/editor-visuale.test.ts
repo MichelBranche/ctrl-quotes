@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { fieldLimit, getField, setField, type FieldPath } from "@/domain/document-ops";
-import { blockSchema, type QuoteBlock } from "@/domain/quote-document";
+import { applyCommand, fieldLimit, getField, lockedMessage, setField, type FieldPath } from "@/domain/document-ops";
+import { blockLabel, blockSchema, blockTypes, documentSchema, singletonBlocks, starterBlock, type QuoteBlock } from "@/domain/quote-document";
+import { buildModel, type Resources } from "@/components/quote-render/model";
 import { outlineGroups } from "@/components/quote-editor/visuale/outline";
-import { demoDocument } from "./fixtures/template-demo";
+import { demoDocument, demoSnapshot } from "./fixtures/template-demo";
 
 const demo = demoDocument("minimal");
 
@@ -49,36 +50,93 @@ describe("limiti dei campi scritti sul foglio", () => {
 
 describe("struttura per pagine", () => {
   const blocks = demo.blocks;
-  const pageOf = new Map<string, number>(blocks.map((block, index) => [block.id, index < 1 ? 0 : index < 3 ? 1 : 2]));
+  const summaryAt = blocks.findIndex((block) => block.type === "summary");
+  const hide = (list: QuoteBlock[], id: string) => list.map((block) => (block.id === id ? { ...block, visible: false } : block));
+  const where = (groups: ReturnType<typeof outlineGroups>, id: string) => groups.find((group) => group.blocks.some((block) => block.id === id))?.label;
 
-  it("raggruppa i blocchi per pagina stampata", () => {
-    const groups = outlineGroups(blocks, pageOf, null);
-    expect(groups.map((group) => group.label)).toEqual(["Pagina 1", "Pagina 2", "Pagina 3"]);
+  it("copertina, contenuto e Riepilogo in pagine separate", () => {
+    expect(summaryAt).toBeGreaterThan(1);
+    const groups = outlineGroups(blocks);
+    expect(groups.map((group) => group.label)).toEqual(["Pagina 1", "Pagina 2", "Pagina 3 · dal Riepilogo"]);
     expect(groups.flatMap((group) => group.blocks)).toEqual(blocks);
   });
 
-  it("segna la pagina che inizia dal Riepilogo", () => {
-    const summary = blocks[3];
-    if (!summary) throw new Error("demo troppo corta");
-    const groups = outlineGroups(blocks, pageOf, summary.id);
-    expect(groups[2]?.label).toBe("Pagina 3 · dal Riepilogo");
+  it("un blocco nascosto resta sulla sua pagina, e riattivato torna identico", () => {
+    const target = blocks[summaryAt + 1] ?? blocks[summaryAt - 1];
+    if (!target) throw new Error("demo troppo corta");
+    const before = where(outlineGroups(blocks), target.id);
+    const hidden = outlineGroups(hide(blocks, target.id));
+    expect(where(hidden, target.id)).toBe(before);
+    expect(hidden.flatMap((group) => group.blocks).map((block) => block.id)).toEqual(blocks.map((block) => block.id));
+    expect(outlineGroups(blocks)).toEqual(outlineGroups(hide(blocks, target.id)).map((group) => ({ ...group, blocks: group.blocks.map((block) => blocks.find((entry) => entry.id === block.id) ?? block) })));
   });
 
-  it("un blocco nascosto resta con quello prima", () => {
-    const hidden = new Map(pageOf);
-    const second = blocks[1];
-    if (!second) throw new Error("demo troppo corta");
-    hidden.set(second.id, -1);
-    const groups = outlineGroups(blocks, hidden, null);
-    expect(groups[0]?.blocks.map((block) => block.id)).toContain(second.id);
+  it("con il Riepilogo nascosto, quel che segue stampa sulla pagina del contenuto", () => {
+    const summary = blocks[summaryAt];
+    if (!summary) throw new Error("demo senza Riepilogo");
+    const groups = outlineGroups(hide(blocks, summary.id));
+    expect(groups.map((group) => group.label)).toEqual(["Pagina 1", "Pagina 2", "Pagina 2"]);
   });
 
-  it("il blocco trascinato appare sulla pagina dove si apre lo spazio", () => {
-    const moving = blocks[blocks.length - 1];
-    if (!moving) throw new Error("demo troppo corta");
-    const order = [blocks[0], moving, ...blocks.slice(1, -1)].filter((block): block is QuoteBlock => Boolean(block));
-    const groups = outlineGroups(order, pageOf, null, moving.id);
-    const page = groups.find((group) => group.blocks.some((block) => block.id === moving.id));
-    expect(page?.label).toBe("Pagina 2");
+  it("una pagina tutta nascosta lo dice", () => {
+    const content = blocks.slice(1, summaryAt);
+    const list = content.reduce((acc, block) => hide(acc, block.id), blocks);
+    const groups = outlineGroups(list);
+    expect(groups[1]?.label).toBe("Nascosti, non in stampa");
+    expect(groups[2]?.label).toBe("Pagina 2 · dal Riepilogo");
   });
+});
+
+describe("blocchi bloccati", () => {
+  const intro = demo.blocks.find((block) => block.type === "intro");
+  if (!intro) throw new Error("demo senza introduzione");
+  const locked = applyCommand(demo, { kind: "lockBlock", blockId: intro.id, locked: true });
+  if (!locked.ok) throw new Error(locked.message);
+  const doc = locked.value;
+
+  it("lo schema accetta il lucchetto e lo toglie quando sblocchi", () => {
+    expect(doc.blocks.find((block) => block.id === intro.id)?.locked).toBe(true);
+    expect(documentSchema.safeParse(doc).success).toBe(true);
+    const open = applyCommand(doc, { kind: "lockBlock", blockId: intro.id, locked: false });
+    expect(open.ok && "locked" in (open.value.blocks.find((block) => block.id === intro.id) ?? {})).toBe(false);
+  });
+
+  it("rifiuta testo, sostituzione ed eliminazione", () => {
+    const edit = applyCommand(doc, { kind: "setField", blockId: intro.id, field: "heading" as FieldPath, value: "Altro" });
+    expect(edit.ok).toBe(false);
+    if (!edit.ok) expect(edit.message).toBe(lockedMessage);
+    const replace = applyCommand(doc, { kind: "replaceBlock", block: { ...intro, heading: "Altro" } });
+    expect(replace.ok).toBe(false);
+    expect(applyCommand(doc, { kind: "removeBlock", blockId: intro.id }).ok).toBe(false);
+  });
+
+  it("si può ancora spostare, nascondere e duplicare; la copia parte sbloccata", () => {
+    const ids = doc.blocks.map((block) => block.id);
+    const at = ids.indexOf(intro.id);
+    const moved = [...ids];
+    moved.splice(at, 1);
+    moved.splice(at + 1, 0, intro.id);
+    expect(applyCommand(doc, { kind: "reorderBlocks", ids: moved }).ok).toBe(true);
+    expect(applyCommand(doc, { kind: "toggleBlock", blockId: intro.id }).ok).toBe(true);
+    const copy = applyCommand(doc, { kind: "duplicateBlock", blockId: intro.id });
+    expect(copy.ok).toBe(true);
+    if (copy.ok) expect(copy.value.blocks.filter((block) => block.type === "intro").map((block) => Boolean(block.locked))).toEqual([true, false]);
+  });
+});
+
+describe("blocchi nuovi dal menu", () => {
+  const resources: Resources = { logo: null, photo: () => null, image: () => "", watermark: null, versionLabel: null };
+  const base = demoSnapshot("minimal");
+  const defaults = { terms: null, taxRateBp: 2200, priceMode: "net" as const };
+  for (const type of blockTypes.filter((entry) => entry !== "cover")) {
+    it(`${blockLabel[type]} appare subito sul foglio`, () => {
+      const block = starterBlock(type, defaults);
+      expect(blockSchema.safeParse(block).success).toBe(true);
+      // A singleton replaces the demo's own, as the menu only offers it when missing.
+      const others = base.document.blocks.filter((entry) => !(singletonBlocks.has(type) && entry.type === type));
+      const snapshot = { ...base, document: { ...base.document, blocks: [...others, block] } };
+      const model = buildModel(snapshot, resources, "fromCover");
+      expect(model.pages.flat().some((section) => section.id === block.id)).toBe(true);
+    });
+  }
 });
