@@ -309,3 +309,10 @@
 .versions-panel .panel-head .btn { white-space: nowrap; flex-shrink: 0; }
 
 .editor-tabbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+/* Lock and trash take room only on hover or focus, so titles stay readable; an active lock always shows. */
+.block-item .block-lock, .block-item .block-trash { display: none; }
+.block-item:hover .block-lock, .block-item:hover .block-trash, .block-item:focus-within .block-lock, .block-item:focus-within .block-trash, .block-item .block-lock.is-on { display: inline-flex; }
+.block-lock.is-on { color: var(--cq-accent); }
+.lock-note { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--cq-surface-sunken); border: 1px solid var(--cq-border); color: var(--cq-ink-soft); font-size: 13px; }
+.lock-note span { flex: 1; }
+@media (hover: none) { .block-item .block-lock, .block-item .block-trash { display: inline-flex; } }

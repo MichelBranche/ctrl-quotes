@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, BookOpen, Copy, EyeOff, FileText, GripVertical, Maximize2, Minus, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, Copy, EyeOff, FileText, GripVertical, Lock, LockOpen, Maximize2, Minus, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { QuoteDocumentView } from "@/components/quote-render/quote-document";
 import { editKit, readAnchor } from "@/components/quote-render/kit-edit";
 import { buildModel, type Resources } from "@/components/quote-render/model";
 import { renderers } from "@/components/quote-render/templates";
-import { applyCommand, fieldLimit, getField, type DocumentCommand, type EditAnchor, type FieldPath } from "@/domain/document-ops";
-import { blankLine, blockLabel, newBlock, type BlockType, type QuoteBlock, type QuoteLine } from "@/domain/quote-document";
+import { applyCommand, fieldLimit, getField, lockedMessage, type DocumentCommand, type EditAnchor, type FieldPath } from "@/domain/document-ops";
+import { blankLine, blockLabel, starterBlock, type BlockType, type QuoteBlock, type QuoteLine } from "@/domain/quote-document";
 import { headlineTotal, type QuoteSnapshot } from "@/domain/quote-snapshot";
 import type { PriceMode } from "@/domain/pricing";
 import type { QuotableItem } from "@/server/quotes";
@@ -21,8 +21,9 @@ import { BlockPicker } from "./block-picker";
 import { DragGhost, useBlockDrag } from "./drag";
 import { blockElement, cssValue, useGeometry, type BlockBox } from "./geometry";
 import { LineCard, type LineFocus } from "./line-card";
-import { Outline, outlineGroups } from "./outline";
+import { Outline } from "./outline";
 import { TextSession, anchorSelector } from "./text-session";
+import { imagePlaceholder } from "../image-placeholder";
 
 const SHEET_PX = (595.28 * 96) / 72;
 const zoomSteps = [0.5, 0.75, 0.9, 1, 1.25] as const;
@@ -89,7 +90,7 @@ export function VisualeView({
   items: QuotableItem[];
   defaults: { taxRateBp: number; priceMode: PriceMode };
 }) {
-  const { document, run, totals, totalsFromServer, selection, setSelectedId, undo, unsaved } = draft;
+  const { document, run, totals, totalsFromServer, selection, setSelectedId, unsaved } = draft;
   const reduced = Boolean(useReducedMotion());
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -108,6 +109,16 @@ export function VisualeView({
   const sessionKey = useRef(0);
   const pendingReveal = useRef<string | null>(null);
   const pendingAnchor = useRef<EditAnchor | null>(null);
+  const revealOnly = useRef(false);
+  // A block just added glows for a moment, so the eye finds it.
+  const [fresh, setFresh] = useState<string | null>(null);
+  const freshTimer = useRef(0);
+  const flash = useCallback((id: string) => {
+    window.clearTimeout(freshTimer.current);
+    setFresh(id);
+    freshTimer.current = window.setTimeout(() => setFresh(null), 1600);
+  }, []);
+  useEffect(() => () => window.clearTimeout(freshTimer.current), []);
 
   const byId = useMemo(() => new Map(document.blocks.map((block) => [block.id, block])), [document.blocks]);
   const order = useMemo(() => document.blocks.map((block) => block.id), [document.blocks]);
@@ -188,11 +199,15 @@ export function VisualeView({
       pendingReveal.current = null;
       const box = boxOf.get(reveal);
       scrollToBox(box);
-      const element = blockElement(content, reveal);
+      const only = revealOnly.current;
+      revealOnly.current = false;
+      const element = only ? null : blockElement(content, reveal);
       // A new block opens on its first printed text, selected, ready to be typed over.
       const first = element?.querySelector<HTMLElement>('[data-edit-kind="line"], [data-edit-kind="multiline"]');
       const field = first?.dataset.editField as FieldPath | undefined;
-      if (box && first && field) openAnchor({ blockId: reveal, field, kind: first.dataset.editKind === "multiline" ? "multiline" : "line" }, null, true);
+      if (only) {
+        // A move from the outline: just bring the block into view.
+      } else if (box && first && field) openAnchor({ blockId: reveal, field, kind: first.dataset.editKind === "multiline" ? "multiline" : "line" }, null, true);
       else setFieldsOpen(true);
     }
     const anchor = pendingAnchor.current;
@@ -253,27 +268,53 @@ export function VisualeView({
       pendingReveal.current = copy.id;
     }
   };
-  const removeSelected = () => {
-    if (!selected) return;
-    const label = blockTitle(selected);
-    const result = exec({ kind: "removeBlock", blockId: selected.id });
+  const removeBlock = (id: string) => {
+    const block = byId.get(id);
+    if (!block) return;
+    const label = blockTitle(block);
+    const at = order.indexOf(id);
+    const result = exec({ kind: "removeBlock", blockId: id });
     if (!result.ok) return;
-    select(null);
+    if (selection === id) select(null);
     setSession(null);
     setLineEdit(null);
-    toast(`Blocco eliminato: ${label}`, { action: { label: "Annulla", onClick: () => undo() }, duration: 5000 });
+    // "Annulla" puts this very block back where it was, even after other edits; one toast at a time.
+    const restore = () => {
+      const back = run({ kind: "insertBlock", block, index: at }, { order: "template", quiet: true });
+      if (back.ok) {
+        select(block.id);
+        revealOnly.current = true;
+        pendingReveal.current = block.id;
+      }
+    };
+    toast(`Blocco eliminato: ${label}`, { id: "block-removed", action: { label: "Annulla", onClick: restore }, duration: 6000 });
+  };
+  const removeSelected = () => {
+    if (selected) removeBlock(selected.id);
   };
   const toggleBlock = (id: string) => exec({ kind: "toggleBlock", blockId: id });
+  const lockBlock = (id: string, locked: boolean) => {
+    const result = exec({ kind: "lockBlock", blockId: id, locked });
+    if (!result.ok) return;
+    if (locked) {
+      if (session?.anchor.blockId === id) setSession(null);
+      if (lineEdit?.blockId === id) setLineEdit(null);
+    }
+    const block = byId.get(id);
+    toast(locked ? `Bloccato: ${block ? blockTitle(block) : "blocco"}. Il PDF non cambia.` : `Sbloccato: ${block ? blockTitle(block) : "blocco"}`, { duration: 2500 });
+  };
+  const tellLocked = (id: string) => {
+    toast(lockedMessage, { id: "locked-block", action: { label: "Sblocca", onClick: () => lockBlock(id, false) }, duration: 4000 });
+  };
 
   const insertAt = (type: BlockType, index: number) => {
-    const fresh = newBlock(type);
-    // On the sheet an empty text block would print nothing to click on: it starts with a title
-    // that opens selected, so typing replaces it.
-    const block = fresh.type === "text" ? { ...fresh, heading: "Nuovo testo" } : fresh;
+    // Starter content, so the block prints at once and there is something to type over.
+    const block = starterBlock(type, defaults);
     const result = exec({ kind: "insertBlock", block, index });
     setPicker(null);
     if (!result.ok) return;
     select(block.id);
+    flash(block.id);
     pendingReveal.current = block.id;
   };
 
@@ -371,7 +412,8 @@ export function VisualeView({
     const anchor = anchorElement ? readAnchor(anchorElement) : null;
     if (anchor && !readOnly && byId.has(anchor.blockId)) {
       select(anchor.blockId);
-      openAnchor(anchor, { x: event.clientX, y: event.clientY });
+      if (byId.get(anchor.blockId)?.locked) tellLocked(anchor.blockId);
+      else openAnchor(anchor, { x: event.clientX, y: event.clientY });
       return;
     }
     const blockNode = target.closest<HTMLElement>(".qd-sheets [data-block-id]");
@@ -400,7 +442,7 @@ export function VisualeView({
     const anchors: EditAnchor[] = [];
     for (const element of content.querySelectorAll<HTMLElement>('.qd-sheets [data-edit-kind="line"], .qd-sheets [data-edit-kind="multiline"]')) {
       const anchor = readAnchor(element);
-      if (!anchor) continue;
+      if (!anchor || byId.get(anchor.blockId)?.locked) continue;
       const key = `${anchor.blockId}|${anchor.field}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -424,16 +466,14 @@ export function VisualeView({
 
   const totalLabel = totals.main.oneTime.totalCents > 0 ? "Totale una tantum" : "Totale";
   const showUi = !readOnly && !drag.dragging;
+  const lockedIds = document.blocks.filter((block) => block.locked).map((block) => block.id);
   const hoverBox = showUi && hoverId && hoverId !== selection ? boxOf.get(hoverId) : undefined;
   const outlineBlocks = drag.view ? drag.view.order.map((id) => byId.get(id)).filter((block): block is QuoteBlock => Boolean(block)) : document.blocks;
-  const pageOf = new Map(geometry.blocks.map((box) => [box.id, box.page]));
-  const groups = outlineGroups(outlineBlocks, pageOf, document.blocks.find((block) => block.type === "summary")?.id ?? null, drag.view?.id ?? null);
 
   return (
     <div ref={rootRef} className={cn("ve", readOnly && "is-readonly")} data-testid="editor-visuale">
       <Outline
-        blocks={document.blocks}
-        groups={groups}
+        blocks={outlineBlocks}
         selectedId={selection}
         draggingId={drag.view?.id ?? null}
         readOnly={readOnly}
@@ -445,6 +485,17 @@ export function VisualeView({
           scrollToBox(boxOf.get(id));
         }}
         onToggle={toggleBlock}
+        onLock={lockBlock}
+        onRemove={removeBlock}
+        onMove={(id, delta) => exec({ kind: "moveBlock", blockId: id, toIndex: order.indexOf(id) + delta })}
+        onReorder={(ids, movedId) => {
+          const result = exec({ kind: "reorderBlocks", ids });
+          if (!result.ok) return false;
+          select(movedId);
+          pendingReveal.current = movedId;
+          revealOnly.current = true;
+          return true;
+        }}
         onAdd={openPickerAfterSelection}
       />
       <section className="ve-stage" aria-label="Foglio del preventivo">
@@ -481,8 +532,9 @@ export function VisualeView({
             onPointerMove={onCanvasMove}
             onPointerLeave={() => setHoverId(null)}
           >
+            {lockedIds.length ? <style>{`${lockedIds.map((id) => `.ve-content .qd-sheets [data-edit-block="${cssValue(id)}"]`).join(", ")} { cursor: default !important; box-shadow: none !important; background-color: transparent !important; }`}</style> : null}
             {lineEdit ? <style>{`.ve-content [data-edit-block="${cssValue(lineEdit.blockId)}"][data-edit-field^="items.${cssValue(lineEdit.lineId)}."] { background: color-mix(in srgb, var(--cq-accent) 9%, transparent); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--cq-accent) 55%, transparent); border-radius: 2px; }`}</style> : null}
-            <QuoteDocumentView snapshot={snapshot} logoSrc={logoUrl} watermark="Bozza" layout="sheet" animate={false} kit={editKit} zoom={zoom} />
+            <QuoteDocumentView snapshot={snapshot} logoSrc={logoUrl} watermark="Bozza" layout="sheet" animate={false} kit={editKit} zoom={zoom} imagePlaceholder={imagePlaceholder} />
 
             <div className="ve-overlay">
               {hoverBox && hoverId ? (
@@ -505,7 +557,7 @@ export function VisualeView({
 
               {showUi && selected && selectedBox ? (
                 <motion.div
-                  className="ve-frame"
+                  className={cn("ve-frame", fresh === selected.id && "is-new", selected.locked && "is-locked")}
                   initial={false}
                   animate={{ left: selectedBox.x - 6, top: selectedBox.y - 6, width: selectedBox.w + 12, height: selectedBox.h + 12 }}
                   transition={reduced ? { duration: 0 } : SPRING}
@@ -516,6 +568,11 @@ export function VisualeView({
                       return <Icon size={12} aria-hidden="true" />;
                     })()}
                     {blockLabel[selected.type]}
+                    {selected.locked ? (
+                      <>
+                        <Lock size={11} aria-hidden="true" /> Bloccato
+                      </>
+                    ) : null}
                   </span>
                   {selected.type !== "cover" ? (
                     <button
@@ -552,6 +609,9 @@ export function VisualeView({
                     <ToolButton label="Nascondi" disabled={readOnly} onClick={() => toggleBlock(selected.id)}>
                       <EyeOff size={15} aria-hidden="true" />
                     </ToolButton>
+                    <ToolButton label={selected.locked ? "Sblocca il contenuto" : "Blocca il contenuto"} pressed={Boolean(selected.locked)} onClick={() => lockBlock(selected.id, !selected.locked)}>
+                      {selected.locked ? <Lock size={15} aria-hidden="true" /> : <LockOpen size={15} aria-hidden="true" />}
+                    </ToolButton>
                     <ToolButton label="Tutti i campi" onClick={() => setFieldsOpen(true)} pressed={fieldsOpen}>
                       <SlidersHorizontal size={15} aria-hidden="true" />
                     </ToolButton>
@@ -560,7 +620,7 @@ export function VisualeView({
                       <Trash2 size={15} aria-hidden="true" />
                     </ToolButton>
                   </motion.div>
-                  {selected.type === "services" || selected.type === "options" ? (
+                  {(selected.type === "services" || selected.type === "options") && !selected.locked ? (
                     <div className="ve-lines-bar" data-ve-ui="">
                       <button type="button" onClick={() => addLine(selected)}>
                         <Plus size={13} aria-hidden="true" /> Voce libera
@@ -661,7 +721,7 @@ export function VisualeView({
               <div className="ve-fields-head">
                 <div>
                   <h2>{blockTitle(selected)}</h2>
-                  <p className="muted small">Tutti i campi del blocco {blockLabel[selected.type]}</p>
+                  <p className="muted small">{selected.locked ? "Contenuto bloccato: sbloccalo per modificarlo." : `Tutti i campi del blocco ${blockLabel[selected.type]}`}</p>
                 </div>
                 <button type="button" className="icon-btn" aria-label="Chiudi i campi" onClick={() => setFieldsOpen(false)}>
                   <X size={16} aria-hidden="true" />
@@ -672,7 +732,7 @@ export function VisualeView({
                   key={selected.id}
                   block={selected}
                   onChange={(block) => exec({ kind: "replaceBlock", block }, `block:${block.id}`)}
-                  ctx={{ quoteId, items, defaults, taxProfile: snapshot.fiscal.taxProfile, totals, readOnly }}
+                  ctx={{ quoteId, items, defaults, taxProfile: snapshot.fiscal.taxProfile, totals, readOnly: readOnly || Boolean(selected.locked) }}
                 />
               </div>
             </motion.aside>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -11,6 +12,7 @@ import {
   Eye,
   History,
   LoaderCircle,
+  Lock,
   Monitor,
   Redo2,
   RotateCcw,
@@ -30,7 +32,7 @@ import { StatusBadge } from "@/components/ui/status";
 import { formatEuro } from "@/domain/money";
 import type { PriceMode } from "@/domain/pricing";
 import { insertionIndex } from "@/domain/document-ops";
-import { blockLabel, newBlock, type BlockType, type QuoteBlock } from "@/domain/quote-document";
+import { blockLabel, starterBlock, type BlockType, type QuoteBlock } from "@/domain/quote-document";
 import { asTemplateKey, headlineTotal, type QuoteSnapshot } from "@/domain/quote-snapshot";
 import { templateIdFor } from "@/domain/templates";
 import { quoteStatusLabel, quoteStatusTone } from "@/domain/quote-status";
@@ -39,13 +41,14 @@ import type { ClientOption, QuotableItem, QuoteEditorData } from "@/server/quote
 import type { TemplateRow } from "@/server/templates";
 import { cn } from "@/lib/cn";
 import { BlockForm } from "./block-form";
-import { BlockList, blockIcon } from "./block-list";
+import { BlockList, blockIcon, blockTitle } from "./block-list";
 import { StylePanel } from "./style-panel";
 import { PercentInput } from "./inputs";
 import { useQuoteDraft, useUndoShortcuts, type SaveState } from "./state/use-quote-draft";
 import { useEditorMode } from "./mode";
 import { ModeToggle } from "./mode-toggle";
 import { VisualeView } from "./visuale/visuale-view";
+import { imagePlaceholder } from "./image-placeholder";
 
 type Tab = "editor" | "details" | "versions";
 type Pane = "structure" | "content" | "preview";
@@ -124,12 +127,21 @@ export function QuoteEditor({
     [data.snapshot, data.quote.clientId, meta, client, templateKey, document, totals],
   );
 
+  const previewRef = useRef<HTMLDivElement>(null);
+
   const addBlock = (type: BlockType) => {
-    const block = newBlock(type);
+    // Starter content, so the new block shows in the preview at once.
+    const block = starterBlock(type, defaults);
     const result = run({ kind: "insertBlock", block, index: insertionIndex(document, selected?.id ?? null) });
     if (!result.ok) return;
     setSelectedId(block.id);
     setPane("content");
+    // The preview scrolls to the new block once it has rendered.
+    window.setTimeout(() => {
+      const target = previewRef.current?.querySelector(`[data-block-id="${CSS.escape(block.id)}"]`);
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target?.scrollIntoView({ block: "center", behavior: reduced ? "auto" : "smooth" });
+    }, 120);
   };
 
   const duplicateBlock = (id: string) => {
@@ -140,9 +152,20 @@ export function QuoteEditor({
   };
 
   const removeBlock = (id: string) => {
+    const at = document.blocks.findIndex((entry) => entry.id === id);
+    const block = document.blocks[at];
+    if (!block) return;
     const result = run({ kind: "removeBlock", blockId: id });
-    if (result.ok && selectedId === id) setSelectedId(result.value.blocks[0]?.id ?? null);
+    if (!result.ok) return;
+    if (selectedId === id) setSelectedId(result.value.blocks[0]?.id ?? null);
+    // "Annulla" puts this very block back where it was, even after other edits; one toast at a time.
+    const restore = () => {
+      if (run({ kind: "insertBlock", block, index: at }, { quiet: true }).ok) setSelectedId(block.id);
+    };
+    toast(`Blocco eliminato: ${blockTitle(block)}`, { id: "block-removed", action: { label: "Annulla", onClick: restore }, duration: 6000 });
   };
+
+  const lockBlock = (id: string, locked: boolean) => run({ kind: "lockBlock", blockId: id, locked });
 
   return (
     <div className="editor">
@@ -274,6 +297,7 @@ export function QuoteEditor({
               onToggle={(id) => run({ kind: "toggleBlock", blockId: id })}
               onDuplicate={duplicateBlock}
               onRemove={removeBlock}
+              onLock={lockBlock}
               onAdd={addBlock}
             />
             <div className="editor-col">
@@ -290,11 +314,22 @@ export function QuoteEditor({
                       </h2>
                       {!selected.visible ? <StatusBadge tone="draft">Nascosto</StatusBadge> : null}
                     </div>
+                    {selected.locked ? (
+                      <div className="lock-note" role="note">
+                        <Lock size={14} aria-hidden="true" />
+                        <span>Contenuto bloccato: non si modifica finché non lo sblocchi. Il PDF non cambia.</span>
+                        {readOnly ? null : (
+                          <Button variant="secondary" className="btn-sm" onClick={() => lockBlock(selected.id, false)}>
+                            Sblocca
+                          </Button>
+                        )}
+                      </div>
+                    ) : null}
                     <BlockForm
                       key={selected.id}
                       block={selected}
                       onChange={changeBlock}
-                      ctx={{ quoteId: data.quote.id, items, defaults, taxProfile: fiscal.taxProfile, totals, readOnly }}
+                      ctx={{ quoteId: data.quote.id, items, defaults, taxProfile: fiscal.taxProfile, totals, readOnly: readOnly || Boolean(selected.locked) }}
                     />
                   </>
                 ) : (
@@ -328,8 +363,8 @@ export function QuoteEditor({
                   <span className="muted small">Totale</span> <strong>{headlineTotal(totals)}</strong>
                 </span>
               </div>
-              <div className={cn("preview-scroll", device === "mobile" && "is-mobile")} tabIndex={0} role="region" aria-label="Documento in anteprima">
-                <QuoteDocumentView snapshot={snapshot} logoSrc={logoUrl} watermark="Bozza" activeBlockId={selectedId} layout={device === "mobile" ? "flow" : "sheet"} />
+              <div ref={previewRef} className={cn("preview-scroll", device === "mobile" && "is-mobile")} tabIndex={0} role="region" aria-label="Documento in anteprima">
+                <QuoteDocumentView snapshot={snapshot} logoSrc={logoUrl} watermark="Bozza" activeBlockId={selectedId} layout={device === "mobile" ? "flow" : "sheet"} imagePlaceholder={imagePlaceholder} />
               </div>
             </section>
           </div>

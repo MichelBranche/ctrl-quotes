@@ -110,7 +110,12 @@ export const lineSchema = z
 
 export type QuoteLine = z.infer<typeof lineSchema>;
 
-const base = { id: z.string().min(1).max(64), visible: z.boolean().default(true) };
+const base = {
+  id: z.string().min(1).max(64),
+  visible: z.boolean().default(true),
+  /** Content locked against edits (editor only: the PDF prints it as usual). Absent means unlocked. */
+  locked: z.boolean().optional(),
+};
 const heading = plain(limits.heading, "Titolo sezione").default("");
 const body = plain(limits.body, "Testo").default("");
 
@@ -447,4 +452,41 @@ export function referencedAssets(document: QuoteDocument): string[] {
     if (block.type === "cover" && block.imageAssetId) ids.add(block.imageAssetId);
   }
   return [...ids];
+}
+
+/**
+ * A new block as the editors add it: with starter text the user types over, so it shows on the
+ * sheet straight away. A block with nothing in it would print nothing (an empty list of points,
+ * phases or options is skipped by every template). Prices start at zero: never an invented amount.
+ */
+export function starterBlock(type: BlockType, defaults: { terms?: string | null; taxRateBp: number; priceMode: PriceMode }): QuoteBlock {
+  const block = newBlock(type, defaults);
+  switch (block.type) {
+    case "intro":
+      return { ...block, body: "Racconta in poche righe il contesto del cliente e l'obiettivo della proposta." };
+    case "text":
+      return { ...block, heading: "Nuovo testo", body: "Scrivi qui il testo del paragrafo." };
+    case "services":
+    case "options":
+      return { ...block, items: [blankLine(defaults)] };
+    case "highlights":
+      return {
+        ...block,
+        items: (["visibility", "value", "results"] as const).map((icon, index) => ({
+          id: createId(),
+          icon,
+          title: `Punto di forza ${index + 1}`,
+          body: "Spiega in una frase cosa ottiene il cliente.",
+        })),
+      };
+    case "timeline":
+      return {
+        ...block,
+        steps: ["Fase 1", "Fase 2", "Fase 3"].map((label) => ({ id: createId(), label, title: "Descrivi l'attività di questa fase" })),
+      };
+    case "terms":
+      return block.body.trim() ? block : { ...block, body: "Scrivi qui validità, tempi di pagamento e condizioni della proposta." };
+    default:
+      return block;
+  }
 }

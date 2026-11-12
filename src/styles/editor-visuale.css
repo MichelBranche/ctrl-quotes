@@ -21,7 +21,6 @@
 .ve-outline-head { display: flex; align-items: baseline; justify-content: space-between; padding: 16px 16px 8px; }
 .ve-outline-head h2 { margin: 0; font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
 .ve-outline-list { flex: 1; overflow-y: auto; padding: 0 10px 12px; }
-.ve-outline-group + .ve-outline-group { margin-top: 6px; }
 .ve-outline-page { margin: 10px 6px 4px; font-size: 10.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cq-muted); }
 .ve-outline-list ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
 .ve-outline-item { display: flex; align-items: center; gap: 2px; border-radius: 9px; transition: background-color 120ms ease-out; }
@@ -33,10 +32,6 @@
 .ve-outline-select { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px; border: 0; background: transparent; color: var(--cq-ink-soft); font: inherit; font-size: 13px; text-align: left; cursor: pointer; border-radius: 9px; }
 .ve-outline-select svg { flex-shrink: 0; color: var(--cq-faint); }
 .ve-outline-item.is-selected .ve-outline-select svg { color: var(--cq-accent); }
-.ve-outline-eye { display: grid; place-items: center; width: 26px; height: 26px; margin-right: 3px; border: 0; border-radius: 7px; background: transparent; color: var(--cq-faint); cursor: pointer; opacity: 0; transition: opacity 120ms ease-out, background-color 120ms ease-out; }
-.ve-outline-item:hover .ve-outline-eye, .ve-outline-item.is-hidden .ve-outline-eye, .ve-outline-eye:focus-visible { opacity: 1; }
-.ve-outline-eye:hover { background: var(--cq-border); color: var(--cq-ink); }
-.ve-outline-lock { margin-right: 10px; color: var(--cq-faint); flex-shrink: 0; }
 .ve-outline-add { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 34px; margin-top: 12px; border: 1px dashed var(--cq-border-strong); border-radius: 10px; background: transparent; color: var(--cq-muted); font: inherit; font-size: 13px; cursor: pointer; transition: border-color 150ms ease-out, color 150ms ease-out, background-color 150ms ease-out; }
 .ve-outline-add:hover { border-color: var(--ve-accent); color: var(--cq-accent); background: var(--cq-accent-wash); }
 .ve-total { display: flex; flex-direction: column; gap: 2px; margin: 10px; padding: 12px 14px; border: 1px solid var(--cq-border); border-radius: 12px; background: var(--cq-surface-sunken); }
@@ -165,3 +160,41 @@ body.ve-grabbing, body.ve-grabbing * { cursor: grabbing !important; user-select:
   .ve-hover, .ve-drag-hint { animation: none; }
 }
 .ve-content [data-ve-editing], .ve-content [data-ve-editing] * { visibility: hidden !important; }
+
+/* Struttura: rows that drag up and down, with actions on hover. */
+.ve-outline-row { position: relative; border-radius: 9px; background: transparent; list-style: none; }
+.ve-outline-row:has(.is-dragging) { z-index: 3; }
+.ve-outline-row .ve-outline-page { margin-top: 12px; }
+.ve-outline-row:first-child .ve-outline-page { margin-top: 4px; }
+.ve-outline-item.is-dragging { background: var(--cq-surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ve-accent) 45%, transparent); }
+.ve-outline-grip, .ve-outline-pin { display: grid; place-items: center; flex-shrink: 0; width: 18px; height: 28px; margin-left: 2px; border: 0; border-radius: 6px; background: transparent; color: var(--cq-faint); }
+.ve-outline-grip { cursor: grab; opacity: 0; touch-action: none; transition: opacity 120ms ease-out, color 120ms ease-out, background-color 120ms ease-out; }
+.ve-outline-grip:active { cursor: grabbing; }
+.ve-outline-grip:disabled { cursor: default; }
+.ve-outline-item:hover .ve-outline-grip:not(:disabled), .ve-outline-grip:focus-visible, .ve-outline-item.is-dragging .ve-outline-grip { opacity: 1; }
+.ve-outline-grip:hover { color: var(--cq-ink); background: var(--cq-border); }
+.ve-outline-pin { color: var(--cq-muted); }
+.ve-outline-item .ve-outline-select { padding-left: 4px; }
+.ve-outline-actions { display: flex; align-items: center; gap: 1px; margin-right: 3px; }
+.ve-outline-act { display: none; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 7px; background: transparent; color: var(--cq-muted); cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out; }
+/* Actions take room only on hover or focus, so titles stay readable; an active one (hidden, locked) always shows. */
+.ve-outline-item:hover .ve-outline-act, .ve-outline-item:focus-within .ve-outline-act, .ve-outline-act[data-on] { display: grid; }
+@media (hover: none) { .ve-outline-act { display: grid; } }
+.ve-outline-act:hover:not(:disabled) { background: var(--cq-border); color: var(--cq-ink); }
+.ve-outline-act.is-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--cq-danger) 12%, transparent); color: var(--cq-danger); }
+.ve-outline-act:disabled { cursor: not-allowed; color: var(--cq-faint); }
+.ve-outline-act[data-on] { color: var(--cq-accent); }
+.ve-outline-item.is-locked .ve-outline-select svg { color: var(--cq-muted); }
+
+/* A block just added: a short glow around its frame. */
+.ve-frame.is-new { animation: ve-new 1.4s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes ve-new {
+  0% { box-shadow: 0 0 0 1.5px var(--ve-accent), 0 0 0 14px color-mix(in srgb, var(--ve-accent) 28%, transparent); }
+  100% { box-shadow: 0 0 0 1.5px var(--ve-accent), 0 0 0 5px color-mix(in srgb, var(--ve-accent) 12%, transparent); }
+}
+.ve-frame.is-locked { box-shadow: 0 0 0 1.5px var(--cq-muted), 0 0 0 5px color-mix(in srgb, var(--cq-muted) 14%, transparent); }
+.ve-frame.is-locked .ve-frame-label { background: var(--cq-ink); color: var(--cq-surface); }
+@media (prefers-reduced-motion: reduce) {
+  .ve-frame.is-new { animation: none; }
+  .ve-outline-grip, .ve-outline-act { transition: none; }
+}
