@@ -1,8 +1,23 @@
 import type { ReactNode } from "react";
+import type { EditAnchor, EditKind, FieldPath } from "@/domain/document-ops";
 import { fonts, type Kit, type Style } from "../kit";
-import type { DocModel, Row } from "../model";
+import type { Condition, DocModel, Row } from "../model";
 
 /** Building blocks shared by the five templates. Pure functions of (kit, data): no hooks. */
+
+/**
+ * Anchor of a printed value for the visual editor. Web and PDF ignore it: adding one never changes
+ * the output (tests/render-parity.test.ts).
+ */
+export function anchor(blockId: string | null | undefined, field: FieldPath, kind: EditKind = "line"): EditAnchor | undefined {
+  return blockId ? { blockId, field, kind } : undefined;
+}
+
+/** The stored field behind a terms column. Validity is computed from the quote date: not editable here. */
+export function conditionAnchor(blockId: string, column: Condition): EditAnchor | undefined {
+  const field = column.key === "payment" ? "payment" : column.key === "notes" ? "notes" : column.key === "general" ? "body" : null;
+  return field ? anchor(blockId, field, "multiline") : undefined;
+}
 
 type IconShape =
   | { t: "path"; d: string; fill?: boolean }
@@ -157,14 +172,14 @@ export function Brand({
   );
 }
 
-export function Paras({ k, text, style, gap = 4 }: { k: Kit; text: string; style?: Style; gap?: number }) {
+export function Paras({ k, text, style, gap = 4, edit }: { k: Kit; text: string; style?: Style; gap?: number; edit?: EditAnchor }) {
   const parts = text
     .split(/\n{2,}/)
     .map((part) => part.trim())
     .filter(Boolean);
   if (!parts.length) return null;
   return (
-    <k.V>
+    <k.V edit={edit}>
       {parts.map((part, index) => (
         <k.T key={index} style={{ ...style, marginTop: index ? gap : 0 }}>
           {part}
@@ -193,8 +208,11 @@ export function LineTable({
   rowStyle,
   zebra,
   empty,
+  blockId,
 }: {
   k: Kit;
+  /** Services or options block the rows belong to: anchors name, description, quantity and price. */
+  blockId?: string;
   rows: Row[];
   columns: Column[];
   head: Style;
@@ -227,7 +245,9 @@ export function LineTable({
           >
             {columns.map((column) => (
               <k.V key={column.key} style={{ width: column.width, paddingRight: column.align === "right" ? 0 : 4 }}>
-                <k.T style={{ ...(column.key === "name" ? nameCell : cell), textAlign: column.align ?? "left" }}>{row[column.key]}</k.T>
+                <k.T edit={cellAnchor(blockId, row.id, column.key)} style={{ ...(column.key === "name" ? nameCell : cell), textAlign: column.align ?? "left" }}>
+                  {row[column.key]}
+                </k.T>
                 {column.key === "name" && row.tags.length ? <k.T style={{ ...cell, opacity: 0.7, marginTop: 1.5 }}>{row.tags.join(" · ")}</k.T> : null}
               </k.V>
             ))}
@@ -236,6 +256,21 @@ export function LineTable({
       </k.V>
     </k.V>
   );
+}
+
+function cellAnchor(blockId: string | undefined, lineId: string, column: Column["key"]): EditAnchor | undefined {
+  switch (column) {
+    case "name":
+      return anchor(blockId, `items.${lineId}.name`);
+    case "description":
+      return anchor(blockId, `items.${lineId}.description`, "multiline");
+    case "quantity":
+      return anchor(blockId, `items.${lineId}.quantityMilli`, "quantity");
+    case "price":
+      return anchor(blockId, `items.${lineId}.unitPriceCents`, "money");
+    default:
+      return undefined;
+  }
 }
 
 export function servicesColumns(m: DocModel, widths: [number, number, number, number, number, number]): Column[] {

@@ -1,7 +1,8 @@
 import type { ReactElement } from "react";
+import type { EditAnchor } from "@/domain/document-ops";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
-import { Brand, Icon, LineTable, optionsColumns, Paras, servicesColumns, Watermark } from "./shared";
+import { anchor, Brand, conditionAnchor, Icon, LineTable, optionsColumns, Paras, servicesColumns, Watermark } from "./shared";
 
 /** Studio Editorial: warm white paper, uppercase tracked labels, soft boxes, stone arches on the cover. */
 
@@ -25,9 +26,9 @@ const t = {
 
 const rule = (k: Kit, color = c.rule, width = 0.5) => <k.V style={{ borderTopWidth: width, borderTopColor: color }} />;
 
-function Label({ k, children, extra }: { k: Kit; children: string; extra?: string }) {
+function Label({ k, children, extra, edit }: { k: Kit; children: string; extra?: string; edit?: EditAnchor }) {
   return (
-    <k.T style={{ ...t.label, marginBottom: 10 }}>
+    <k.T edit={edit} style={{ ...t.label, marginBottom: 10 }}>
       {children}
       {extra ? <k.T style={{ fontWeight: 500, fontSize: 7.4, color: c.soft }}>{`  ${extra}`}</k.T> : null}
     </k.T>
@@ -73,14 +74,18 @@ function Cover({ k, m }: { k: Kit; m: DocModel }) {
       <k.V blockId={cover.id ?? undefined} style={{ paddingHorizontal: P + 5, paddingTop: 46, flexGrow: 1 }}>
         <k.V style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }} a="fade">
           <Brand k={k} m={m} dark={false} height={40} mark="studio" markColor={c.ink} gap={14} maxWidth={200} nameStyle={{ fontSize: 22, fontWeight: 500, lineHeight: 1.05, letterSpacing: -0.4, color: c.ink, maxWidth: 130 }} />
-          {m.issuer.tagline ? <k.T style={{ fontSize: 9.2, lineHeight: 1.45, color: c.ink, maxWidth: 120 }}>{m.issuer.tagline}</k.T> : null}
+          {m.issuer.tagline ? (
+            <k.T edit={anchor(cover.id, "tagline")} style={{ fontSize: 9.2, lineHeight: 1.45, color: c.ink, maxWidth: 120 }}>
+              {m.issuer.tagline}
+            </k.T>
+          ) : null}
         </k.V>
         <k.T style={{ ...t.label, fontSize: 10.4, letterSpacing: 2.6, fontWeight: 600, marginTop: 80 }}>Preventivo commerciale</k.T>
-        <k.T a="rise" style={{ fontSize: size, fontWeight: 700, lineHeight: 0.98, letterSpacing: -size * 0.035, color: c.ink, marginTop: 20, maxWidth: "60%" }}>
+        <k.T a="rise" edit={anchor(cover.id, "title")} style={{ fontSize: size, fontWeight: 700, lineHeight: 0.98, letterSpacing: -size * 0.035, color: c.ink, marginTop: 20, maxWidth: "60%" }}>
           {titleLines(cover.title)}
         </k.T>
         {cover.subtitle ? (
-          <k.T a="fade" i={2} style={{ fontSize: 35, fontWeight: 500, lineHeight: 1.12, letterSpacing: -0.8, color: c.muted, marginTop: 16, maxWidth: "80%" }}>
+          <k.T a="fade" i={2} edit={anchor(cover.id, "subtitle", "multiline")} style={{ fontSize: 35, fontWeight: 500, lineHeight: 1.12, letterSpacing: -0.8, color: c.muted, marginTop: 16, maxWidth: "80%" }}>
             {subtitleLines(cover.subtitle)}
           </k.T>
         ) : null}
@@ -162,49 +167,61 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
         <k.V stack style={{ flexDirection: "row", paddingBottom: 6 }}>
           <k.V style={{ width: "38%" }}>
             <k.T style={{ ...t.label, marginBottom: 6 }}>Introduzione</k.T>
-            <k.T style={{ fontSize: 24, fontWeight: 600, letterSpacing: -0.7, color: c.ink }}>{s.heading}</k.T>
+            <k.T edit={anchor(s.id, "heading")} style={{ fontSize: 24, fontWeight: 600, letterSpacing: -0.7, color: c.ink }}>
+              {s.heading}
+            </k.T>
           </k.V>
           <k.V style={{ flexGrow: 1, flexBasis: 0 }}>
-            {s.lead ? <k.T style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3, color: c.ink, marginBottom: 8 }}>{s.lead}</k.T> : null}
-            <Paras k={k} text={s.body || "Descrivi qui il progetto e gli obiettivi del cliente."} style={{ ...t.body, color: s.body ? c.ink : c.muted }} />
+            {s.lead ? <k.T edit={anchor(s.id, "lead", "multiline")} style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3, color: c.ink, marginBottom: 8 }}>{s.lead}</k.T> : null}
+            <Paras k={k} edit={anchor(s.id, "body", "multiline")} text={s.body || "Descrivi qui il progetto e gli obiettivi del cliente."} style={{ ...t.body, color: s.body ? c.ink : c.muted }} />
             {s.points.length ? (
               <k.V style={{ marginTop: 14 }}>
                 <k.T style={{ fontSize: 10.6, fontWeight: 700, color: c.ink, marginBottom: 5 }}>Obiettivi principali:</k.T>
                 {s.points.map((point, index) => (
                   <k.V key={index} style={{ flexDirection: "row", marginBottom: 2 }}>
                     <k.T style={{ ...t.small, color: c.ink, width: 12 }}>•</k.T>
-                    <k.T style={{ ...t.small, color: c.ink, flexGrow: 1, flexBasis: 0 }}>{point}</k.T>
+                    <k.T edit={anchor(s.id, `points.${s.pointIndexes[index] ?? index}`)} style={{ ...t.small, color: c.ink, flexGrow: 1, flexBasis: 0 }}>
+                      {point}
+                    </k.T>
                   </k.V>
                 ))}
               </k.V>
             ) : null}
-            {s.quote ? <k.T style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.35, color: c.ink, marginTop: 12 }}>{`“${s.quote}”`}</k.T> : null}
+            {s.quote ? <k.T edit={anchor(s.id, "quote", "multiline")} style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.35, color: c.ink, marginTop: 12 }}>{`“${s.quote}”`}</k.T> : null}
           </k.V>
         </k.V>,
       );
     case "text":
       return wrap(
         <k.V>
-          {s.heading ? <Label k={k}>{s.heading}</Label> : null}
-          <Paras k={k} text={s.body} style={t.body} />
+          {s.heading ? <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label> : null}
+          <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={t.body} />
         </k.V>,
       );
     case "image":
       return s.src ? (
         <k.V blockId={s.id} a="fade" style={{ marginTop: 22 }} wrap={false}>
           <k.Img src={s.src} alt={s.alt} style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: 4 }} />
-          {s.caption ? <k.T style={{ ...t.small, marginTop: 6, color: c.muted }}>{s.caption}</k.T> : null}
+          {s.caption ? (
+            <k.T edit={anchor(s.id, "caption")} style={{ ...t.small, marginTop: 6, color: c.muted }}>
+              {s.caption}
+            </k.T>
+          ) : null}
         </k.V>
       ) : null;
     case "highlights":
       return wrap(
         <k.V>
-          <Label k={k}>{s.heading}</Label>
+          <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label>
           <k.V stack style={{ flexDirection: "row" }}>
             {s.items.map((item, index) => (
               <k.V key={item.id} a="rise" i={index} style={{ flex: 1, paddingLeft: index ? 14 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.light }}>
-                <k.T style={{ fontSize: 10.6, fontWeight: 700, color: c.ink }}>{item.title}</k.T>
-                <k.T style={{ ...t.small, marginTop: 3 }}>{item.body}</k.T>
+                <k.T edit={anchor(s.id, `items.${item.id}.title`)} style={{ fontSize: 10.6, fontWeight: 700, color: c.ink }}>
+                  {item.title}
+                </k.T>
+                <k.T edit={anchor(s.id, `items.${item.id}.body`, "multiline")} style={{ ...t.small, marginTop: 3 }}>
+                  {item.body}
+                </k.T>
               </k.V>
             ))}
           </k.V>
@@ -216,12 +233,13 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       const columns = options ? optionsColumns(m, [28, 51, 21]) : servicesColumns(m, [21, 34, 6, 15, 9, 15]);
       return wrap(
         <k.V>
-          <Label k={k} extra={options ? "(NON INCLUSE NEL TOTALE)" : undefined}>
+          <Label k={k} edit={anchor(s.id, "heading")} extra={options ? "(NON INCLUSE NEL TOTALE)" : undefined}>
             {s.heading}
           </Label>
-          {options && s.body ? <Paras k={k} text={s.body} style={{ ...t.small, marginBottom: 8 }} /> : null}
+          {options && s.body ? <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.small, marginBottom: 8 }} /> : null}
           <LineTable
             k={k}
+            blockId={s.id}
             rows={s.rows}
             columns={columns}
             head={{ backgroundColor: c.box, borderRadius: 3, paddingVertical: 8, paddingHorizontal: 6 }}
@@ -238,7 +256,7 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
     case "summary":
       return wrap(
         <k.V>
-          <Label k={k}>{s.heading}</Label>
+          <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label>
           {s.groups.map((group) => (
             <Money key={group.key} k={k} g={group} tint={group.key === "oneTime" ? c.box : tintOf(m.accent)} />
           ))}
@@ -247,18 +265,22 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
               {notice}
             </k.T>
           ))}
-          {s.body ? <Paras k={k} text={s.body} style={{ ...t.small, marginTop: 6 }} /> : null}
+          {s.body ? <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.small, marginTop: 6 }} /> : null}
         </k.V>,
       );
     case "timeline":
       return wrap(
         <k.V wrap={false}>
-          <Label k={k}>{s.heading}</Label>
+          <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label>
           <k.V style={{ flexDirection: "row", paddingHorizontal: 6 }} stack>
             {s.steps.map((step) => (
               <k.V key={step.id} style={{ flex: 1, paddingRight: 8 }}>
-                <k.T style={{ fontSize: 9.2, fontWeight: 600, color: c.ink }}>{step.label}</k.T>
-                <k.T style={{ ...t.small, color: c.ink, marginTop: 2 }}>{step.title}</k.T>
+                <k.T edit={anchor(s.id, `steps.${step.id}.label`)} style={{ fontSize: 9.2, fontWeight: 600, color: c.ink }}>
+                  {step.label}
+                </k.T>
+                <k.T edit={anchor(s.id, `steps.${step.id}.title`)} style={{ ...t.small, color: c.ink, marginTop: 2 }}>
+                  {step.title}
+                </k.T>
               </k.V>
             ))}
           </k.V>
@@ -269,7 +291,7 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
     case "terms":
       return wrap(
         <k.V wrap={false}>
-          <Label k={k}>{s.heading}</Label>
+          <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label>
           <k.V style={{ flexDirection: "row" }} stack>
             {s.columns.map((column, index) => (
               <k.V key={column.key} style={{ flex: column.key === "general" ? 1.4 : 1, paddingLeft: index ? 14 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.rule }}>
@@ -277,7 +299,9 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
                   <Icon k={k} name={icons[column.key] ?? "notes"} size={11} color={c.ink} width={1.6} />
                   <k.T style={{ fontSize: 9.8, fontWeight: 600, color: c.ink, marginLeft: 7 }}>{column.title}</k.T>
                 </k.V>
-                <k.T style={{ ...t.small, color: c.ink }}>{column.body}</k.T>
+                <k.T edit={conditionAnchor(s.id, column)} style={{ ...t.small, color: c.ink }}>
+                  {column.body}
+                </k.T>
               </k.V>
             ))}
           </k.V>
@@ -287,8 +311,8 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
     case "contacts":
       return wrap(
         <k.V wrap={false}>
-          <Label k={k}>{s.heading}</Label>
-          {s.body ? <Paras k={k} text={s.body} style={{ ...t.small, marginBottom: 8 }} /> : null}
+          <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label>
+          {s.body ? <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.small, marginBottom: 8 }} /> : null}
           <k.V style={{ flexDirection: "row" }} stack>
             {[m.issuer, m.client].map((party, index) => (
               <k.V key={index} style={{ flex: 1, paddingLeft: index ? 40 : 0, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.rule, marginLeft: index ? 0 : 0 }}>

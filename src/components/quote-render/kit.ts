@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
+import type { EditAnchor } from "@/domain/document-ops";
 
 /**
  * One template source, two renderers. Templates are written once against this small kit of
@@ -34,6 +35,8 @@ export type ViewProps = Motion & {
   flowStart?: boolean;
   /** Editor: block highlighted when selected. */
   blockId?: string;
+  /** Visual editor: the stored value this region prints. Only the edit kit reads it; web and PDF ignore it. */
+  edit?: EditAnchor;
 };
 
 export type TextProps = Motion & {
@@ -42,6 +45,8 @@ export type TextProps = Motion & {
   fixed?: boolean;
   /** Decorative text, hidden from assistive technology on the web. */
   decorative?: boolean;
+  /** Visual editor: the stored value this text prints. Only the edit kit reads it; web and PDF ignore it. */
+  edit?: EditAnchor;
 };
 
 export type ImageProps = Motion & { src: string; style?: Style; alt?: string };
