@@ -530,7 +530,13 @@
 }
 
 .popover {
+  /* Reset the UA popover box (fixed, inset 0, margin auto). margin: 0 alone
+     would pin the panel to the top left of the viewport. */
+  inset: auto;
   margin: 0;
+  top: calc(anchor(bottom) + 8px);
+  bottom: auto;
+  min-width: 200px;
   padding: 8px;
   border: 1px solid var(--cq-border);
   border-radius: 14px;
@@ -538,11 +544,29 @@
   box-shadow: var(--cq-shadow-md);
   opacity: 0;
   transform: translateY(6px);
+  position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  position-try: flip-block, flip-inline, flip-block flip-inline;
   transition:
     opacity var(--cq-motion-popover) var(--cq-ease-out),
     transform var(--cq-motion-popover) var(--cq-ease-out),
     overlay var(--cq-motion-popover) allow-discrete,
     display var(--cq-motion-popover) allow-discrete;
+}
+
+.popover-end {
+  right: anchor(right);
+  left: auto;
+}
+
+.popover-start {
+  left: anchor(left);
+  right: auto;
+}
+
+@media (max-width: 1023px) {
+  .hide-on-narrow {
+    display: none;
+  }
 }
 
 .popover:popover-open {
