@@ -370,11 +370,18 @@ export const quotes = sqliteTable(
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),
     deletedAt: timestamp("deleted_at"),
+    /** Phase 3: visual template chosen for this quote. Null falls back to the workspace default. */
+    templateId: text("template_id").references(() => templates.id),
+    /** Phase 3: cached one-time total (cents, VAT included) of the draft, for lists only. Never authoritative. */
+    totalCents: integer("total_cents").notNull().default(0),
+    /** Phase 3: cached monthly + yearly recurring totals of the draft, for lists only. */
+    recurringCents: integer("recurring_cents").notNull().default(0),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
     uniqueIndex("quotes_number_uq").on(table.workspaceId, table.number),
     index("quotes_status_idx").on(table.workspaceId, table.status, table.updatedAt),
+    index("quotes_client_idx").on(table.workspaceId, table.clientId, table.updatedAt),
     foreignKey({
       columns: [table.workspaceId, table.clientId],
       foreignColumns: [clients.workspaceId, clients.id],

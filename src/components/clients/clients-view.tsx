@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Plus, UserRound, Users } from "lucide-react";
 import { ClientDetailPanel } from "@/components/clients/client-detail";
+import type { QuoteRow } from "@/server/quotes";
 import { ClientFormDialog } from "@/components/clients/client-form";
 import { ImportDialog } from "@/components/clients/import-dialog";
 import { FilterTabs, Pagination, SearchBox, useHref } from "@/components/data/controls";
@@ -15,7 +16,7 @@ import { permissionDeniedMessage } from "@/domain/permissions";
 import { cn } from "@/lib/cn";
 import type { ClientDetail, ClientList } from "@/server/clients";
 
-export type ClientPermissions = { write: boolean; remove: boolean; importCsv: boolean };
+export type ClientPermissions = { write: boolean; remove: boolean; importCsv: boolean; createQuote: boolean };
 
 export function ClientsView({
   list,
@@ -26,6 +27,7 @@ export function ClientsView({
   detail,
   detailMissing,
   permissions,
+  quoteHistory,
 }: {
   list: ClientList;
   filter: ClientFilter;
@@ -35,6 +37,7 @@ export function ClientsView({
   detail: ClientDetail | null;
   detailMissing: boolean;
   permissions: ClientPermissions;
+  quoteHistory: QuoteRow[];
 }) {
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -147,7 +150,7 @@ export function ClientsView({
             </Link>
           ) : null}
           {detail ? (
-            <ClientDetailPanel key={detail.id} client={detail} permissions={permissions} />
+            <ClientDetailPanel key={detail.id} client={detail} permissions={permissions} quotes={quoteHistory} />
           ) : detailMissing ? (
             <EmptyState title="Cliente non disponibile" body="Il cliente non esiste o è stato eliminato. Scegline un altro dalla rubrica." />
           ) : (

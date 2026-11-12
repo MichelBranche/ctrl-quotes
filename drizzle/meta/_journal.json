@@ -15,6 +15,13 @@
       "when": 1794484653662,
       "tag": "0001_fase2_dati_operativi",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794487896235,
+      "tag": "0002_fase3_motore_preventivi",
+      "breakpoints": true
     }
   ]
 }

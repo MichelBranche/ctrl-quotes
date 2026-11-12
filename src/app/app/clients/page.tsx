@@ -6,6 +6,7 @@ import { clientFilters, type ClientFilter, type ClientKind } from "@/domain/clie
 import { can } from "@/domain/permissions";
 import { getClient, listClients } from "@/server/clients";
 import { requireContext } from "@/server/context";
+import { listClientQuotes } from "@/server/quotes";
 
 export const metadata = { title: "Clienti" };
 
@@ -38,7 +39,9 @@ async function ClientsContent({ searchParams }: { searchParams: Search }) {
   const list = await listClients(db, actor, { filter, kind, page, q, pageSize: 12 });
   if (!list.ok) throw new Error(list.message);
   const selectedId = one(params.id);
-  const detailResult = selectedId ? await getClient(db, actor, selectedId) : null;
+  const [detailResult, history] = selectedId
+    ? await Promise.all([getClient(db, actor, selectedId), listClientQuotes(db, actor, selectedId)])
+    : [null, null];
   return (
     <ClientsView
       list={list.value}
@@ -52,7 +55,9 @@ async function ClientsContent({ searchParams }: { searchParams: Search }) {
         write: can(workspace.role, "clients.write"),
         remove: can(workspace.role, "clients.delete"),
         importCsv: can(workspace.role, "clients.import"),
+        createQuote: can(workspace.role, "quotes.write"),
       }}
+      quoteHistory={history?.ok ? history.value : []}
     />
   );
 }

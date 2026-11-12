@@ -2,6 +2,8 @@
 @import "../styles/tokens.css";
 @import "../styles/components.css";
 @import "../styles/data.css";
+@import "../styles/quote-doc.css";
+@import "../styles/quotes.css";
 
 @theme inline {
   --color-ink: var(--cq-ink);
