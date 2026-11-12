@@ -265,9 +265,18 @@ export function computeBreakdown(snapshot: QuoteSnapshot): Breakdown {
     .filter((item) => item.cents > 0);
   const total = items.reduce((sum, item) => sum + item.cents, 0);
   if (total <= 0) return [];
-  const sorted = [...items].sort((a, b) => b.cents - a.cents);
-  const top = sorted.slice(0, 6);
-  const rest = sorted.slice(6);
+  // Lines with the same name are one cost item in the chart.
+  const merged = new Map<string, { id: string; name: string; cents: number }>();
+  for (const item of items) {
+    const key = item.name.trim().toLowerCase();
+    const found = merged.get(key);
+    if (found) found.cents += item.cents;
+    else merged.set(key, { ...item });
+  }
+  const sorted = [...merged.values()].sort((a, b) => b.cents - a.cents);
+  const keep = sorted.length > 6 ? 5 : 6;
+  const top = sorted.slice(0, keep);
+  const rest = sorted.slice(keep);
   if (rest.length) top.push({ id: "altro", name: `Altre ${rest.length} voci`, cents: rest.reduce((sum, item) => sum + item.cents, 0) });
   return top.map((item) => {
     const share = item.cents / total;
