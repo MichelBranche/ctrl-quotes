@@ -63,5 +63,25 @@ export default defineConfig({
         storageState: "e2e/.auth/state.json",
       },
     },
+    {
+      name: "fase2-desktop",
+      dependencies: ["setup"],
+      testMatch: /fase2\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
+        storageState: "e2e/.auth/state.json",
+      },
+    },
+    {
+      name: "fase2-mobile",
+      dependencies: ["fase2-desktop"],
+      testMatch: /fase2\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 375, height: 812 },
+        storageState: "e2e/.auth/state.json",
+      },
+    },
   ],
 });

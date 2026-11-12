@@ -15,5 +15,6 @@ export function formatEuro(cents: number): string {
   return new Intl.NumberFormat("it-IT", {
     style: "currency",
     currency: "EUR",
+    useGrouping: "always",
   }).format(cents / 100);
 }
