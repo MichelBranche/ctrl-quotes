@@ -133,6 +133,12 @@
 .editor-sub { display: flex; align-items: center; gap: 8px; margin: 0; }
 .editor-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .future-wrap { display: inline-flex; }
+.history-actions { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--cq-border); border-radius: 10px; background: var(--cq-surface); }
+.history-actions .icon-btn { width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; }
+.history-actions .icon-btn:hover:not(:disabled) { background: var(--cq-accent-wash); }
+.history-actions .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.history-actions .icon-btn svg { transition: transform var(--cq-motion-hover) var(--cq-ease-out); }
+.history-actions .icon-btn:active:not(:disabled) svg { transform: scale(0.88); }
 .save-indicator { display: inline-flex; align-items: center; gap: 6px; font-size: var(--cq-font-size-sm); color: var(--cq-muted); margin-right: 4px; }
 .save-indicator.is-ok svg { color: var(--cq-success); }
 .save-indicator.is-error { color: var(--cq-danger); max-width: 420px; }
@@ -277,6 +283,8 @@
   .editor-tabs { max-width: 100%; overflow-x: auto; }
   .editor-actions { justify-content: flex-start; width: 100%; }
   .save-indicator { width: 100%; }
+  /* Undo and redo share the first row with the save status. */
+  .history-actions + .save-indicator { width: auto; flex: 1 0 calc(100% - 96px); }
   .editor-actions .btn { flex: 1 1 auto; }
   .details-grid { grid-template-columns: 1fr; }
   .line-grid { grid-template-columns: 1fr 1fr; }

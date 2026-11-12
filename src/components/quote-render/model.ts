@@ -83,7 +83,7 @@ export type Party = { name: string; lines: Array<{ label: string | null; value: 
 export type Condition = { key: "payment" | "validity" | "notes" | "general"; title: string; body: string };
 
 export type Section =
-  | { kind: "intro"; id: string; no: number; heading: string; lead: string; body: string; quote: string; points: string[] }
+  | { kind: "intro"; id: string; no: number; heading: string; lead: string; body: string; quote: string; points: string[]; /** Index of each printed point in the stored list (empty ones are skipped). */ pointIndexes: number[] }
   | { kind: "text"; id: string; no: number; heading: string; body: string }
   | { kind: "image"; id: string; no: number; src: string | null; caption: string; alt: string }
   | { kind: "highlights"; id: string; no: number; heading: string; items: Array<{ id: string; icon: HighlightIcon; title: string; body: string }> }
@@ -417,6 +417,7 @@ function toSection(
         body: block.body.trim(),
         quote: block.quote.trim(),
         points: block.points.map((point) => point.trim()).filter(Boolean),
+        pointIndexes: block.points.flatMap((point, index) => (point.trim() ? [index] : [])),
       };
     case "text":
       return block.heading.trim() || block.body.trim() ? { kind: "text", id: block.id, heading: block.heading.trim(), body: block.body.trim() } : null;

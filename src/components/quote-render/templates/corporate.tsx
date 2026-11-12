@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
-import { Brand, highlightGlyph, Icon, LineTable, optionsColumns, pad, Paras, servicesColumns, Watermark } from "./shared";
+import { anchor, Brand, conditionAnchor, highlightGlyph, Icon, LineTable, optionsColumns, pad, Paras, servicesColumns, Watermark } from "./shared";
 
 /** Corporate Executive: navy cover with architecture, orange numbering, navy table heads, cost breakdown chart. */
 
@@ -29,7 +29,7 @@ function SectionHead({ k, m, s, extra, title }: { k: Kit; m: DocModel; s: Sectio
   return (
     <k.V style={{ flexDirection: "row", alignItems: "baseline", marginBottom: 12 }}>
       {s.no ? <k.T style={{ fontSize: 13, fontWeight: 700, color: m.accentText(c.white), width: 27 }}>{pad(s.no)}</k.T> : null}
-      <k.T style={{ fontSize: 13, fontWeight: 700, color: c.navyDeep, letterSpacing: -0.2 }}>
+      <k.T edit={title === undefined && "heading" in s ? anchor(s.id, "heading") : undefined} style={{ fontSize: 13, fontWeight: 700, color: c.navyDeep, letterSpacing: -0.2 }}>
         {title ?? ("heading" in s ? s.heading : "")}
         {extra ? <k.T style={{ fontSize: 11, fontWeight: 400, color: c.text }}>{`  ${extra}`}</k.T> : null}
       </k.T>
@@ -60,7 +60,7 @@ function Cover({ k, m }: { k: Kit; m: DocModel }) {
   const meta = [
     { icon: "calendar", label: "Data", value: cover.date },
     ...(cover.validity ? [{ icon: "clock", label: "Validità", value: cover.validity }] : []),
-    ...(cover.project ? [{ icon: "layers", label: "Progetto", value: cover.project }] : []),
+    ...(cover.project ? [{ icon: "layers", label: "Progetto", value: cover.project, edit: anchor(cover.id, "project") }] : []),
   ];
   const foot = 86;
   const photoHeight = 453;
@@ -97,17 +97,17 @@ function Cover({ k, m }: { k: Kit; m: DocModel }) {
           <Brand k={k} m={m} dark height={36} mark="corporate" gap={14} maxWidth={190} nameStyle={{ fontSize: 17, fontWeight: 600, lineHeight: 1.12, color: c.white, maxWidth: 110 }} />
           <k.T style={{ fontSize: 10.4, lineHeight: 1.4, color: c.white, textAlign: "left" }}>{`Proposta commerciale\nN. ${cover.number}`}</k.T>
         </k.V>
-        <k.T a="rise" style={{ fontSize: size, fontWeight: 700, lineHeight: 1.0, letterSpacing: -size * 0.03, color: c.white, marginTop: 70, maxWidth: "86%" }}>
+        <k.T a="rise" edit={anchor(cover.id, "title")} style={{ fontSize: size, fontWeight: 700, lineHeight: 1.0, letterSpacing: -size * 0.03, color: c.white, marginTop: 70, maxWidth: "86%" }}>
           {titleLines(cover.title)}
         </k.T>
         <k.V style={{ width: 46, height: 4.5, backgroundColor: m.accent, marginTop: 26 }} />
         {cover.subtitle ? (
-          <k.T a="fade" i={2} style={{ fontSize: 30, fontWeight: 500, lineHeight: 1.16, letterSpacing: -0.6, color: "#B5BFCD", marginTop: 26, maxWidth: "80%" }}>
+          <k.T a="fade" i={2} edit={anchor(cover.id, "subtitle", "multiline")} style={{ fontSize: 30, fontWeight: 500, lineHeight: 1.16, letterSpacing: -0.6, color: "#B5BFCD", marginTop: 26, maxWidth: "80%" }}>
             {subtitleLines(cover.subtitle)}
           </k.T>
         ) : null}
         {m.issuer.tagline ? (
-          <k.T a="fade" i={3} style={{ fontSize: 13, lineHeight: 1.45, color: "#DCE2EA", marginTop: 22, maxWidth: 270 }}>
+          <k.T a="fade" i={3} edit={anchor(cover.id, "tagline")} style={{ fontSize: 13, lineHeight: 1.45, color: "#DCE2EA", marginTop: 22, maxWidth: 270 }}>
             {m.issuer.tagline}
           </k.T>
         ) : null}
@@ -119,7 +119,9 @@ function Cover({ k, m }: { k: Kit; m: DocModel }) {
               <Icon k={k} name={item.icon} size={14} color={c.navy} width={1.7} />
               <k.V style={{ marginLeft: 10 }}>
                 <k.T style={{ fontSize: 8.6, color: c.navy }}>{item.label}</k.T>
-                <k.T style={{ fontSize: 8.6, color: c.navy, marginTop: 2 }}>{item.value}</k.T>
+                <k.T edit={"edit" in item ? item.edit : undefined} style={{ fontSize: 8.6, color: c.navy, marginTop: 2 }}>
+                  {item.value}
+                </k.T>
               </k.V>
             </k.V>
           ))}
@@ -223,25 +225,31 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
     case "intro":
       return section(
         <k.V stack style={{ flexDirection: "row" }}>
-          <k.T style={{ width: "46%", fontSize: 34, fontWeight: 800, letterSpacing: -1.1, lineHeight: 1.05, color: c.navyDeep, paddingRight: 14 }}>{s.heading}</k.T>
+          <k.T edit={anchor(s.id, "heading")} style={{ width: "46%", fontSize: 34, fontWeight: 800, letterSpacing: -1.1, lineHeight: 1.05, color: c.navyDeep, paddingRight: 14 }}>
+            {s.heading}
+          </k.T>
           <k.V style={{ flexGrow: 1, flexBasis: 0, paddingTop: 2 }}>
-            {s.lead ? <k.T style={{ fontSize: 11.5, fontWeight: 700, lineHeight: 1.3, color: c.navyDeep, marginBottom: 6 }}>{s.lead}</k.T> : null}
-            <Paras k={k} text={s.body || "Descrivi qui il progetto e gli obiettivi del cliente."} style={{ ...t.body, color: s.body ? c.text : c.secondary }} />
+            {s.lead ? <k.T edit={anchor(s.id, "lead", "multiline")} style={{ fontSize: 11.5, fontWeight: 700, lineHeight: 1.3, color: c.navyDeep, marginBottom: 6 }}>{s.lead}</k.T> : null}
+            <Paras k={k} edit={anchor(s.id, "body", "multiline")} text={s.body || "Descrivi qui il progetto e gli obiettivi del cliente."} style={{ ...t.body, color: s.body ? c.text : c.secondary }} />
             {s.points.map((point, index) => (
-              <k.T key={index} style={{ ...t.small, marginTop: index ? 2 : 6 }}>{`• ${point}`}</k.T>
+              <k.T key={index} edit={anchor(s.id, `points.${s.pointIndexes[index] ?? index}`)} style={{ ...t.small, marginTop: index ? 2 : 6 }}>{`• ${point}`}</k.T>
             ))}
-            {s.quote ? <k.T style={{ fontSize: 11.5, fontWeight: 600, color: c.navyDeep, marginTop: 8 }}>{`“${s.quote}”`}</k.T> : null}
+            {s.quote ? <k.T edit={anchor(s.id, "quote", "multiline")} style={{ fontSize: 11.5, fontWeight: 600, color: c.navyDeep, marginTop: 8 }}>{`“${s.quote}”`}</k.T> : null}
           </k.V>
         </k.V>,
         { title: "Introduzione" },
       );
     case "text":
-      return section(<Paras k={k} text={s.body} style={t.body} />);
+      return section(<Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={t.body} />);
     case "image":
       return s.src ? (
         <k.V blockId={s.id} a="fade" style={{ marginTop: 18 }} wrap={false}>
           <k.Img src={s.src} alt={s.alt} style={{ width: "100%", height: 210, objectFit: "cover", borderRadius: 6 }} />
-          {s.caption ? <k.T style={{ ...t.small, color: c.secondary, marginTop: 5 }}>{s.caption}</k.T> : null}
+          {s.caption ? (
+            <k.T edit={anchor(s.id, "caption")} style={{ ...t.small, color: c.secondary, marginTop: 5 }}>
+              {s.caption}
+            </k.T>
+          ) : null}
         </k.V>
       ) : null;
     case "highlights":
@@ -250,19 +258,23 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
           {s.items.map((item, index) => (
             <k.V key={item.id} a="rise" i={index} style={{ flex: 1, paddingHorizontal: 14, borderLeftWidth: index ? 0.6 : 0, borderLeftColor: c.line }}>
               <Icon k={k} name={highlightGlyph.corporate[item.icon] ?? "target"} size={24} color={m.accent} width={1.5} />
-              <k.T style={{ fontSize: 12.5, fontWeight: 700, color: c.navyDeep, marginTop: 9 }}>{item.title}</k.T>
-              <k.T style={{ ...t.small, marginTop: 3 }}>{item.body}</k.T>
+              <k.T edit={anchor(s.id, `items.${item.id}.title`)} style={{ fontSize: 12.5, fontWeight: 700, color: c.navyDeep, marginTop: 9 }}>
+                {item.title}
+              </k.T>
+              <k.T edit={anchor(s.id, `items.${item.id}.body`, "multiline")} style={{ ...t.small, marginTop: 3 }}>
+                {item.body}
+              </k.T>
             </k.V>
           ))}
         </k.V>
       );
     case "services":
-      return section(<LineTable k={k} rows={s.rows} columns={servicesColumns(m, [22, 34, 7, 14, 8, 15])} {...table} rowStyle={{ paddingVertical: 7.5, paddingHorizontal: 8, alignItems: "center" }} />, { gap: 20 });
+      return section(<LineTable k={k} blockId={s.id} rows={s.rows} columns={servicesColumns(m, [22, 34, 7, 14, 8, 15])} {...table} rowStyle={{ paddingVertical: 7.5, paddingHorizontal: 8, alignItems: "center" }} />, { gap: 20 });
     case "options":
       return section(
         <k.V>
-          {s.body ? <Paras k={k} text={s.body} style={{ ...t.small, marginBottom: 8 }} /> : null}
-          <LineTable k={k} rows={s.rows} columns={optionsColumns(m, [27, 52, 21])} {...table} zebra={undefined} rowStyle={{ paddingVertical: 7, paddingHorizontal: 8, alignItems: "center", borderBottomWidth: 0.5, borderBottomColor: c.line }} />
+          {s.body ? <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.small, marginBottom: 8 }} /> : null}
+          <LineTable k={k} blockId={s.id} rows={s.rows} columns={optionsColumns(m, [27, 52, 21])} {...table} zebra={undefined} rowStyle={{ paddingVertical: 7, paddingHorizontal: 8, alignItems: "center", borderBottomWidth: 0.5, borderBottomColor: c.line }} />
         </k.V>,
         { extra: "(non incluse nel totale)", gap: 20 },
       );
@@ -278,7 +290,7 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
               {notice}
             </k.T>
           ))}
-          {s.body ? <Paras k={k} text={s.body} style={{ ...t.small, marginTop: 6 }} /> : null}
+          {s.body ? <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.small, marginTop: 6 }} /> : null}
         </k.V>,
       );
     case "timeline":
@@ -303,8 +315,12 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
             {s.steps.map((step) => (
               <k.V key={step.id} style={{ flex: 1, alignItems: "center" }}>
                 <k.V style={{ width: 104 }}>
-                  <k.T style={{ fontSize: 9.4, fontWeight: 700, color: c.navyDeep }}>{step.label}</k.T>
-                  <k.T style={{ ...t.small, marginTop: 2 }}>{step.title}</k.T>
+                  <k.T edit={anchor(s.id, `steps.${step.id}.label`)} style={{ fontSize: 9.4, fontWeight: 700, color: c.navyDeep }}>
+                    {step.label}
+                  </k.T>
+                  <k.T edit={anchor(s.id, `steps.${step.id}.title`)} style={{ ...t.small, marginTop: 2 }}>
+                    {step.title}
+                  </k.T>
                 </k.V>
               </k.V>
             ))}
@@ -320,7 +336,9 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
               <Icon k={k} name={termIcons[column.key] ?? "document"} size={17} color={m.accent} width={1.5} />
               <k.V style={{ marginLeft: 9, flexGrow: 1, flexBasis: 0 }}>
                 <k.T style={{ fontSize: 10, fontWeight: 700, color: c.navyDeep, marginBottom: 3 }}>{column.title}</k.T>
-                <k.T style={{ ...t.small, fontSize: 8.8 }}>{column.body}</k.T>
+                <k.T edit={conditionAnchor(s.id, column)} style={{ ...t.small, fontSize: 8.8 }}>
+                  {column.body}
+                </k.T>
               </k.V>
             </k.V>
           ))}
@@ -330,7 +348,7 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
     case "contacts":
       return section(
         <k.V wrap={false}>
-          {s.body ? <Paras k={k} text={s.body} style={{ ...t.small, marginBottom: 8 }} /> : null}
+          {s.body ? <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.small, marginBottom: 8 }} /> : null}
           <k.V style={{ flexDirection: "row" }} stack>
             {[m.issuer, m.client].map((party, index) => (
               <k.V key={index} style={{ flex: 1, paddingLeft: index ? 12 : 0, paddingRight: 8, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.line }}>

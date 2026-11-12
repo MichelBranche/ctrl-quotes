@@ -63,7 +63,10 @@ function motionStyle(motion: Motion): CSSProperties {
 const InText = createContext(false);
 const Sheet = createContext({ index: 1, total: 1 });
 
-function V({ style, children, a, i, hover, stack, scrollX, flowStart, blockId }: ViewProps) {
+/** Data attributes the edit kit adds to anchored elements. Empty for the plain web kit. */
+export type AnchorAttrs = Record<`data-${string}`, string>;
+
+export function WebV({ style, children, a, i, hover, stack, scrollX, flowStart, blockId, anchor }: ViewProps & { anchor?: AnchorAttrs }) {
   return (
     <div
       className="k-v"
@@ -73,19 +76,20 @@ function V({ style, children, a, i, hover, stack, scrollX, flowStart, blockId }:
       data-scroll-x={scrollX ? "" : undefined}
       data-flow-start={flowStart ? "" : undefined}
       data-block-id={blockId}
+      {...anchor}
     >
       {children}
     </div>
   );
 }
 
-function T({ style, children, a, i, decorative }: TextProps) {
+export function WebT({ style, children, a, i, decorative, anchor }: TextProps & { anchor?: AnchorAttrs }) {
   const nested = useContext(InText);
   const flat = flatten(style);
   // Display sizes get a cap on phones (see quote-doc.css), so big headings never split words.
   const big = typeof flat.fontSize === "number" && flat.fontSize >= 24;
   const css = { ...toCss(flat), ...motionStyle({ i }), ...(big ? { "--fs": `${flat.fontSize}pt` } : {}) } as CSSProperties;
-  const props = { style: css, ...motionAttrs({ a }), "aria-hidden": decorative || undefined, "data-big": big ? "" : undefined };
+  const props = { style: css, ...motionAttrs({ a }), "aria-hidden": decorative || undefined, "data-big": big ? "" : undefined, ...anchor };
   return <InText.Provider value={true}>{nested ? <span className="k-ts" {...props}>{children}</span> : <div className="k-t" {...props}>{children}</div>}</InText.Provider>;
 }
 
@@ -159,7 +163,7 @@ export function SheetProvider({ index, total, children }: { index: number; total
 
 function PageNo({ style, format }: { style?: Style; format: (page: number, total: number) => string }) {
   const sheet = useContext(Sheet);
-  return <T style={{ ...style, flexShrink: 0, whiteSpace: "nowrap" } as Style}>{format(sheet.index, sheet.total)}</T>;
+  return <WebT style={{ ...style, flexShrink: 0, whiteSpace: "nowrap" } as Style}>{format(sheet.index, sheet.total)}</WebT>;
 }
 
 const ease = (t: number) => 1 - (1 - t) ** 3;
@@ -201,20 +205,21 @@ function Amount({ style, cents, text, format, a, i }: AmountProps) {
     };
   }, []);
   return (
-    <T style={style} a={a} i={i}>
+    <WebT style={style} a={a} i={i}>
       <span ref={ref} className="k-amount">
         <span className="visually-hidden">{text}</span>
         <span aria-hidden="true">{frame ?? text}</span>
       </span>
-    </T>
+    </WebT>
   );
 }
 
+/** The plain web kit never prints anchors (`edit` is not read): preview, thumbnails and the public page stay as they are. */
 export const webKit: Kit = {
   mode: "web",
   Page,
-  V,
-  T,
+  V: WebV,
+  T: WebT,
   Img,
   Svg,
   Path: shape("path"),

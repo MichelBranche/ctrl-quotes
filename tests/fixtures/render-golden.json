@@ -1,0 +1,22 @@
+{
+  "pdf:minimal:standard": "f1daa0bee00d929a33a34e188c74f1845627839e2ce993cdb0f376182adb5895",
+  "web:minimal:standard": "ba0bf1813623e0bf965c941dac5fe5ed4dfdd20e8e7cbd2afb1d53105dbdaca5",
+  "pdf:minimal:stress": "d0148a4a4a63eb4ae0744f80b271f4d5153e4cd59e7207aed3cee6af4e252360",
+  "web:minimal:stress": "71208c34b4d292b697d7eed1614a2973f3b8f7c9f70530d7fe1eba8d3743d2fc",
+  "pdf:studio:standard": "7b8e33557ca204a7e76ca3a3dad4062f91c5967a8de9a6381abe01cb4a733c48",
+  "web:studio:standard": "19073ccd13487f1e45e8397ba671b5491e1dfb1ec889ebe047dfcdf4aff39597",
+  "pdf:studio:stress": "6027fccba1c592cb64d3361140dc4c375010249e699ffb8227d6daad5c048f15",
+  "web:studio:stress": "b33efb1030debf8713ead226d7864612cedec5ea40d2cf539051b66c70a21f5b",
+  "pdf:editorial:standard": "3fe267726f6b4c184d4e257c13468645af94c939da2e0601ab51fa2589082012",
+  "web:editorial:standard": "43bb013ab669611db0536eadc14e3bafdd332d4713ba70668745fb99c349db21",
+  "pdf:editorial:stress": "3f41cd789234d25ee25b87ab5869a2494daa9fe807f404e73cc9b720c6ec21ea",
+  "web:editorial:stress": "2ef2fc61fc6d92a89fdd19a645333770758f04c898159ee6a0935c81ca9cc1c3",
+  "pdf:corporate:standard": "c9310dc260856352b25d2925646e74b5e142073899c1b03dab9f66ea0fb6828f",
+  "web:corporate:standard": "ab8e785e655a9c903dac9c3ee92ff3992b9c1ed720517418ccb51d9194146880",
+  "pdf:corporate:stress": "ab29211a47ecbc834d41dc9efa39d103026ff607f3bea06da93b99eea06c6342",
+  "web:corporate:stress": "fecb9d10255c6053b6ff1d630c9d653a12c3a8cb4ec874e303c3822fc16bd318",
+  "pdf:bold:standard": "3ceeb8ca91c4f90d539e77e060529cf3d47415207bf47b31f2dd8a90e4c781d2",
+  "web:bold:standard": "bde52353285c063c9d8c5280bb4dbfcb725485ae8c3377c8e3f84d65e5d0dee4",
+  "pdf:bold:stress": "3e3af6553bfc56a84c56b185c08e01bf9bbacc154dd7aed063387cafd073a236",
+  "web:bold:stress": "3c2f8e93c720e00140d3e486f9dde8517b52d8b3258f90dbd2608efd95ecd7a7"
+}
