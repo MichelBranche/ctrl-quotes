@@ -9,7 +9,9 @@ import { ActionMenu } from "@/components/data/menu";
 import { useAction } from "@/components/data/use-action";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/overlays";
+import { IllustratedEmpty } from "@/components/ui/illustrated-empty";
 import { PageHeader, StatusBadge } from "@/components/ui/status";
+import { messages } from "@/i18n/it";
 import { formatEuro } from "@/domain/money";
 import { quoteStatusLabel, quoteStatusTone, type QuoteFilter } from "@/domain/quote-status";
 import { deleteQuoteAction, duplicateQuoteAction } from "@/server/actions/quotes";
@@ -64,23 +66,29 @@ export function QuotesView({ list, filter, canWrite }: { list: QuoteList; filter
       </div>
       <section className="card list-pane quotes-list" aria-label="Elenco preventivi">
         {list.items.length === 0 ? (
-          <div className="list-empty">
-            <FileText size={22} aria-hidden="true" />
-            <p>
-              {hasAny
-                ? "Nessun preventivo corrisponde a ricerca e filtri."
-                : "Ancora nessun preventivo. Scegli un cliente, un template e le voci dal catalogo: il resto lo componi nell'editor."}
-            </p>
-            {hasAny ? (
+          hasAny ? (
+            <div className="list-empty">
+              <FileText size={22} aria-hidden="true" />
+              <p>Nessun preventivo corrisponde a ricerca e filtri.</p>
               <Link className="btn btn-secondary" href="/app/quotes" replace>
                 Azzera filtri
               </Link>
-            ) : canWrite ? (
-              <Link className="btn btn-primary" href="/app/quotes/new">
-                <Plus size={16} aria-hidden="true" /> Nuovo preventivo
-              </Link>
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <IllustratedEmpty
+              scene="first-quote"
+              title={messages.quotes.firstTitle}
+              body={messages.quotes.firstBody}
+              float
+              action={
+                canWrite ? (
+                  <Link className="btn btn-primary" href="/app/quotes/new">
+                    <Plus size={16} aria-hidden="true" /> {messages.quotes.action}
+                  </Link>
+                ) : undefined
+              }
+            />
+          )
         ) : (
           <div className="quote-table">
             <div className="quote-head" aria-hidden="true">

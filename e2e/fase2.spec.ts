@@ -50,6 +50,19 @@ test("clienti: crea, cerca, referenti, note, archivia e ripristina", async ({ pa
   await dialog.getByLabel("Indirizzo").fill("Via di prova 1, Milano");
   await dialog.getByRole("button", { name: "Crea cliente" }).click();
   await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
+
+  if (!mobile) {
+    await page.screenshot({ path: "qa/screenshots/clients-selected-desktop.png", fullPage: true });
+    await page.goto("/app/clients");
+    await expect(page.getByRole("heading", { name: "Seleziona un cliente" })).toBeVisible();
+    await page.waitForFunction(() => {
+      const image = document.querySelector(".empty-illustration img") as HTMLImageElement | null;
+      return Boolean(image && image.naturalWidth > 16);
+    });
+    await page.screenshot({ path: "qa/screenshots/clients-empty-desktop.png", fullPage: true });
+    await page.getByRole("link", { name: new RegExp(name) }).click();
+    await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
+  }
   await expect(page).toHaveURL(/id=/);
 
   await page.getByRole("tab", { name: /Referenti/ }).click();

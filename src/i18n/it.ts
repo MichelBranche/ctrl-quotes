@@ -86,14 +86,18 @@ export const messages = {
   overview: {
     title: "Panoramica",
     subtitle: "Qui vedrai valore, esiti e attività quando ci saranno preventivi.",
-    emptyTitle: "Ancora nessun preventivo",
-    emptyBody: "La dashboard si riempie con i dati reali dei preventivi. La creazione arriva nella fase successiva.",
+    filledSubtitle: "Apri la lista preventivi per vedere stato, importi e scadenze.",
+    openQuotes: "Vai ai preventivi",
+    emptyTitle: "Crea il tuo primo preventivo",
+    emptyBody: "Scegli un template, aggiungi cliente e servizi: in pochi minuti hai un PDF pronto da inviare.",
   },
   quotes: {
     title: "Preventivi",
     subtitle: "Crea, gestisci e monitora tutte le tue proposte.",
     emptyTitle: "Nessun preventivo",
     emptyBody: "Quando crei una proposta la trovi in questa lista, con stato, importo e scadenza.",
+    firstTitle: "Crea il tuo primo preventivo",
+    firstBody: "Scegli un template, aggiungi cliente e servizi: in pochi minuti hai un PDF pronto da inviare.",
     action: "Nuovo preventivo",
   },
   clients: {
@@ -101,6 +105,8 @@ export const messages = {
     subtitle: "Gestisci la rubrica e lo storico delle proposte.",
     emptyTitle: "Nessun cliente",
     emptyBody: "Aggiungi il primo cliente o importa un CSV. Nessun contatto di esempio è stato inserito.",
+    selectTitle: "Seleziona un cliente",
+    selectBody: "Scegli un nome dalla lista per aprire la sua scheda, i preventivi e lo storico.",
     action: "Nuovo cliente",
   },
   catalog: {

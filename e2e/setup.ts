@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { expect, test as setup } from "@playwright/test";
 
+const baseURL = `http://127.0.0.1:${process.env.PORT ?? "3000"}`;
 const email = "giulia.neri@example.com";
 const password = "Esempio123";
 
@@ -9,7 +10,7 @@ setup("prepara un account fittizio", async ({ request }) => {
   fs.mkdirSync("data", { recursive: true });
   fs.rmSync("data/e2e-emails.jsonl", { force: true });
 
-  const headers = { origin: "http://127.0.0.1:3000" };
+  const headers = { origin: baseURL };
   const signUp = await request.post("/api/auth/sign-up/email", {
     headers,
     data: { name: "Giulia Neri", email, password },
@@ -39,8 +40,8 @@ setup("prepara un account fittizio", async ({ request }) => {
 });
 
 setup("prepara un secondo account in un altro workspace", async ({ playwright }) => {
-  const request = await playwright.request.newContext({ baseURL: "http://127.0.0.1:3000" });
-  const headers = { origin: "http://127.0.0.1:3000" };
+  const request = await playwright.request.newContext({ baseURL });
+  const headers = { origin: baseURL };
   const other = { name: "Paolo Verdi", email: "paolo.verdi@example.com", password: "Esempio456" };
   const signUp = await request.post("/api/auth/sign-up/email", { headers, data: other });
   expect(signUp.ok()).toBeTruthy();
