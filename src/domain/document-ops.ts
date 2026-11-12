@@ -288,10 +288,24 @@ export function applyCommand(document: QuoteDocument, command: DocumentCommand, 
 }
 
 /** Where a new block lands: right after the selected one, or at the end. */
+/**
+ * Where a new block goes: right after the selected one, unless that is the cover or the
+ * closing contacts (signature), or nothing is selected. Then it goes at the end of the
+ * content, before the Riepilogo (or before the contacts), never after the signature.
+ */
 export function insertionIndex(document: QuoteDocument, afterId: string | null): number {
-  if (!afterId) return document.blocks.length;
-  const at = document.blocks.findIndex((block) => block.id === afterId);
-  return at < 0 ? document.blocks.length : at + 1;
+  const at = afterId ? document.blocks.findIndex((block) => block.id === afterId) : -1;
+  const anchor = document.blocks[at];
+  if (anchor && anchor.type !== "cover" && anchor.type !== "contacts") return at + 1;
+  return contentEnd(document);
+}
+
+/** Index just before the Riepilogo, else before the contacts, else the end. */
+export function contentEnd(document: QuoteDocument): number {
+  const summary = document.blocks.findIndex((block) => block.type === "summary");
+  if (summary >= 0) return summary;
+  const contacts = document.blocks.findIndex((block) => block.type === "contacts");
+  return contacts >= 0 ? contacts : document.blocks.length;
 }
 
 /** Maximum length of a text field, the same as the schema. Null for numbers. */

@@ -111,9 +111,27 @@ describe("comandi sul documento", () => {
     const at = insertionIndex(document, "b-intro");
     const next = ok(document, { kind: "insertBlock", block: text, index: at });
     expect(ids(next)[at]).toBe("b-text");
-    expect(insertionIndex(document, null)).toBe(document.blocks.length);
-    expect(insertionIndex(document, "nessuno")).toBe(document.blocks.length);
+    const summary = document.blocks.findIndex((block) => block.type === "summary");
+    expect(insertionIndex(document, null)).toBe(summary);
+    expect(insertionIndex(document, "nessuno")).toBe(summary);
     expect(apply(next, { kind: "insertBlock", block: text, index: 0 })).toEqual({ ok: false, message: "Due blocchi hanno lo stesso identificativo." });
+  });
+
+  it("con copertina o firma selezionata il blocco nuovo va prima del Riepilogo, mai dopo la firma", () => {
+    const document = demoDocument("minimal");
+    const cover = document.blocks.find((block) => block.type === "cover");
+    const contacts = document.blocks.find((block) => block.type === "contacts");
+    if (!cover || !contacts) throw new Error("demo senza copertina o contatti");
+    const summary = document.blocks.findIndex((block) => block.type === "summary");
+    expect(summary).toBeGreaterThan(0);
+    expect(insertionIndex(document, cover.id)).toBe(summary);
+    expect(insertionIndex(document, contacts.id)).toBe(summary);
+    // Without a Riepilogo it lands just before the contacts.
+    const noSummary = { ...document, blocks: document.blocks.filter((block) => block.type !== "summary") };
+    expect(insertionIndex(noSummary, contacts.id)).toBe(noSummary.blocks.findIndex((block) => block.type === "contacts"));
+    // Any other block: right after it, as before.
+    const terms = document.blocks.findIndex((block) => block.type === "terms");
+    expect(insertionIndex(document, document.blocks[terms]?.id ?? null)).toBe(terms + 1);
   });
 
   it("non rimuove l'ultimo blocco", () => {
