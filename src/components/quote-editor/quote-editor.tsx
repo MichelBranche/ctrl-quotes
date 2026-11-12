@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -12,12 +12,14 @@ import {
   History,
   LoaderCircle,
   Monitor,
+  Redo2,
   RotateCcw,
   Send,
   Settings2,
   Smartphone,
   SquarePen,
   Stamp,
+  Undo2,
 } from "lucide-react";
 import { useAction } from "@/components/data/use-action";
 import { QuoteDocumentView } from "@/components/quote-render/quote-document";
@@ -27,12 +29,12 @@ import { Dialog } from "@/components/ui/overlays";
 import { StatusBadge } from "@/components/ui/status";
 import { formatEuro } from "@/domain/money";
 import type { PriceMode } from "@/domain/pricing";
-import { blockLabel, computeTotals, newBlock, type BlockType, type QuoteBlock, type QuoteDocument } from "@/domain/quote-document";
+import { insertionIndex } from "@/domain/document-ops";
+import { blockLabel, newBlock, type BlockType, type QuoteBlock } from "@/domain/quote-document";
 import { asTemplateKey, headlineTotal, type QuoteSnapshot } from "@/domain/quote-snapshot";
 import { templateIdFor } from "@/domain/templates";
 import { quoteStatusLabel, quoteStatusTone } from "@/domain/quote-status";
-import { createId } from "@/domain/ids";
-import { createVersionAction, restoreVersionAction, saveDraftAction } from "@/server/actions/quotes";
+import { createVersionAction, restoreVersionAction } from "@/server/actions/quotes";
 import type { ClientOption, QuotableItem, QuoteEditorData } from "@/server/quotes";
 import type { TemplateRow } from "@/server/templates";
 import { cn } from "@/lib/cn";
@@ -40,16 +42,14 @@ import { BlockForm } from "./block-form";
 import { BlockList, blockIcon } from "./block-list";
 import { StylePanel } from "./style-panel";
 import { PercentInput } from "./inputs";
+import { useQuoteDraft, useUndoShortcuts, type SaveState } from "./state/use-quote-draft";
 
-type SaveState = "saved" | "dirty" | "saving" | "error" | "conflict";
 type Tab = "editor" | "details" | "versions";
 type Pane = "structure" | "content" | "preview";
 
-type Meta = { title: string; clientId: string | null; templateId: string; validUntil: string | null };
 
 const timeFormat = new Intl.DateTimeFormat("it-IT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" });
 const dateTimeFormat = new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Rome" });
-const AUTOSAVE_MS = 900;
 
 export function QuoteEditor({
   data,
@@ -69,106 +69,29 @@ export function QuoteEditor({
   const router = useRouter();
   const readOnly = !data.canEdit;
   const templateIdOf = (key: string) => templates.find((template) => template.key === key)?.id ?? templateIdFor(asTemplateKey(key));
-  const [meta, setMeta] = useState<Meta>({
-    title: data.quote.title,
-    clientId: data.quote.clientId,
-    templateId: templateIdOf(data.quote.templateKey),
-    validUntil: data.quote.validUntil,
+  const draft = useQuoteDraft({
+    data,
+    readOnly,
+    initialMeta: {
+      title: data.quote.title,
+      clientId: data.quote.clientId,
+      templateId: templateIdOf(data.quote.templateKey),
+      validUntil: data.quote.validUntil,
+    },
   });
-  const [document, setDocument] = useState<QuoteDocument>(data.document);
-  const [selectedId, setSelectedId] = useState<string | null>(data.document.blocks[0]?.id ?? null);
+  const { document, meta, changeMeta, run, selectedId, setSelectedId, totals, save, saveState, saveError, savedAt, revision, unsaved } = draft;
+  useUndoShortcuts(draft, !readOnly);
   const [tab, setTab] = useState<Tab>("editor");
   const [pane, setPane] = useState<Pane>("content");
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
-  const [saveState, setSaveState] = useState<SaveState>("saved");
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [savedAt, setSavedAt] = useState<Date>(data.draftUpdatedAt);
-  const [revision, setRevision] = useState(data.revision);
   const [restoreTarget, setRestoreTarget] = useState<number | null>(null);
   const versionAction = useAction();
   const restoreAction = useAction();
 
-  const revisionRef = useRef(data.revision);
-  const inFlight = useRef(false);
-  const queued = useRef(false);
-  const latest = useRef({ meta, document });
-  useEffect(() => {
-    latest.current = { meta, document };
-  }, [meta, document]);
-
   const fiscal = data.snapshot.fiscal;
-  const totals = useMemo(() => computeTotals(document, fiscal), [document, fiscal]);
+  const changeBlock = (block: QuoteBlock) => run({ kind: "replaceBlock", block }, { group: `block:${block.id}` });
 
-  const save = useCallback(async () => {
-    if (readOnly) return;
-    if (inFlight.current) {
-      queued.current = true;
-      return;
-    }
-    inFlight.current = true;
-    setSaveState("saving");
-    const { meta: currentMeta, document: currentDocument } = latest.current;
-    try {
-      const result = await saveDraftAction(data.quote.id, {
-        revision: revisionRef.current,
-        title: currentMeta.title,
-        clientId: currentMeta.clientId,
-        templateId: currentMeta.templateId,
-        validUntil: currentMeta.validUntil,
-        document: currentDocument,
-      });
-      if (result.ok) {
-        revisionRef.current = result.value.revision;
-        setRevision(result.value.revision);
-        setSavedAt(new Date(result.value.savedAt));
-        setSaveError(null);
-        setSaveState(queued.current ? "dirty" : "saved");
-      } else {
-        setSaveError(result.message);
-        setSaveState(result.message.includes("Ricarica") ? "conflict" : "error");
-        queued.current = false;
-      }
-    } catch {
-      setSaveError("Connessione non riuscita. Le modifiche restano qui: riprovo al prossimo cambiamento.");
-      setSaveState("error");
-    } finally {
-      inFlight.current = false;
-      if (queued.current) {
-        queued.current = false;
-        void save();
-      }
-    }
-  }, [data.quote.id, readOnly]);
-
-  useEffect(() => {
-    if (saveState !== "dirty") return;
-    const timer = setTimeout(() => void save(), AUTOSAVE_MS);
-    return () => clearTimeout(timer);
-  }, [saveState, meta, document, save]);
-
-  useEffect(() => {
-    const warn = (event: BeforeUnloadEvent) => {
-      if (saveState === "dirty" || saveState === "saving" || saveState === "error") event.preventDefault();
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [saveState]);
-
-  const touch = () => {
-    if (readOnly) return;
-    setSaveState((state) => (state === "conflict" ? state : "dirty"));
-  };
-  const changeDocument = (next: QuoteDocument) => {
-    setDocument(next);
-    touch();
-  };
-  const changeMeta = (patch: Partial<Meta>) => {
-    setMeta((current) => ({ ...current, ...patch }));
-    touch();
-  };
-  const changeBlock = (block: QuoteBlock) => changeDocument({ ...document, blocks: document.blocks.map((entry) => (entry.id === block.id ? block : entry)) });
-
-  const selected = document.blocks.find((block) => block.id === selectedId) ?? null;
+  const selected = draft.selected;
   const client = clients.find((entry) => entry.id === meta.clientId);
   const templateKey = asTemplateKey(templates.find((template) => template.id === meta.templateId)?.key);
 
@@ -195,36 +118,23 @@ export function QuoteEditor({
 
   const addBlock = (type: BlockType) => {
     const block = newBlock(type);
-    const index = selected ? document.blocks.findIndex((entry) => entry.id === selected.id) + 1 : document.blocks.length;
-    const blocks = [...document.blocks];
-    blocks.splice(index, 0, block);
-    changeDocument({ ...document, blocks });
+    const result = run({ kind: "insertBlock", block, index: insertionIndex(document, selected?.id ?? null) });
+    if (!result.ok) return;
     setSelectedId(block.id);
     setPane("content");
   };
 
   const duplicateBlock = (id: string) => {
-    const index = document.blocks.findIndex((block) => block.id === id);
-    const source = document.blocks[index];
-    if (!source) return;
-    const copy: QuoteBlock =
-      source.type === "services" || source.type === "options"
-        ? { ...source, id: createId(), items: source.items.map((line) => ({ ...line, id: createId() })) }
-        : { ...source, id: createId() };
-    const blocks = [...document.blocks];
-    blocks.splice(index + 1, 0, copy);
-    changeDocument({ ...document, blocks });
-    setSelectedId(copy.id);
+    const at = document.blocks.findIndex((block) => block.id === id);
+    const result = run({ kind: "duplicateBlock", blockId: id });
+    const copy = result.ok ? result.value.blocks[at + 1] : undefined;
+    if (copy) setSelectedId(copy.id);
   };
 
   const removeBlock = (id: string) => {
-    if (document.blocks.length <= 1) return;
-    const blocks = document.blocks.filter((block) => block.id !== id);
-    changeDocument({ ...document, blocks });
-    if (selectedId === id) setSelectedId(blocks[0]?.id ?? null);
+    const result = run({ kind: "removeBlock", blockId: id });
+    if (result.ok && selectedId === id) setSelectedId(result.value.blocks[0]?.id ?? null);
   };
-
-  const unsaved = saveState === "dirty" || saveState === "saving";
 
   return (
     <div className="editor">
@@ -248,6 +158,16 @@ export function QuoteEditor({
           </div>
         </div>
         <div className="editor-actions">
+          {readOnly ? null : (
+            <div className="history-actions" role="group" aria-label="Cronologia delle modifiche">
+              <button type="button" className="icon-btn" onClick={draft.undo} disabled={!draft.canUndo} aria-label="Annulla" title="Annulla (Ctrl+Z)">
+                <Undo2 size={16} aria-hidden="true" />
+              </button>
+              <button type="button" className="icon-btn" onClick={draft.redo} disabled={!draft.canRedo} aria-label="Ripeti" title="Ripeti (Ctrl+Maiusc+Z)">
+                <Redo2 size={16} aria-hidden="true" />
+              </button>
+            </div>
+          )}
           <SaveIndicator state={saveState} savedAt={savedAt} error={saveError} onRetry={() => void save()} readOnly={readOnly} />
           <Link className="btn btn-secondary" href={`/app/quotes/${data.quote.id}/preview`} aria-disabled={unsaved || undefined} onClick={(event) => unsaved && event.preventDefault()}>
             <Eye size={16} aria-hidden="true" /> Anteprima
@@ -323,8 +243,8 @@ export function QuoteEditor({
                 setSelectedId(id);
                 setPane("content");
               }}
-              onReorder={(blocks) => changeDocument({ ...document, blocks })}
-              onToggle={(id) => changeDocument({ ...document, blocks: document.blocks.map((block) => (block.id === id ? { ...block, visible: !block.visible } : block)) })}
+              onReorder={(blocks) => run({ kind: "reorderBlocks", ids: blocks.map((block) => block.id) })}
+              onToggle={(id) => run({ kind: "toggleBlock", blockId: id })}
               onDuplicate={duplicateBlock}
               onRemove={removeBlock}
               onAdd={addBlock}
@@ -364,7 +284,7 @@ export function QuoteEditor({
                 logoUrl={logoUrl}
                 readOnly={readOnly}
                 onTemplate={(templateId) => changeMeta({ templateId })}
-                onStyle={(style) => changeDocument({ ...document, style })}
+                onStyle={(style) => run({ kind: "setStyle", style }, { group: "style" })}
               />
             </div>
             <section className="card editor-panel preview-panel" aria-label="Anteprima live">
@@ -414,7 +334,7 @@ export function QuoteEditor({
                 label="Ritenuta d'acconto (informativa)"
                 bp={document.withholdingBp}
                 max={5000}
-                onBp={(withholdingBp) => changeDocument({ ...document, withholdingBp })}
+                onBp={(bp) => run({ kind: "setWithholding", bp }, { group: "withholding" })}
               />
             ) : null}
           </fieldset>

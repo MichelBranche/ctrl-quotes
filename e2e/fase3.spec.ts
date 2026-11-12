@@ -137,6 +137,34 @@ test("preventivi: wizard, editor, versione, PDF e storico cliente", async ({ pag
   await page.getByLabel("Prezzo unitario").last().blur();
   await expect(page.getByText(/Salvato alle/)).toBeVisible({ timeout: 15_000 });
   await expect(page.locator(".preview-total strong")).toContainText("3.294,00");
+
+  // Undo and redo: buttons and keyboard, then back to the saved state.
+  const historyGroup = page.getByRole("group", { name: "Cronologia delle modifiche" });
+  const undoButton = historyGroup.getByRole("button", { name: "Annulla" });
+  const redoButton = historyGroup.getByRole("button", { name: "Ripeti" });
+  await expect(undoButton).toBeEnabled();
+  await expect(redoButton).toBeDisabled();
+  const lineName = page.getByLabel("Nome", { exact: true }).last();
+  await lineName.fill("Voce da annullare");
+  if (!mobile) await expect(page.locator(".preview-panel .qd")).toContainText("Voce da annullare");
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(lineName).toHaveValue("Manutenzione annuale");
+  await expect(redoButton).toBeEnabled();
+  await redoButton.click();
+  await expect(lineName).toHaveValue("Voce da annullare");
+  await expect(redoButton).toBeDisabled();
+  await undoButton.click();
+  await expect(lineName).toHaveValue("Manutenzione annuale");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect(lineName).toHaveValue("Voce da annullare");
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(lineName).toHaveValue("Manutenzione annuale");
+  await expect(page.getByText(/Salvato alle/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".preview-total strong")).toContainText("3.294,00");
+  if (!mobile) {
+    await redoButton.hover();
+    await shot(page, "editor-cronologia", testInfo, false);
+  }
   if (mobile) {
     await page.getByRole("button", { name: "Anteprima", exact: true }).click();
     await expect(page.locator(".preview-panel .qd")).toBeVisible();
