@@ -8,10 +8,10 @@ const nextConfig: NextConfig = {
     // Logo (1 MB) and client CSV (1 MB) travel through Server Actions.
     serverActions: { bodySizeLimit: "2mb" },
   },
-  serverExternalPackages: ["@libsql/client", "libsql", "@react-pdf/renderer"],
-  // PDF fonts are read from disk at runtime: ship them with the function.
+  serverExternalPackages: ["@libsql/client", "libsql", "@react-pdf/renderer", "sharp"],
+  // PDF fonts and template photos are read from disk at runtime: ship them with the function.
   outputFileTracingIncludes: {
-    "/api/quotes/[quoteId]/pdf": ["./src/server/pdf/fonts/**"],
+    "/api/quotes/[quoteId]/pdf": ["./src/server/pdf/fonts/**", "./src/server/pdf/photos/**"],
   },
   async headers() {
     return [

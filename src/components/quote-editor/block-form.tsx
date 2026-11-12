@@ -11,7 +11,22 @@ import { Dialog } from "@/components/ui/overlays";
 import { catalogBillingLabel, catalogBillings, catalogTypeLabel, formatPrice, taxNatures, taxRateOptions } from "@/domain/catalog";
 import { formatEuro } from "@/domain/money";
 import type { PriceMode, TaxProfile } from "@/domain/pricing";
-import { blankLine, blockHint, blockLabel, lineNetCents, type BlockOf, type QuoteBlock, type QuoteLine, type QuoteTotals } from "@/domain/quote-document";
+import { createId } from "@/domain/ids";
+import {
+  blankLine,
+  blockHint,
+  blockLabel,
+  highlightIconLabel,
+  highlightIcons,
+  lineNetCents,
+  type BlockOf,
+  type Highlight,
+  type HighlightIcon,
+  type QuoteBlock,
+  type QuoteLine,
+  type QuoteTotals,
+  type TimelineStep,
+} from "@/domain/quote-document";
 import { summaryGroups } from "@/domain/quote-snapshot";
 import { catalogLinesAction, uploadQuoteImageAction } from "@/server/actions/quotes";
 import type { QuotableItem } from "@/server/quotes";
@@ -43,18 +58,59 @@ function Fields({ block, onChange, ctx }: { block: QuoteBlock; onChange: (block:
       return (
         <>
           <TextField label="Titolo" value={block.title} maxLength={120} placeholder="Vuoto: usa il titolo del preventivo" onChange={(event) => onChange({ ...block, title: event.target.value })} />
-          <TextAreaField label="Sottotitolo" value={block.subtitle} maxLength={400} rows={3} onChange={(event) => onChange({ ...block, subtitle: event.target.value })} />
+          <TextAreaField label="Sottotitolo" hint="«Proposta per Cliente» va a capo da solo, come nei modelli." value={block.subtitle} maxLength={400} rows={2} onChange={(event) => onChange({ ...block, subtitle: event.target.value })} />
+          <TextAreaField
+            label="Riga descrittiva (facoltativa)"
+            hint="Servizi dello studio o una frase sul progetto. Ogni template la mostra nel suo punto."
+            value={block.tagline}
+            maxLength={120}
+            rows={2}
+            onChange={(event) => onChange({ ...block, tagline: event.target.value })}
+          />
+          <TextField label="Progetto" hint="Nel piè di pagina della copertina. Vuoto: usa il titolo del preventivo." value={block.project} maxLength={80} onChange={(event) => onChange({ ...block, project: event.target.value })} />
           <ImagePicker
-            label="Immagine di copertina"
+            label="Foto di copertina personale (facoltativa)"
             quoteId={ctx.quoteId}
             assetId={block.imageAssetId}
             onAsset={(assetId) => onChange({ ...block, imageAssetId: assetId })}
           />
+          <p className="muted small">Se non carichi una foto, usa quella scelta in «Stile» per il template.</p>
         </>
       );
     case "intro":
+      return (
+        <>
+          <TextField label="Titolo della sezione" value={block.heading} maxLength={120} onChange={(event) => onChange({ ...block, heading: event.target.value })} />
+          <TextAreaField
+            label="Frase di apertura (facoltativa)"
+            hint="Il titolone di Editorial Atelier e Bold Impact. Negli altri template è un sottotitolo."
+            value={block.lead}
+            maxLength={200}
+            rows={2}
+            onChange={(event) => onChange({ ...block, lead: event.target.value })}
+          />
+          <TextAreaField label="Testo" hint="Testo semplice. Una riga vuota separa i paragrafi." value={block.body} maxLength={6000} rows={6} onChange={(event) => onChange({ ...block, body: event.target.value })} />
+          <TextAreaField
+            label="Obiettivi (facoltativi)"
+            hint="Uno per riga, al massimo 8."
+            value={block.points.join("\n")}
+            maxLength={1700}
+            rows={3}
+            onChange={(event) =>
+              onChange({
+                ...block,
+                points: event.target.value
+                  .split("\n")
+                  .map((line, index, all) => (index === all.length - 1 ? line : line.trim()))
+                  .slice(0, 8),
+              })
+            }
+            onBlur={() => onChange({ ...block, points: block.points.map((point) => point.trim()).filter(Boolean) })}
+          />
+          <TextAreaField label="Citazione (facoltativa)" hint="Messa in evidenza in Editorial Atelier, accanto alla foto." value={block.quote} maxLength={300} rows={2} onChange={(event) => onChange({ ...block, quote: event.target.value })} />
+        </>
+      );
     case "text":
-    case "terms":
     case "contacts":
       return (
         <>
@@ -68,7 +124,7 @@ function Fields({ block, onChange, ctx }: { block: QuoteBlock; onChange: (block:
             }
             value={block.body}
             maxLength={6000}
-            rows={block.type === "terms" ? 10 : 7}
+            rows={7}
             onChange={(event) => onChange({ ...block, body: event.target.value })}
           />
           {block.type === "contacts" ? (
@@ -78,6 +134,20 @@ function Fields({ block, onChange, ctx }: { block: QuoteBlock; onChange: (block:
           ) : null}
         </>
       );
+    case "terms":
+      return (
+        <>
+          <TextField label="Titolo della sezione" value={block.heading} maxLength={120} onChange={(event) => onChange({ ...block, heading: event.target.value })} />
+          <TextAreaField label="Pagamento" hint="Per esempio: 40% alla conferma, 40% a sviluppo completato, 20% alla messa online." value={block.payment} maxLength={1000} rows={3} onChange={(event) => onChange({ ...block, payment: event.target.value })} />
+          <p className="muted small">La validità arriva dalla data di scadenza del preventivo.</p>
+          <TextAreaField label="Note" value={block.notes} maxLength={1000} rows={3} onChange={(event) => onChange({ ...block, notes: event.target.value })} />
+          <TextAreaField label="Condizioni generali (facoltative)" hint="Testo semplice. Una riga vuota separa i paragrafi." value={block.body} maxLength={6000} rows={6} onChange={(event) => onChange({ ...block, body: event.target.value })} />
+        </>
+      );
+    case "highlights":
+      return <HighlightsForm block={block} onChange={onChange} />;
+    case "timeline":
+      return <TimelineForm block={block} onChange={onChange} />;
     case "image":
       return (
         <>
@@ -107,6 +177,10 @@ function Fields({ block, onChange, ctx }: { block: QuoteBlock; onChange: (block:
             ))}
             <p className="muted small">Calcolato sul server a ogni salvataggio, con il regime fiscale del workspace.</p>
           </div>
+          <label className="checkline">
+            <input type="checkbox" checked={block.breakdown} onChange={(event) => onChange({ ...block, breakdown: event.target.checked })} />
+            <span>Mostra la ripartizione dei costi (Corporate Executive e Bold Impact)</span>
+          </label>
           <TextAreaField label="Nota sotto il riepilogo" value={block.body} maxLength={6000} rows={4} onChange={(event) => onChange({ ...block, body: event.target.value })} />
         </>
       );
@@ -115,6 +189,90 @@ function Fields({ block, onChange, ctx }: { block: QuoteBlock; onChange: (block:
       return exhaustive;
     }
   }
+}
+
+function HighlightsForm({ block, onChange }: { block: BlockOf<"highlights">; onChange: (block: QuoteBlock) => void }) {
+  const update = (items: Highlight[]) => onChange({ ...block, items });
+  const set = (id: string, patch: Partial<Highlight>) => update(block.items.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  return (
+    <>
+      <TextField label="Titolo della sezione" value={block.heading} maxLength={120} onChange={(event) => onChange({ ...block, heading: event.target.value })} />
+      <ol className="mini-list">
+        {block.items.map((item, index) => (
+          <li key={item.id} className="mini-item">
+            <div className="mini-item-head">
+              <span className="small muted">Vantaggio {index + 1}</span>
+              <Button variant="ghost" className="btn-sm" aria-label={`Rimuovi vantaggio ${index + 1}`} onClick={() => update(block.items.filter((other) => other.id !== item.id))}>
+                <Trash2 size={14} aria-hidden="true" />
+              </Button>
+            </div>
+            <SelectField
+              label="Icona"
+              value={item.icon}
+              options={highlightIcons.map((icon) => ({ value: icon, label: highlightIconLabel[icon] }))}
+              onChange={(event) => set(item.id, { icon: event.target.value as HighlightIcon })}
+            />
+            <TextField label="Titolo" value={item.title} maxLength={80} placeholder="Più visibilità" onChange={(event) => set(item.id, { title: event.target.value })} />
+            <TextAreaField label="Testo" value={item.body} maxLength={300} rows={2} onChange={(event) => set(item.id, { body: event.target.value })} />
+          </li>
+        ))}
+      </ol>
+      {block.items.length < 4 ? (
+        <Button variant="secondary" className="btn-sm" onClick={() => update([...block.items, { id: createId(), icon: highlightIcons[block.items.length % highlightIcons.length] ?? "visibility", title: "", body: "" }])}>
+          <Plus size={14} aria-hidden="true" /> Aggiungi vantaggio
+        </Button>
+      ) : (
+        <p className="muted small">Al massimo quattro vantaggi.</p>
+      )}
+    </>
+  );
+}
+
+function TimelineForm({ block, onChange }: { block: BlockOf<"timeline">; onChange: (block: QuoteBlock) => void }) {
+  const update = (steps: TimelineStep[]) => onChange({ ...block, steps });
+  const set = (id: string, patch: Partial<TimelineStep>) => update(block.steps.map((step) => (step.id === id ? { ...step, ...patch } : step)));
+  const move = (index: number, delta: -1 | 1) => {
+    const target = index + delta;
+    if (target < 0 || target >= block.steps.length) return;
+    const next = [...block.steps];
+    const [moved] = next.splice(index, 1);
+    if (moved) next.splice(target, 0, moved);
+    update(next);
+  };
+  return (
+    <>
+      <TextField label="Titolo della sezione" value={block.heading} maxLength={120} onChange={(event) => onChange({ ...block, heading: event.target.value })} />
+      <ol className="mini-list">
+        {block.steps.map((step, index) => (
+          <li key={step.id} className="mini-item">
+            <div className="mini-item-head">
+              <span className="small muted">Fase {index + 1}</span>
+              <span className="mini-item-actions">
+                <Button variant="ghost" className="btn-sm" aria-label={`Sposta su la fase ${index + 1}`} disabled={index === 0} onClick={() => move(index, -1)}>
+                  <ArrowUp size={14} aria-hidden="true" />
+                </Button>
+                <Button variant="ghost" className="btn-sm" aria-label={`Sposta giù la fase ${index + 1}`} disabled={index === block.steps.length - 1} onClick={() => move(index, 1)}>
+                  <ArrowDown size={14} aria-hidden="true" />
+                </Button>
+                <Button variant="ghost" className="btn-sm" aria-label={`Rimuovi la fase ${index + 1}`} onClick={() => update(block.steps.filter((other) => other.id !== step.id))}>
+                  <Trash2 size={14} aria-hidden="true" />
+                </Button>
+              </span>
+            </div>
+            <TextField label="Periodo" value={step.label} maxLength={60} placeholder="Settimana 1" onChange={(event) => set(step.id, { label: event.target.value })} />
+            <TextField label="Attività" value={step.title} maxLength={140} placeholder="Analisi e briefing" onChange={(event) => set(step.id, { title: event.target.value })} />
+          </li>
+        ))}
+      </ol>
+      {block.steps.length < 8 ? (
+        <Button variant="secondary" className="btn-sm" onClick={() => update([...block.steps, { id: createId(), label: "", title: "" }])}>
+          <Plus size={14} aria-hidden="true" /> Aggiungi fase
+        </Button>
+      ) : (
+        <p className="muted small">Al massimo otto fasi.</p>
+      )}
+    </>
+  );
 }
 
 function ImagePicker({ label, quoteId, assetId, onAsset }: { label: string; quoteId: string; assetId: string | null; onAsset: (id: string | null) => void }) {

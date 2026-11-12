@@ -19,7 +19,6 @@ import {
   SquarePen,
   Stamp,
 } from "lucide-react";
-import { TemplateCover } from "@/components/templates/template-cover";
 import { useAction } from "@/components/data/use-action";
 import { QuoteDocumentView } from "@/components/quote-render/quote-document";
 import { Button } from "@/components/ui/button";
@@ -30,6 +29,7 @@ import { formatEuro } from "@/domain/money";
 import type { PriceMode } from "@/domain/pricing";
 import { blockLabel, computeTotals, newBlock, type BlockType, type QuoteBlock, type QuoteDocument } from "@/domain/quote-document";
 import { asTemplateKey, headlineTotal, type QuoteSnapshot } from "@/domain/quote-snapshot";
+import { templateIdFor } from "@/domain/templates";
 import { quoteStatusLabel, quoteStatusTone } from "@/domain/quote-status";
 import { createId } from "@/domain/ids";
 import { createVersionAction, restoreVersionAction, saveDraftAction } from "@/server/actions/quotes";
@@ -38,6 +38,7 @@ import type { TemplateRow } from "@/server/templates";
 import { cn } from "@/lib/cn";
 import { BlockForm } from "./block-form";
 import { BlockList, blockIcon } from "./block-list";
+import { StylePanel } from "./style-panel";
 import { PercentInput } from "./inputs";
 
 type SaveState = "saved" | "dirty" | "saving" | "error" | "conflict";
@@ -67,7 +68,7 @@ export function QuoteEditor({
 }) {
   const router = useRouter();
   const readOnly = !data.canEdit;
-  const templateIdOf = (key: string) => templates.find((template) => template.key === key)?.id ?? `tpl_${key}`;
+  const templateIdOf = (key: string) => templates.find((template) => template.key === key)?.id ?? templateIdFor(asTemplateKey(key));
   const [meta, setMeta] = useState<Meta>({
     title: data.quote.title,
     clientId: data.quote.clientId,
@@ -353,33 +354,18 @@ export function QuoteEditor({
                   <p className="muted">Seleziona un blocco nella struttura.</p>
                 )}
               </section>
-              <section className="card editor-panel style-panel" aria-labelledby="style-title">
-                <div className="panel-head">
-                  <div>
-                    <h2 id="style-title">Stile del preventivo</h2>
-                    <p className="muted small">Cambia l&apos;impaginazione senza toccare i contenuti.</p>
-                  </div>
-                </div>
-                <div className="style-grid" role="radiogroup" aria-label="Template">
-                  {templates.map((template) => (
-                    <button
-                      key={template.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={template.id === meta.templateId}
-                      className={cn("style-option", template.id === meta.templateId && "is-selected")}
-                      onClick={() => changeMeta({ templateId: template.id })}
-                      disabled={readOnly}
-                    >
-                      <TemplateCover templateKey={template.key} name={template.name} brandName={data.snapshot.issuer.displayName} logoUrl={logoUrl} />
-                      <span>{template.name}</span>
-                    </button>
-                  ))}
-                </div>
-                <p className="muted small">
-                  Colori, font e logo arrivano dal <Link href="/app/settings/brand">Brand Kit</Link>.
-                </p>
-              </section>
+              <StylePanel
+                templates={templates}
+                templateId={meta.templateId}
+                templateKey={templateKey}
+                document={document}
+                brandName={data.snapshot.issuer.displayName}
+                brandAccent={data.snapshot.brand.colorSecondary}
+                logoUrl={logoUrl}
+                readOnly={readOnly}
+                onTemplate={(templateId) => changeMeta({ templateId })}
+                onStyle={(style) => changeDocument({ ...document, style })}
+              />
             </div>
             <section className="card editor-panel preview-panel" aria-label="Anteprima live">
               <div className="panel-head">
@@ -396,13 +382,7 @@ export function QuoteEditor({
                 </span>
               </div>
               <div className={cn("preview-scroll", device === "mobile" && "is-mobile")} tabIndex={0} role="region" aria-label="Documento in anteprima">
-                <QuoteDocumentView
-                  snapshot={snapshot}
-                  logoSrc={logoUrl}
-                  imageSrc={(assetId) => `/api/assets/${assetId}`}
-                  watermark="Bozza"
-                  activeBlockId={selectedId}
-                />
+                <QuoteDocumentView snapshot={snapshot} logoSrc={logoUrl} watermark="Bozza" activeBlockId={selectedId} layout={device === "mobile" ? "flow" : "sheet"} />
               </div>
             </section>
           </div>

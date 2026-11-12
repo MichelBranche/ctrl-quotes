@@ -136,9 +136,10 @@ describe("impostazioni, brand kit, template e team", () => {
     expect((await setLogo(db, member, { bytes: png, filename: "x.png" })).ok).toBe(false);
   });
 
-  it("elenca i quattro template, salva preferiti e predefinito per workspace", async () => {
+  it("elenca i cinque template, salva preferiti e predefinito per workspace", async () => {
     const list = must(await listTemplates(db, alpha));
-    expect(list.map((template) => template.key)).toEqual(["minimal", "editorial", "corporate", "bold"]);
+    expect(list.map((template) => template.key)).toEqual(["minimal", "studio", "editorial", "corporate", "bold"]);
+    expect(list.map((template) => template.name)).toEqual(["Swiss Minimal", "Studio Editorial", "Editorial Atelier", "Corporate Executive", "Bold Impact"]);
     expect(list.find((template) => template.isDefault)?.key).toBe("minimal");
     expect(must(await toggleFavorite(db, alpha, "tpl_bold")).favorite).toBe(true);
     must(await setDefaultTemplate(db, alpha, "tpl_editorial"));

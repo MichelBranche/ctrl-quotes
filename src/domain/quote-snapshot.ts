@@ -5,17 +5,15 @@ import type { MoneyBucket, PriceResult } from "@/domain/pricing";
 import type { Fiscal, QuoteDocument, QuoteTotals } from "@/domain/quote-document";
 import { formatPercentBp } from "@/domain/quote-document";
 
-export const templateKeys = ["minimal", "editorial", "corporate", "bold"] as const;
-export type TemplateKey = (typeof templateKeys)[number];
+import type { TemplateKey } from "@/domain/templates";
 
-export function asTemplateKey(value: string | null | undefined): TemplateKey {
-  return (templateKeys as readonly string[]).includes(value ?? "") ? (value as TemplateKey) : "minimal";
-}
+export { asTemplateKey, templateIdFor, templateKeys, type TemplateKey } from "@/domain/templates";
 
-export const templateIdFor = (key: TemplateKey) => `tpl_${key}`;
-
-/** Bumped whenever the renderers change in a way that alters an already stored snapshot. */
-export const RENDERER_VERSION = "quotes-renderer@1";
+/**
+ * Bumped whenever the renderers change in a way that alters an already stored snapshot.
+ * @2: premium templates (Swiss Minimal, Studio Editorial, Editorial Atelier, Corporate Executive, Bold Impact).
+ */
+export const RENDERER_VERSION = "quotes-renderer@2";
 
 /**
  * Everything needed to render a quote, frozen at a point in time.

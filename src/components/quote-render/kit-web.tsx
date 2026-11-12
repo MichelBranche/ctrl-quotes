@@ -1,0 +1,201 @@
+"use client";
+
+import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { flatten, type AmountProps, type ImageProps, type Kit, type Motion, type PageProps, type ShapeProps, type Style, type SvgProps, type TextProps, type ViewProps } from "./kit";
+
+/**
+ * DOM implementation of the template kit. Boxes reproduce the react-pdf (Yoga) model:
+ * flex column, border-box, lengths in pt. The sheet is exactly A4 wide, so the web preview
+ * and the PDF share line breaks; narrow screens switch to a fluid single column through CSS.
+ */
+
+const unitless = new Set(["flex", "flexGrow", "flexShrink", "opacity", "zIndex", "fontWeight", "lineHeight", "order"]);
+const families: Record<string, string> = {
+  CQInter: '"CQ Inter", Inter, ui-sans-serif, system-ui, sans-serif',
+  CQCormorant: '"CQ Cormorant", "Cormorant Garamond", Georgia, serif',
+  CQFigures: '"CQ Figures", "Instrument Serif", Georgia, serif',
+  CQArchivo: '"CQ Archivo", "Archivo Black", "CQ Inter", sans-serif',
+};
+
+export function toCss(input: Style): CSSProperties {
+  const out: Record<string, string | number> = {};
+  for (const [key, raw] of Object.entries(input)) {
+    if (raw === undefined) continue;
+    const value = typeof raw === "number" && !unitless.has(key) ? `${raw}pt` : raw;
+    switch (key) {
+      case "paddingHorizontal":
+        out.paddingLeft = value;
+        out.paddingRight = value;
+        break;
+      case "paddingVertical":
+        out.paddingTop = value;
+        out.paddingBottom = value;
+        break;
+      case "marginHorizontal":
+        out.marginLeft = value;
+        out.marginRight = value;
+        break;
+      case "marginVertical":
+        out.marginTop = value;
+        out.marginBottom = value;
+        break;
+      case "fontFamily":
+        out.fontFamily = families[String(raw)] ?? String(raw);
+        break;
+      default:
+        out[key] = value;
+    }
+  }
+  return out as CSSProperties;
+}
+
+function motionAttrs(motion: Motion): Record<string, string | undefined> {
+  return {
+    "data-a": motion.a,
+    "data-hover": motion.hover,
+  };
+}
+
+function motionStyle(motion: Motion): CSSProperties {
+  return motion.i !== undefined ? ({ "--i": motion.i } as CSSProperties) : {};
+}
+
+const InText = createContext(false);
+const Sheet = createContext({ index: 1, total: 1 });
+
+function V({ style, children, a, i, hover, stack, scrollX, blockId }: ViewProps) {
+  return (
+    <div
+      className="k-v"
+      style={{ ...toCss(flatten(style)), ...motionStyle({ i }) }}
+      {...motionAttrs({ a, hover })}
+      data-stack={stack ? "" : undefined}
+      data-scroll-x={scrollX ? "" : undefined}
+      data-block-id={blockId}
+    >
+      {children}
+    </div>
+  );
+}
+
+function T({ style, children, a, i, decorative }: TextProps) {
+  const nested = useContext(InText);
+  const css = { ...toCss(flatten(style)), ...motionStyle({ i }) };
+  const props = { style: css, ...motionAttrs({ a }), "aria-hidden": decorative || undefined };
+  return <InText.Provider value={true}>{nested ? <span className="k-ts" {...props}>{children}</span> : <div className="k-t" {...props}>{children}</div>}</InText.Provider>;
+}
+
+function Img({ src, style, alt, a, i }: ImageProps) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img className="k-img" src={src} alt={alt ?? ""} style={{ ...toCss(style ?? {}), ...motionStyle({ i }) }} data-a={a} loading="lazy" decoding="async" />;
+}
+
+function Svg({ width, height, viewBox, style, children, a, i, preserveAspectRatio }: SvgProps) {
+  return (
+    <svg
+      className="k-svg"
+      width={`${width}pt`}
+      height={`${height}pt`}
+      viewBox={viewBox}
+      preserveAspectRatio={preserveAspectRatio}
+      style={{ ...toCss(style ?? {}), ...motionStyle({ i }) }}
+      aria-hidden="true"
+      focusable="false"
+      {...motionAttrs({ a })}
+    >
+      {children}
+    </svg>
+  );
+}
+
+const shape = (tag: "path" | "circle" | "rect" | "line" | "ellipse" | "g") =>
+  function Shape({ children, ...props }: ShapeProps) {
+    const Tag = tag;
+    return <Tag {...props}>{children}</Tag>;
+  };
+
+function Page({ style, children, cover, label }: PageProps) {
+  return (
+    <section className={cover ? "k-page is-cover" : "k-page"} style={toCss(style ?? {})} aria-label={label} data-a="sheet">
+      {children}
+    </section>
+  );
+}
+
+export function SheetProvider({ index, total, children }: { index: number; total: number; children: ReactNode }) {
+  return <Sheet.Provider value={{ index, total }}>{children}</Sheet.Provider>;
+}
+
+function PageNo({ style, format }: { style?: Style; format: (page: number, total: number) => string }) {
+  const sheet = useContext(Sheet);
+  return <T style={style}>{format(sheet.index, sheet.total)}</T>;
+}
+
+const ease = (t: number) => 1 - (1 - t) ** 3;
+
+/** Counts up to the exact amount the first time it becomes visible. The real value is always in the DOM. */
+function Amount({ style, cents, text, format, a, i }: AmountProps) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const played = useRef(false);
+  const target = useRef({ cents, format });
+  useEffect(() => {
+    target.current = { cents, format };
+  });
+  const [frame, setFrame] = useState<string | null>(null);
+  useEffect(() => {
+    const node = ref.current;
+    if (played.current || !node || typeof IntersectionObserver === "undefined") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !node.closest(".qd-anim")) return;
+    let raf = 0;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        observer.disconnect();
+        played.current = true;
+        const start = performance.now();
+        const tick = (now: number) => {
+          const progress = Math.min(1, (now - start) / 900);
+          const { cents: goal, format: show } = target.current;
+          setFrame(progress >= 1 ? null : show(Math.round((goal * ease(progress)) / 100) * 100));
+          if (progress < 1) raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      },
+      { threshold: 0.15 },
+    );
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+  return (
+    <T style={style} a={a} i={i}>
+      <span ref={ref} className="k-amount">
+        <span className="visually-hidden">{text}</span>
+        <span aria-hidden="true">{frame ?? text}</span>
+      </span>
+    </T>
+  );
+}
+
+export const webKit: Kit = {
+  mode: "web",
+  Page,
+  V,
+  T,
+  Img,
+  Svg,
+  Path: shape("path"),
+  Circle: shape("circle"),
+  Rect: shape("rect"),
+  Line: shape("line"),
+  Ellipse: shape("ellipse"),
+  G: shape("g"),
+  Defs: ({ children }) => <defs>{children}</defs>,
+  LinearGradient: ({ children, ...props }) => <linearGradient {...props}>{children}</linearGradient>,
+  RadialGradient: ({ children, ...props }) => <radialGradient {...props}>{children}</radialGradient>,
+  Stop: (props) => <stop {...props} />,
+  PageNo,
+  Amount,
+};

@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Building2, Check, Search, UserRound } from "lucide-react";
-import { TemplateCover, templateMeta } from "@/components/templates/template-cover";
+import { TemplateCover } from "@/components/templates/template-cover";
+import { templateInfo } from "@/domain/templates";
 import { TextAreaField, FormError } from "@/components/data/fields";
 import { useAction } from "@/components/data/use-action";
 import { Button } from "@/components/ui/button";
@@ -195,12 +196,12 @@ export function QuoteWizard({
                   className={cn("wizard-template", template.id === templateId && "is-selected")}
                   onClick={() => setTemplateId(template.id)}
                 >
-                  <TemplateCover templateKey={template.key} name={template.name} brandName={brand.companyName} logoUrl={brand.logoUrl} />
+                  <TemplateCover templateKey={template.key} brandName={brand.companyName} logoUrl={brand.logoUrl} />
                   <span className="wizard-template-name">
                     <strong>{template.name}</strong>
                     {template.isDefault ? <StatusBadge tone="info">Predefinito</StatusBadge> : null}
                   </span>
-                  <span className="muted small">{templateMeta[template.key].tagline}</span>
+                  <span className="muted small">{templateInfo[template.key].description}</span>
                 </button>
               </li>
             ))}

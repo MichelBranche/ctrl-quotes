@@ -15,7 +15,9 @@ export const blockTypes = [
   "image",
   "services",
   "options",
+  "highlights",
   "summary",
+  "timeline",
   "terms",
   "contacts",
 ] as const;
@@ -28,7 +30,9 @@ export const blockLabel: Record<BlockType, string> = {
   image: "Immagine",
   services: "Servizi",
   options: "Opzioni",
+  highlights: "Vantaggi",
   summary: "Riepilogo",
+  timeline: "Tempistiche",
   terms: "Condizioni",
   contacts: "Contatti",
 };
@@ -40,13 +44,15 @@ export const blockHint: Record<BlockType, string> = {
   image: "Una foto o un riferimento visivo, PNG o JPG.",
   services: "Le voci incluse nel totale.",
   options: "Voci facoltative, mostrate a parte e fuori dal totale.",
+  highlights: "Da due a quattro punti di forza della proposta, con un'icona.",
   summary: "Totali calcolati sul server, imposte e ricorrenze.",
+  timeline: "Le fasi del progetto, dalla prima all'ultima.",
   terms: "Validità, pagamenti e condizioni.",
   contacts: "I dati aziendali del Brand Kit e il referente.",
 };
 
 /** Blocks that can appear only once in a document. */
-export const singletonBlocks: ReadonlySet<BlockType> = new Set(["cover", "summary", "contacts"]);
+export const singletonBlocks: ReadonlySet<BlockType> = new Set(["cover", "summary", "timeline", "contacts"]);
 
 export const limits = {
   blocks: 40,
@@ -108,20 +114,94 @@ const base = { id: z.string().min(1).max(64), visible: z.boolean().default(true)
 const heading = plain(limits.heading, "Titolo sezione").default("");
 const body = plain(limits.body, "Testo").default("");
 
+export const highlightIcons = ["visibility", "contacts", "value", "performance", "control", "results"] as const;
+export type HighlightIcon = (typeof highlightIcons)[number];
+export const highlightIconLabel: Record<HighlightIcon, string> = {
+  visibility: "Visibilità",
+  contacts: "Contatti",
+  value: "Valore",
+  performance: "Performance",
+  control: "Controllo",
+  results: "Risultati",
+};
+
+const highlightSchema = z.object({
+  id: z.string().min(1).max(64),
+  icon: z.enum(highlightIcons).default("visibility"),
+  title: plain(80, "Titolo vantaggio").default(""),
+  body: plain(300, "Testo vantaggio").default(""),
+});
+export type Highlight = z.infer<typeof highlightSchema>;
+
+const stepSchema = z.object({
+  id: z.string().min(1).max(64),
+  label: plain(60, "Periodo").default(""),
+  title: plain(140, "Attività").default(""),
+});
+export type TimelineStep = z.infer<typeof stepSchema>;
+
 export const blockSchema = z.discriminatedUnion("type", [
-  z.object({ ...base, type: z.literal("cover"), title: heading, subtitle: plain(400, "Sottotitolo").default(""), imageAssetId: z.string().max(64).nullable().default(null) }),
-  z.object({ ...base, type: z.literal("intro"), heading, body }),
+  z.object({
+    ...base,
+    type: z.literal("cover"),
+    title: heading,
+    subtitle: plain(400, "Sottotitolo").default(""),
+    imageAssetId: z.string().max(64).nullable().default(null),
+    /** Short line under the issuer name, e.g. "Design / Sviluppo / Strategia". Never filled in for the user. */
+    tagline: plain(120, "Descrizione dello studio").default(""),
+    /** Project label in the cover footer. Empty: the quote title. */
+    project: plain(80, "Progetto").default(""),
+  }),
+  z.object({
+    ...base,
+    type: z.literal("intro"),
+    heading,
+    body,
+    /** Large editorial headline next to the body, used by the templates that print one. */
+    lead: plain(200, "Frase di apertura").default(""),
+    quote: plain(300, "Citazione").default(""),
+    points: z.array(plain(200, "Obiettivo")).max(8).default([]),
+  }),
   z.object({ ...base, type: z.literal("text"), heading, body }),
   z.object({ ...base, type: z.literal("image"), assetId: z.string().max(64).nullable().default(null), caption: plain(300, "Didascalia").default(""), alt: plain(200, "Testo alternativo").default("") }),
   z.object({ ...base, type: z.literal("services"), heading, items: z.array(lineSchema).max(limits.lines) }),
   z.object({ ...base, type: z.literal("options"), heading, body, items: z.array(lineSchema).max(limits.lines) }),
-  z.object({ ...base, type: z.literal("summary"), heading, body }),
-  z.object({ ...base, type: z.literal("terms"), heading, body }),
+  z.object({ ...base, type: z.literal("highlights"), heading, items: z.array(highlightSchema).max(4).default([]) }),
+  z.object({
+    ...base,
+    type: z.literal("summary"),
+    heading,
+    body,
+    /** Cost breakdown chart, computed from the visible services, in the templates that have one. */
+    breakdown: z.boolean().default(true),
+  }),
+  z.object({ ...base, type: z.literal("timeline"), heading, steps: z.array(stepSchema).max(8).default([]) }),
+  z.object({
+    ...base,
+    type: z.literal("terms"),
+    heading,
+    body,
+    payment: plain(1000, "Pagamento").default(""),
+    notes: plain(1000, "Note").default(""),
+  }),
   z.object({ ...base, type: z.literal("contacts"), heading, body }),
 ]);
 
 export type QuoteBlock = z.infer<typeof blockSchema>;
 export type BlockOf<T extends BlockType> = Extract<QuoteBlock, { type: T }>;
+
+/**
+ * Presentation choices that travel with the quote. `accent`: the template colour, the Brand Kit
+ * secondary colour or a custom hex. `photos`: chosen photo option per template key, so switching
+ * template and back keeps the choice.
+ */
+export const styleSchema = z.object({
+  accent: z
+    .union([z.literal("template"), z.literal("brand"), z.string().regex(/^#[0-9A-Fa-f]{6}$/, { error: "Colore non valido." })])
+    .default("template"),
+  photos: z.record(z.string().max(20), z.string().max(40)).default({}),
+});
+export type DocumentStyle = z.infer<typeof styleSchema>;
 
 export const documentSchema = z
   .object({
@@ -130,6 +210,7 @@ export const documentSchema = z
     }),
     /** Withholding in basis points on the one-time taxable base. Informative, ordinario only. */
     withholdingBp: z.number().int().min(0).max(5000).default(0),
+    style: styleSchema.default({ accent: "template", photos: {} }),
   })
   .superRefine((value, ctx) => {
     const ids = new Set<string>();
@@ -191,9 +272,9 @@ export function newBlock(type: BlockType, defaults: { terms?: string | null } = 
   const id = createId();
   switch (type) {
     case "cover":
-      return { id, visible: true, type, title: "", subtitle: "", imageAssetId: null };
+      return { id, visible: true, type, title: "", subtitle: "", imageAssetId: null, tagline: "", project: "" };
     case "intro":
-      return { id, visible: true, type, heading: "Introduzione", body: "" };
+      return { id, visible: true, type, heading: "Il progetto", body: "", lead: "", quote: "", points: [] };
     case "text":
       return { id, visible: true, type, heading: "", body: "" };
     case "image":
@@ -202,12 +283,16 @@ export function newBlock(type: BlockType, defaults: { terms?: string | null } = 
       return { id, visible: true, type, heading: "Servizi inclusi", items: [] };
     case "options":
       return { id, visible: true, type, heading: "Opzioni facoltative", body: "", items: [] };
+    case "highlights":
+      return { id, visible: true, type, heading: "Vantaggi", items: [] };
     case "summary":
-      return { id, visible: true, type, heading: "Riepilogo", body: "" };
+      return { id, visible: true, type, heading: "Riepilogo economico", body: "", breakdown: true };
+    case "timeline":
+      return { id, visible: true, type, heading: "Tempistiche", steps: [] };
     case "terms":
-      return { id, visible: true, type, heading: "Condizioni", body: defaults.terms ?? "" };
+      return { id, visible: true, type, heading: "Condizioni", body: defaults.terms ?? "", payment: "", notes: "" };
     case "contacts":
-      return { id, visible: true, type, heading: "Contatti", body: "" };
+      return { id, visible: true, type, heading: "Contatti e accettazione", body: "" };
     default: {
       const exhaustive: never = type;
       throw new Error(`Blocco sconosciuto: ${String(exhaustive)}`);
@@ -280,8 +365,9 @@ export function initialDocument(input: {
   const services = newBlock("services") as BlockOf<"services">;
   services.items = input.lines;
   return {
-    blocks: [cover, intro, services, newBlock("summary"), newBlock("terms", { terms: input.terms }), newBlock("contacts")],
+    blocks: [cover, intro, services, newBlock("summary"), newBlock("timeline"), newBlock("terms", { terms: input.terms }), newBlock("contacts")],
     withholdingBp: 0,
+    style: { accent: "template", photos: {} },
   };
 }
 

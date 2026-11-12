@@ -108,7 +108,7 @@ test("preventivi: wizard, editor, versione, PDF e storico cliente", async ({ pag
   await page.getByRole("option", { name: new RegExp(clientName) }).click();
   await page.getByRole("button", { name: "Continua" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Scegli lo stile" })).toBeVisible();
-  await page.getByRole("radio", { name: mobile ? /Bold/ : /Editorial/ }).click();
+  await page.getByRole("radio", { name: mobile ? /Bold Impact/ : /Editorial Atelier/ }).click();
   await shot(page, "wizard-template", testInfo);
   if (mobile) await noOverflow(page);
   await page.getByRole("button", { name: "Continua" }).click();
