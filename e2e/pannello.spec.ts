@@ -224,7 +224,8 @@ test("pannello e menu contestuale: azioni sui blocchi, inserisci qui, tastiera, 
   if (!vantaggi) throw new Error("vantaggi not printed");
   await rightClick(page, vantaggi.x + vantaggi.w / 2, vantaggi.y + Math.min(40, vantaggi.h / 2));
   await page.getByRole("menu", { name: /Azioni su Vantaggi/ }).getByRole("menuitem", { name: /Elimina/ }).click();
-  await expect(page.getByText("Blocco eliminato: Vantaggi")).toBeVisible();
+  await expect(page.locator("[data-sonner-toast]").filter({ hasText: "Blocco eliminato: Vantaggi" })).toBeVisible();
+  await expect(live).toContainText("Blocco eliminato: Vantaggi");
   await expect.poll(async () => (await outlineIds(page)).length).toBe(ids.length);
 
   // The panel can be closed again, and the choice sticks.
