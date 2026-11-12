@@ -8,7 +8,7 @@ import { QuoteDocumentView } from "@/components/quote-render/quote-document";
 import { editKit, readAnchor } from "@/components/quote-render/kit-edit";
 import { buildModel, type Resources } from "@/components/quote-render/model";
 import { renderers } from "@/components/quote-render/templates";
-import { applyCommand, fieldLimit, getField, lockedMessage, type DocumentCommand, type EditAnchor, type FieldPath } from "@/domain/document-ops";
+import { applyCommand, fieldLimit, getField, insertionIndex, lockedMessage, type DocumentCommand, type EditAnchor, type FieldPath } from "@/domain/document-ops";
 import { blankLine, blockLabel, starterBlock, type BlockType, type QuoteBlock, type QuoteLine } from "@/domain/quote-document";
 import { headlineTotal, type QuoteSnapshot } from "@/domain/quote-snapshot";
 import type { PriceMode } from "@/domain/pricing";
@@ -361,9 +361,10 @@ export function VisualeView({
   };
 
   const openPickerAfterSelection = () => {
-    const box = selectedBox ?? last;
-    const index = selected ? selectedIndex + 1 : order.length;
-    const where = selected ? `Dopo «${blockTitle(selected)}»` : "In fondo";
+    const index = insertionIndex(document, selected?.id ?? null);
+    const after = index > 0 ? byId.get(order[index - 1] ?? "") : undefined;
+    const box = (after ? boxOf.get(after.id) : undefined) ?? selectedBox ?? last;
+    const where = after ? `Dopo «${blockTitle(after)}»` : "All'inizio";
     if (box) {
       scrollToBox(box);
       openPicker(index, box.x + box.w / 2, box.y + box.h + 18, where);
