@@ -40,7 +40,7 @@ export function QuotesView({ list, filter, canWrite }: { list: QuoteList; filter
         subtitle="Crea, gestisci e monitora tutte le tue proposte."
         action={
           canWrite ? (
-            <Link className="btn btn-primary" href="/app/quotes/new">
+            <Link className={`btn btn-primary${hasAny ? "" : " hide-on-narrow"}`} href="/app/quotes/new">
               <Plus size={16} aria-hidden="true" /> Nuovo preventivo
             </Link>
           ) : undefined
