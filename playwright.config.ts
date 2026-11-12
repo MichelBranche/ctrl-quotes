@@ -29,6 +29,7 @@ export default defineConfig({
       EMAIL_FILE_PATH: "data/e2e-emails.jsonl",
       ENABLE_COMPONENT_CATALOG: "1",
       ENABLE_DEV_MAILBOX: "1",
+      EDITOR_VISUALE: "1",
     },
   },
   projects: [
@@ -97,6 +98,26 @@ export default defineConfig({
       name: "fase3-mobile",
       dependencies: ["fase3-desktop"],
       testMatch: /fase3\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 375, height: 812 },
+        storageState: "e2e/.auth/state.json",
+      },
+    },
+    {
+      name: "visuale-desktop",
+      dependencies: ["fase3-mobile"],
+      testMatch: /visuale\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
+        storageState: "e2e/.auth/state.json",
+      },
+    },
+    {
+      name: "visuale-mobile",
+      dependencies: ["visuale-desktop"],
+      testMatch: /visuale\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 375, height: 812 },

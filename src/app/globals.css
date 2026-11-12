@@ -4,6 +4,7 @@
 @import "../styles/data.css";
 @import "../styles/quote-doc.css";
 @import "../styles/quotes.css";
+@import "../styles/editor-visuale.css";
 
 @theme inline {
   --color-ink: var(--cq-ink);

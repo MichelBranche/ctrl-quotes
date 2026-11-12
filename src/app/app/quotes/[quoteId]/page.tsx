@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { QuoteEditor } from "@/components/quote-editor/quote-editor";
 import { EmptyState, Skeleton } from "@/components/ui/status";
 import { requireContext } from "@/server/context";
+import { editorVisualeEnabled } from "@/server/flags";
 import { getQuoteEditor, listClientOptions, listQuotableItems } from "@/server/quotes";
 import { getWorkspaceConfig } from "@/server/settings";
 import { listTemplates } from "@/server/templates";
@@ -43,6 +44,7 @@ async function EditorContent({ params }: { params: Params }) {
       templates={templates.value}
       defaults={{ taxRateBp: config.value.settings.defaultTaxRateBp, priceMode: config.value.settings.defaultPriceMode }}
       logoUrl={config.value.brand.logo ? `/api/assets/${config.value.brand.logo.assetId}` : null}
+      visuale={editorVisualeEnabled()}
     />
   );
 }

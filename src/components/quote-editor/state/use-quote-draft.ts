@@ -108,10 +108,10 @@ export function useQuoteDraft({ data, initialMeta, readOnly, order = "free" }: {
 
   /** Applies a document command. Refused commands leave everything as it was and explain why. */
   const run = useCallback(
-    (command: DocumentCommand, options: { group?: string; quiet?: boolean } = {}): OpResult<QuoteDocument> => {
+    (command: DocumentCommand, options: { group?: string; quiet?: boolean; order?: CommandOptions["order"] } = {}): OpResult<QuoteDocument> => {
       if (readOnly) return { ok: false, message: "Il preventivo è in sola lettura." };
       const current = latest.current;
-      const result = applyCommand(current.document, command, { order });
+      const result = applyCommand(current.document, command, { order: options.order ?? order });
       if (!result.ok) {
         if (!options.quiet) toast.error(result.message);
         return result;
@@ -164,6 +164,8 @@ export function useQuoteDraft({ data, initialMeta, readOnly, order = "free" }: {
     document,
     meta,
     selectedId: effectiveSelectedId,
+    /** The selection as chosen, null included: the visual editor can have nothing selected. */
+    selection: selected ? selected.id : null,
     selected: selected ?? document.blocks[0] ?? null,
     setSelectedId,
     run,
