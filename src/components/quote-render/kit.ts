@@ -30,6 +30,8 @@ export type ViewProps = Motion & {
   stack?: boolean;
   /** Web: lets a wide table scroll horizontally on narrow screens. */
   scrollX?: boolean;
+  /** Web: on narrow screens children align to the start (for staggered PDF columns). */
+  flowStart?: boolean;
   /** Editor: block highlighted when selected. */
   blockId?: string;
 };

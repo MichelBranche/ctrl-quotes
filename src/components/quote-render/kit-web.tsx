@@ -63,7 +63,7 @@ function motionStyle(motion: Motion): CSSProperties {
 const InText = createContext(false);
 const Sheet = createContext({ index: 1, total: 1 });
 
-function V({ style, children, a, i, hover, stack, scrollX, blockId }: ViewProps) {
+function V({ style, children, a, i, hover, stack, scrollX, flowStart, blockId }: ViewProps) {
   return (
     <div
       className="k-v"
@@ -71,6 +71,7 @@ function V({ style, children, a, i, hover, stack, scrollX, blockId }: ViewProps)
       {...motionAttrs({ a, hover })}
       data-stack={stack ? "" : undefined}
       data-scroll-x={scrollX ? "" : undefined}
+      data-flow-start={flowStart ? "" : undefined}
       data-block-id={blockId}
     >
       {children}
@@ -80,8 +81,11 @@ function V({ style, children, a, i, hover, stack, scrollX, blockId }: ViewProps)
 
 function T({ style, children, a, i, decorative }: TextProps) {
   const nested = useContext(InText);
-  const css = { ...toCss(flatten(style)), ...motionStyle({ i }) };
-  const props = { style: css, ...motionAttrs({ a }), "aria-hidden": decorative || undefined };
+  const flat = flatten(style);
+  // Display sizes get a cap on phones (see quote-doc.css), so big headings never split words.
+  const big = typeof flat.fontSize === "number" && flat.fontSize >= 24;
+  const css = { ...toCss(flat), ...motionStyle({ i }), ...(big ? { "--fs": `${flat.fontSize}pt` } : {}) } as CSSProperties;
+  const props = { style: css, ...motionAttrs({ a }), "aria-hidden": decorative || undefined, "data-big": big ? "" : undefined };
   return <InText.Provider value={true}>{nested ? <span className="k-ts" {...props}>{children}</span> : <div className="k-t" {...props}>{children}</div>}</InText.Provider>;
 }
 
@@ -128,7 +132,7 @@ export function SheetProvider({ index, total, children }: { index: number; total
 
 function PageNo({ style, format }: { style?: Style; format: (page: number, total: number) => string }) {
   const sheet = useContext(Sheet);
-  return <T style={style}>{format(sheet.index, sheet.total)}</T>;
+  return <T style={{ ...style, flexShrink: 0, whiteSpace: "nowrap" } as Style}>{format(sheet.index, sheet.total)}</T>;
 }
 
 const ease = (t: number) => 1 - (1 - t) ** 3;

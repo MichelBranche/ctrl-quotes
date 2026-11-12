@@ -261,7 +261,7 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       return section(
         <k.V wrap={false} style={{ paddingTop: 14 }}>
           <Track k={k} count={s.steps.length} width={535} />
-          <k.V style={{ flexDirection: "row", marginTop: 8 }} stack>
+          <k.V style={{ flexDirection: "row", marginTop: 8 }} stack flowStart>
             {s.steps.map((step, index) => (
               <k.V key={step.id} style={{ flex: 1, alignItems: index === 0 ? "flex-start" : index === s.steps.length - 1 ? "flex-end" : "center" }}>
                 <k.V style={{ width: 110 }}>

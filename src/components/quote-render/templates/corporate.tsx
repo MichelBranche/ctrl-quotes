@@ -299,7 +299,7 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
               })}
             </k.V>
           </k.V>
-          <k.V style={{ flexDirection: "row", marginTop: 8 }} stack>
+          <k.V style={{ flexDirection: "row", marginTop: 8 }} stack flowStart>
             {s.steps.map((step) => (
               <k.V key={step.id} style={{ flex: 1, alignItems: "center" }}>
                 <k.V style={{ width: 104 }}>
