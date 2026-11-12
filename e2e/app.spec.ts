@@ -64,9 +64,54 @@ test("stati vuoti e pannello cliente illustrato", async ({ page }, testInfo) => 
 
   await page.goto("/app/quotes");
   await expect(page.getByRole("heading", { name: "Crea il tuo primo preventivo" })).toBeVisible();
+  const newQuote = page.getByRole("link", { name: "Nuovo preventivo" });
+  if (mobile) {
+    await expect(newQuote).toHaveCount(1);
+  } else {
+    await expect(newQuote).toHaveCount(2);
+  }
   await page.screenshot({
     path: `qa/screenshots/quotes-empty-${mobile ? "mobile" : "desktop"}.png`,
     fullPage: true,
   });
 
+});
+
+test("il menu account si apre sotto l'avatar", async ({ page }, testInfo) => {
+  const mobile = testInfo.project.name.includes("mobile");
+  await page.setViewportSize(mobile ? { width: 375, height: 812 } : { width: 1440, height: 900 });
+  await page.goto("/app/overview");
+  const avatar = page.getByRole("button", { name: /Account$/ });
+  await expect(avatar).toBeVisible();
+  await avatar.click();
+  const menu = page.locator("#account-menu");
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole("button", { name: "Esci" })).toBeVisible();
+  const avatarBox = await avatar.boundingBox();
+  const menuBox = await menu.boundingBox();
+  expect(avatarBox).toBeTruthy();
+  expect(menuBox).toBeTruthy();
+  expect(menuBox!.y).toBeGreaterThanOrEqual(avatarBox!.y);
+  expect(menuBox!.y).toBeLessThan(avatarBox!.y + avatarBox!.height + 28);
+  const avatarRight = avatarBox!.x + avatarBox!.width;
+  const menuRight = menuBox!.x + menuBox!.width;
+  expect(Math.abs(menuRight - avatarRight)).toBeLessThan(24);
+  expect(menuBox!.x).toBeGreaterThan(avatarBox!.x + avatarBox!.width - menuBox!.width - 24);
+  await page.screenshot({ path: `qa/screenshots/account-menu-${mobile ? "mobile" : "desktop"}.png` });
+
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  const bell = page.getByRole("button", { name: "Notifiche" });
+  await bell.click();
+  const notes = page.locator("#notifications");
+  await expect(notes).toBeVisible();
+  const bellBox = await bell.boundingBox();
+  const notesBox = await notes.boundingBox();
+  expect(bellBox).toBeTruthy();
+  expect(notesBox).toBeTruthy();
+  expect(notesBox!.y).toBeGreaterThanOrEqual(bellBox!.y);
+  expect(notesBox!.y).toBeLessThan(bellBox!.y + bellBox!.height + 28);
+  const bellRight = bellBox!.x + bellBox!.width;
+  const notesRight = notesBox!.x + notesBox!.width;
+  expect(Math.abs(notesRight - bellRight)).toBeLessThan(24);
 });
