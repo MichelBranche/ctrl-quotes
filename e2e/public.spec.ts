@@ -27,3 +27,32 @@ for (const entry of pages) {
     expect(serious).toEqual([]);
   });
 }
+
+const loginViewports = [
+  { width: 1440, height: 900, name: "1440" },
+  { width: 1280, height: 800, name: "1280" },
+  { width: 1024, height: 768, name: "1024" },
+  { width: 390, height: 844, name: "390" },
+] as const;
+
+test("il login si legge a 1440, 1280, 1024 e 390 senza avviso Google", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.includes("public-desktop"), "un solo giro di screenshot");
+  for (const viewport of loginViewports) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto("/login");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByText("Accesso con Google non è ancora configurato")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Google/i })).toHaveCount(0);
+    if (viewport.width >= 768) {
+      await page.waitForFunction(() => {
+        const images = Array.from(document.querySelectorAll(".auth-backdrop img")) as HTMLImageElement[];
+        return images.some((image) => image.currentSrc && !image.currentSrc.startsWith("data:") && image.naturalWidth > 16);
+      });
+    }
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: `qa/screenshots/login-${viewport.name}.png`, fullPage: true });
+  }
+});

@@ -99,28 +99,20 @@ export function ResetForm({ token }: { token: string }) {
 }
 
 function GoogleBlock({ enabled }: { enabled: boolean }) {
+  if (!enabled) return null;
   return (
     <div className="stack" style={{ marginTop: 18 }}>
       <div className="divider">{messages.auth.or}</div>
-      {enabled ? (
-        <Button
-          type="button"
-          variant="secondary"
-          pill
-          onClick={() => {
-            void authClient.signIn.social({ provider: "google", callbackURL: "/app/overview" });
-          }}
-        >
-          {messages.auth.google}
-        </Button>
-      ) : (
-        <>
-          <button type="button" className="btn btn-secondary btn-pill" aria-disabled="true" aria-describedby="google-hint">
-            G {messages.auth.google}
-          </button>
-          <p id="google-hint" className="field-hint">{messages.auth.googleDisabled}</p>
-        </>
-      )}
+      <Button
+        type="button"
+        variant="secondary"
+        pill
+        onClick={() => {
+          void authClient.signIn.social({ provider: "google", callbackURL: "/app/overview" });
+        }}
+      >
+        {messages.auth.google}
+      </Button>
     </div>
   );
 }

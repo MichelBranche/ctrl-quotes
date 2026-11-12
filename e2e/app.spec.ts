@@ -47,3 +47,26 @@ test("il catalogo mostra gli stati disabilitato, loading ed errore", async ({ pa
   await expect(page.getByRole("button", { name: "Caricamento" })).toBeDisabled();
   await expect(page.getByText("Controlla questo campo.")).toBeVisible();
 });
+
+test("stati vuoti e pannello cliente illustrato", async ({ page }, testInfo) => {
+  const mobile = testInfo.project.name.includes("mobile");
+  await page.goto("/app/overview");
+  await expect(page.getByRole("heading", { name: "Crea il tuo primo preventivo" })).toBeVisible();
+  await page.locator(".empty-illustration img").waitFor();
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".empty-illustration img") as HTMLImageElement | null;
+    return Boolean(image && image.naturalWidth > 16);
+  });
+  await page.screenshot({
+    path: `qa/screenshots/overview-empty-${mobile ? "mobile" : "desktop"}.png`,
+    fullPage: true,
+  });
+
+  await page.goto("/app/quotes");
+  await expect(page.getByRole("heading", { name: "Crea il tuo primo preventivo" })).toBeVisible();
+  await page.screenshot({
+    path: `qa/screenshots/quotes-empty-${mobile ? "mobile" : "desktop"}.png`,
+    fullPage: true,
+  });
+
+});

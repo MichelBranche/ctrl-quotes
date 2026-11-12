@@ -39,6 +39,8 @@ label.btn.is-disabled { opacity: 0.5; pointer-events: none; }
 .two-pane.wide-list { grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr); }
 .list-pane { display: flex; flex-direction: column; gap: 12px; padding: 12px; min-width: 0; }
 .detail-pane { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.detail-stage { position: relative; min-width: 0; }
+.detail-stage-item { width: 100%; }
 .detail-pane .back-link { display: none; align-self: flex-start; }
 
 .filter-tabs { display: flex; flex-wrap: wrap; gap: 4px; }

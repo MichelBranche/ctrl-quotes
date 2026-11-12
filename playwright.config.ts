@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = "http://127.0.0.1:3000";
+const port = process.env.PORT ?? "3000";
+const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -15,7 +16,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "rm -f data/e2e.db data/e2e-emails.jsonl && mkdir -p qa/screenshots data && npm run start",
+    command: `rm -f data/e2e.db data/e2e-emails.jsonl && mkdir -p qa/screenshots data && npm run start -- --port ${port}`,
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120_000,

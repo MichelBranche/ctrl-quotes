@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { ArrowLeft, Download, Plus, UserRound, Users } from "lucide-react";
 import { ClientDetailPanel } from "@/components/clients/client-detail";
@@ -10,7 +11,9 @@ import { ImportDialog } from "@/components/clients/import-dialog";
 import { FilterTabs, Pagination, SearchBox, useHref } from "@/components/data/controls";
 import { Button } from "@/components/ui/button";
 import { ClientAvatar } from "@/components/ui/data-display";
+import { IllustratedEmpty } from "@/components/ui/illustrated-empty";
 import { EmptyState, PageHeader } from "@/components/ui/status";
+import { messages } from "@/i18n/it";
 import { clientKindLabel, type ClientFilter, type ClientKind } from "@/domain/clients";
 import { permissionDeniedMessage } from "@/domain/permissions";
 import { cn } from "@/lib/cn";
@@ -42,6 +45,13 @@ export function ClientsView({
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const href = useHref();
+  const reducedMotion = useReducedMotion() ?? false;
+  const fade = {
+    initial: { opacity: reducedMotion ? 1 : 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: reducedMotion ? 1 : 0, position: "absolute" as const, top: 0, left: 0, right: 0 },
+    transition: { duration: reducedMotion ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] as const },
+  };
   const hasAny = list.workspaceTotal > 0;
 
   return (
@@ -149,27 +159,35 @@ export function ClientsView({
               <ArrowLeft size={16} aria-hidden="true" /> Torna alla rubrica
             </Link>
           ) : null}
-          {detail ? (
-            <ClientDetailPanel key={detail.id} client={detail} permissions={permissions} quotes={quoteHistory} />
-          ) : detailMissing ? (
-            <EmptyState title="Cliente non disponibile" body="Il cliente non esiste o è stato eliminato. Scegline un altro dalla rubrica." />
-          ) : (
-            <EmptyState
-              title={hasAny ? "Seleziona un cliente" : "Nessun cliente"}
-              body={
-                hasAny
-                  ? "Apri un cliente dalla rubrica per vedere dati, referenti e note."
-                  : "I clienti che crei restano in questo workspace e saranno disponibili come destinatari dei preventivi."
-              }
-              action={
-                permissions.write && !hasAny ? (
-                  <Button onClick={() => setCreating(true)}>
-                    <Plus size={16} aria-hidden="true" /> Nuovo cliente
-                  </Button>
-                ) : undefined
-              }
-            />
-          )}
+          <div className="detail-stage">
+            <AnimatePresence initial={false}>
+              {detail ? (
+                <motion.div key={detail.id} className="detail-stage-item" {...fade}>
+                  <ClientDetailPanel client={detail} permissions={permissions} quotes={quoteHistory} />
+                </motion.div>
+              ) : detailMissing ? (
+                <motion.div key="missing" className="detail-stage-item" {...fade}>
+                  <EmptyState title="Cliente non disponibile" body="Il cliente non esiste o è stato eliminato. Scegline un altro dalla rubrica." />
+                </motion.div>
+              ) : (
+                <motion.div key="empty" className="detail-stage-item" {...fade}>
+                  <IllustratedEmpty
+                    scene="select-client"
+                    title={hasAny ? messages.clients.selectTitle : messages.clients.emptyTitle}
+                    body={hasAny ? messages.clients.selectBody : messages.clients.emptyBody}
+                    compact
+                    action={
+                      permissions.write && !hasAny ? (
+                        <Button onClick={() => setCreating(true)}>
+                          <Plus size={16} aria-hidden="true" /> {messages.clients.action}
+                        </Button>
+                      ) : undefined
+                    }
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </section>
       </div>
 
