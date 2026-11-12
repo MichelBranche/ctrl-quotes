@@ -38,6 +38,7 @@ Prima di un deploy di anteprima il proprietario deve creare, su account dedicati
 - `BETTER_AUTH_SECRET` (almeno 32 caratteri) e `BETTER_AUTH_URL` solo nell'ambiente Production; in Preview lasciare `BETTER_AUTH_URL` vuoto
 - database Turso **nuovo** (`DATABASE_URL`, `TURSO_AUTH_TOKEN`)
 - Resend (`RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_DRIVER=resend`) quando si inviano email vere
+- In Preview (`VERCEL_ENV=preview`) l'email è confermata in automatico, perché il driver `console` non recapita il link. In Production la conferma resta obbligatoria, anche se `PREVIEW_AUTO_VERIFY_EMAIL=1`
 - opzionale: Google OAuth (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
 - opzionale ma consigliato in produzione: Upstash Redis (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`) per il rate limit condiviso
 - `CRON_SECRET` per `GET /api/cron/outbox`

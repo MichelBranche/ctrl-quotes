@@ -2,27 +2,39 @@ import type { SecondaryStorage } from "@better-auth/core/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
+import { eq } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { schema } from "@/db/schema";
+import { schema, user } from "@/db/schema";
 import { isPasswordValid } from "@/domain/password";
 import type { EmailDriver } from "@/server/email/types";
+import { previewAutoVerifyEmail } from "@/server/preview-auth";
 
 type AuthDatabase = LibSQLDatabase<typeof schema>;
 type AuthPlugins = NonNullable<Parameters<typeof betterAuth>[0]["plugins"]>;
+type AuthBaseURL = NonNullable<Parameters<typeof betterAuth>[0]["baseURL"]>;
 
 export type CreateAuthOptions = {
   db: AuthDatabase;
   email: EmailDriver;
   secret: string;
-  baseURL?: string;
+  baseURL?: AuthBaseURL;
   rateLimit?: boolean;
   google?: { clientId: string; clientSecret: string };
   plugins?: AuthPlugins;
   secondaryStorage?: SecondaryStorage;
 };
 
-function cookieSecure(baseURL: string | undefined): boolean {
-  return (baseURL ?? "").startsWith("https:");
+function resolveBaseURL(configured: AuthBaseURL | undefined): AuthBaseURL | undefined {
+  if (typeof configured === "string" && configured.length > 0) return configured;
+  if (configured && typeof configured !== "string") return configured;
+  if (process.env.VERCEL_ENV !== "preview") return undefined;
+  return { allowedHosts: ["*.vercel.app"], protocol: "https" };
+}
+
+function cookieSecure(baseURL: AuthBaseURL | undefined): boolean {
+  if (process.env.VERCEL_ENV === "production" || process.env.VERCEL_ENV === "preview") return true;
+  if (typeof baseURL === "string") return baseURL.startsWith("https:");
+  return baseURL?.protocol === "https";
 }
 
 function emailHtml(intro: string, url: string): string {
@@ -31,11 +43,13 @@ function emailHtml(intro: string, url: string): string {
 }
 
 export function createAuth(options: CreateAuthOptions) {
-  const secure = cookieSecure(options.baseURL);
+  const baseURL = resolveBaseURL(options.baseURL);
+  const previewVerify = previewAutoVerifyEmail();
+  const secure = cookieSecure(baseURL);
   return betterAuth({
     appName: "CTRL Quotes",
     secret: options.secret,
-    baseURL: options.baseURL,
+    baseURL,
     trustedOrigins: ["https://*.vercel.app"],
     database: drizzleAdapter(options.db, {
       provider: "sqlite",
@@ -43,7 +57,7 @@ export function createAuth(options: CreateAuthOptions) {
     }),
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      requireEmailVerification: !previewVerify,
       minPasswordLength: 8,
       maxPasswordLength: 128,
       autoSignIn: false,
@@ -94,8 +108,21 @@ export function createAuth(options: CreateAuthOptions) {
         enabled: false,
       },
     },
+    databaseHooks: previewVerify
+      ? {
+          user: {
+            create: {
+              before: async (created) => {
+                console.info("[auth:preview] conferma email automatica in fase di registrazione");
+                return { data: { ...created, emailVerified: true } };
+              },
+            },
+          },
+        }
+      : undefined,
     advanced: {
       useSecureCookies: secure,
+      trustedProxyHeaders: typeof baseURL === "object",
       defaultCookieAttributes: {
         sameSite: "lax",
         httpOnly: true,
@@ -105,7 +132,13 @@ export function createAuth(options: CreateAuthOptions) {
     plugins: options.plugins ?? [],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        const body = ctx.body as { password?: unknown; newPassword?: unknown } | undefined;
+        const body = ctx.body as { email?: unknown; password?: unknown; newPassword?: unknown } | undefined;
+        if (previewVerify && ctx.path === "/sign-in/email" && typeof body?.email === "string") {
+          await options.db
+            .update(user)
+            .set({ emailVerified: true, updatedAt: new Date() })
+            .where(eq(user.email, body.email.toLowerCase()));
+        }
         const candidate =
           ctx.path === "/sign-up/email"
             ? body?.password

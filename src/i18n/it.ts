@@ -36,6 +36,8 @@ export const messages = {
     savePassword: "Salva password",
     checkTitle: "Controlla la posta",
     checkBody: "Se l'indirizzo è valido, trovi un messaggio con il prossimo passo. In locale il link compare nel log del server o nel file delle email di sviluppo.",
+    previewReadyTitle: "Puoi accedere",
+    previewReadyBody: "In questa anteprima l'email è confermata in automatico. Non arriva un messaggio: torna all'accesso e usa la password scelta.",
     backLogin: "Torna all'accesso",
     verifiedTitle: "Email confermata",
     verifiedBody: "Ora puoi accedere al workspace.",
