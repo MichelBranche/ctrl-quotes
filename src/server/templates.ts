@@ -1,11 +1,12 @@
 import { and, asc, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { templateFavorites, templates } from "@/db/schema";
+import type { TemplateKey } from "@/domain/quote-snapshot";
 import { authorize, notFound, ok, type Actor, type Result } from "@/server/access";
 import { writeAuditLog } from "@/server/audit";
 import { getWorkspaceConfig, upsertSettings } from "@/server/settings";
 
-export type TemplateKey = "minimal" | "editorial" | "corporate" | "bold";
+export type { TemplateKey };
 
 export type TemplateRow = {
   id: string;

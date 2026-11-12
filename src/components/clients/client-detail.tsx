@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Archive,
@@ -40,12 +41,15 @@ import {
 } from "@/server/actions/clients";
 import type { ClientContact, ClientDetail } from "@/server/clients";
 import type { ClientPermissions } from "@/components/clients/clients-view";
+import { QuoteAmount } from "@/components/quotes/quotes-view";
+import { quoteStatusLabel, quoteStatusTone } from "@/domain/quote-status";
+import type { QuoteRow } from "@/server/quotes";
 
 const dateFormat = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Rome" });
 
 type Tab = "overview" | "contacts" | "notes";
 
-export function ClientDetailPanel({ client, permissions }: { client: ClientDetail; permissions: ClientPermissions }) {
+export function ClientDetailPanel({ client, permissions, quotes }: { client: ClientDetail; permissions: ClientPermissions; quotes: QuoteRow[] }) {
   const [tab, setTab] = useState<Tab>("overview");
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -156,12 +160,7 @@ export function ClientDetailPanel({ client, permissions }: { client: ClientDetai
               </dl>
             </section>
             <div className="stack-tight">
-              <section className="card inset">
-                <SectionTitle icon={<FileText size={16} aria-hidden="true" />}>Preventivi</SectionTitle>
-                <p className="muted small">
-                  Ancora nessun preventivo per questo cliente. La creazione dei preventivi arriva con il motore preventivi, nella prossima fase.
-                </p>
-              </section>
+              <ClientQuotes client={client} quotes={quotes} canCreate={permissions.createQuote && !archived} />
               <section className="card inset">
                 <SectionTitle
                   icon={<NotebookPen size={16} aria-hidden="true" />}
@@ -219,6 +218,54 @@ export function ClientDetailPanel({ client, permissions }: { client: ClientDetai
         </div>
       </Dialog>
     </article>
+  );
+}
+
+function ClientQuotes({ client, quotes, canCreate }: { client: ClientDetail; quotes: QuoteRow[]; canCreate: boolean }) {
+  return (
+    <section className="card inset" aria-label="Storico preventivi">
+      <SectionTitle
+        icon={<FileText size={16} aria-hidden="true" />}
+        action={
+          canCreate ? (
+            <Link className="link-btn" href={`/app/quotes/new?client=${client.id}`}>
+              <Plus size={14} aria-hidden="true" /> Nuovo
+            </Link>
+          ) : undefined
+        }
+      >
+        Preventivi {quotes.length ? <span className="count">{quotes.length}</span> : null}
+      </SectionTitle>
+      {quotes.length === 0 ? (
+        <p className="muted small">Ancora nessun preventivo per questo cliente.</p>
+      ) : (
+        <ul className="client-quotes">
+          {quotes.slice(0, 8).map((quote) => (
+            <li key={quote.id}>
+              <Link href={`/app/quotes/${quote.id}`} className="client-quote">
+                <span className="client-quote-main">
+                  <strong className="clamp-1">{quote.title}</strong>
+                  <span className="muted small">
+                    {quote.number ?? "Senza numero"} · {dateFormat.format(quote.updatedAt)}
+                  </span>
+                </span>
+                <span className="client-quote-side">
+                  <span className="client-quote-total">
+                    <QuoteAmount row={quote} />
+                  </span>
+                  <StatusBadge tone={quoteStatusTone[quote.status]}>{quoteStatusLabel[quote.status]}</StatusBadge>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {quotes.length > 8 ? (
+        <Link className="link-btn" href={`/app/quotes?q=${encodeURIComponent(client.name)}`}>
+          Vedi tutti i {quotes.length} preventivi
+        </Link>
+      ) : null}
+    </section>
   );
 }
 
