@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode } from "react";
 import { flatten, type AmountProps, type ImageProps, type Kit, type Motion, type PageProps, type ShapeProps, type Style, type SvgProps, type TextProps, type ViewProps } from "./kit";
 
 /**
@@ -112,11 +112,38 @@ function Svg({ width, height, viewBox, style, children, a, i, preserveAspectRati
   );
 }
 
+/** SVG ids are document-global: every rendered quote (preview, thumbnails) gets its own prefix. */
+const IdScope = createContext("qd");
+
+export function IdScopeProvider({ scope, children }: { scope: string; children: ReactNode }) {
+  return <IdScope.Provider value={scope}>{children}</IdScope.Provider>;
+}
+
+function scopeUrl(value: string | undefined, scope: string) {
+  return value?.startsWith("url(#") ? `url(#${scope}-${value.slice(5)}` : value;
+}
+
 const shape = (tag: "path" | "circle" | "rect" | "line" | "ellipse" | "g") =>
   function Shape({ children, ...props }: ShapeProps) {
+    const scope = useContext(IdScope);
     const Tag = tag;
-    return <Tag {...props}>{children}</Tag>;
+    const paint = props as { fill?: string; stroke?: string };
+    return (
+      <Tag {...props} fill={scopeUrl(paint.fill, scope)} stroke={scopeUrl(paint.stroke, scope)}>
+        {children}
+      </Tag>
+    );
   };
+
+function LinearGradient({ children, id, ...props }: ComponentProps<Kit["LinearGradient"]>) {
+  const scope = useContext(IdScope);
+  return <linearGradient {...props} id={`${scope}-${id}`}>{children}</linearGradient>;
+}
+
+function RadialGradient({ children, id, ...props }: ComponentProps<Kit["RadialGradient"]>) {
+  const scope = useContext(IdScope);
+  return <radialGradient {...props} id={`${scope}-${id}`}>{children}</radialGradient>;
+}
 
 function Page({ style, children, cover, label }: PageProps) {
   return (
@@ -197,8 +224,8 @@ export const webKit: Kit = {
   Ellipse: shape("ellipse"),
   G: shape("g"),
   Defs: ({ children }) => <defs>{children}</defs>,
-  LinearGradient: ({ children, ...props }) => <linearGradient {...props}>{children}</linearGradient>,
-  RadialGradient: ({ children, ...props }) => <radialGradient {...props}>{children}</radialGradient>,
+  LinearGradient,
+  RadialGradient,
   Stop: (props) => <stop {...props} />,
   PageNo,
   Amount,

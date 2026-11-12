@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { photoUrl } from "@/domain/templates";
 import type { QuoteSnapshot } from "@/domain/quote-snapshot";
 import { cn } from "@/lib/cn";
-import { SheetProvider, webKit } from "./kit-web";
+import { IdScopeProvider, SheetProvider, webKit } from "./kit-web";
 import { buildModel, type LogoInfo, type Resources } from "./model";
 import { renderers } from "./templates";
 
@@ -134,6 +134,7 @@ export function QuoteDocumentView({
 }: QuoteDocumentProps) {
   const logo = useLogo(logoSrc);
   const root = useRef<HTMLDivElement>(null);
+  const scope = `qd${useId().replace(/[^\w-]/g, "")}`;
   const scale = useFit(root);
   const renderer = renderers[snapshot.template] ?? renderers.minimal;
   const model = useMemo(() => {
@@ -159,15 +160,17 @@ export function QuoteDocumentView({
       style={{ "--qd-fit": scale ?? 1 } as React.CSSProperties}
     >
       {activeBlockId ? <style>{`.qd-stage [data-block-id="${activeBlockId.replace(/[^\w-]/g, "")}"]{outline:2px solid var(--color-accent, #7c3aed);outline-offset:4px;border-radius:2px}`}</style> : null}
-      <div className="qd-sheets">
-        {pages.map((page, index) =>
-          only && !only.includes(index) ? null : (
-            <SheetProvider key={index} index={index + 1} total={pages.length}>
-              {page}
-            </SheetProvider>
-          ),
-        )}
-      </div>
+      <IdScopeProvider scope={scope}>
+        <div className="qd-sheets">
+          {pages.map((page, index) =>
+            only && !only.includes(index) ? null : (
+              <SheetProvider key={index} index={index + 1} total={pages.length}>
+                {page}
+              </SheetProvider>
+            ),
+          )}
+        </div>
+      </IdScopeProvider>
     </div>
   );
 }
