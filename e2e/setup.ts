@@ -37,3 +37,20 @@ setup("prepara un account fittizio", async ({ request }) => {
   expect(workspace.ok()).toBeTruthy();
   await request.storageState({ path: "e2e/.auth/state.json" });
 });
+
+setup("prepara un secondo account in un altro workspace", async ({ playwright }) => {
+  const request = await playwright.request.newContext({ baseURL: "http://127.0.0.1:3000" });
+  const headers = { origin: "http://127.0.0.1:3000" };
+  const other = { name: "Paolo Verdi", email: "paolo.verdi@example.com", password: "Esempio456" };
+  const signUp = await request.post("/api/auth/sign-up/email", { headers, data: other });
+  expect(signUp.ok()).toBeTruthy();
+  const mailbox = await request.get("/api/dev/emails");
+  const messages = (await mailbox.json()) as Array<{ to: string; text: string }>;
+  const link = messages.filter((message) => JSON.stringify(message).includes(other.email)).at(-1)?.text.match(/https?:\/\/\S+/)?.[0];
+  expect(link).toBeTruthy();
+  expect((await request.get(link!)).ok()).toBeTruthy();
+  expect((await request.post("/api/auth/sign-in/email", { headers, data: { email: other.email, password: other.password } })).ok()).toBeTruthy();
+  expect((await request.post("/api/workspaces", { headers, data: { name: "Studio Altrui", taxProfile: "ordinario" } })).ok()).toBeTruthy();
+  await request.storageState({ path: "e2e/.auth/other.json" });
+  await request.dispose();
+});

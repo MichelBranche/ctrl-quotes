@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
+  experimental: {
+    // Logo (1 MB) and client CSV (1 MB) travel through Server Actions.
+    serverActions: { bodySizeLimit: "2mb" },
+  },
   serverExternalPackages: ["@libsql/client", "libsql"],
   async headers() {
     return [
@@ -14,6 +18,12 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+      {
+        // App pages. Uploaded logos get their own stricter policy below.
+        source: "/((?!api/assets/).*)",
+        headers: [
           {
             key: "Content-Security-Policy",
             value: [
@@ -29,6 +39,10 @@ const nextConfig: NextConfig = {
             ].join("; "),
           },
         ],
+      },
+      {
+        source: "/api/assets/:path*",
+        headers: [{ key: "Content-Security-Policy", value: "default-src 'none'; style-src 'unsafe-inline'; sandbox" }],
       },
     ];
   },

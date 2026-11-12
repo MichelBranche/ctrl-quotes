@@ -1,13 +1,26 @@
-import { EmptyState, PageHeader } from "@/components/ui/status";
-import { messages } from "@/i18n/it";
+import { Suspense } from "react";
+import { NumberingForm } from "@/components/settings/numbering-form";
+import { Skeleton } from "@/components/ui/status";
+import { loadSettings } from "@/app/app/settings/load";
 
 export const metadata = { title: "Numerazione" };
 
 export default function NumberingPage() {
   return (
-    <>
-      <PageHeader title={messages.settings.numbering} subtitle="Il formato predefinito previsto è QT-{YYYY}-{0000}." />
-      <EmptyState title={messages.settings.futureTitle} body={messages.settings.futureBody} />
-    </>
+    <Suspense fallback={<Skeleton width="40%" />}>
+      <NumberingContent />
+    </Suspense>
+  );
+}
+
+async function NumberingContent() {
+  const { config, canEdit } = await loadSettings();
+  return (
+    <NumberingForm
+      format={config.brand.quoteNumberFormat}
+      numberReset={config.settings.numberReset}
+      canEdit={canEdit}
+      year={Number(new Intl.DateTimeFormat("it-IT", { year: "numeric", timeZone: "Europe/Rome" }).format(new Date()))}
+    />
   );
 }

@@ -100,7 +100,7 @@ export const messages = {
     title: "Clienti",
     subtitle: "Gestisci la rubrica e lo storico delle proposte.",
     emptyTitle: "Nessun cliente",
-    emptyBody: "La rubrica arriva nella fase successiva. Nessun contatto di esempio è stato inserito.",
+    emptyBody: "Aggiungi il primo cliente o importa un CSV. Nessun contatto di esempio è stato inserito.",
     action: "Nuovo cliente",
   },
   catalog: {
@@ -112,13 +112,13 @@ export const messages = {
   },
   templates: {
     title: "Libreria template",
-    subtitle: "Quattro stili per i preventivi. La galleria arriva con il motore dei template.",
+    subtitle: "Quattro stili per i preventivi: scegli il predefinito e segna i preferiti.",
     emptyTitle: "Template non ancora applicabili",
-    emptyBody: "Minimal, Editorial, Corporate e Bold saranno scelti da qui. In questa fase non c'è un template attivo da usare.",
+    emptyBody: "Minimal, Editorial, Corporate e Bold. Il rendering completo arriva con l'editor dei preventivi.",
   },
   settings: {
     title: "Impostazioni",
-    subtitle: "Configura il workspace. Il Brand Kit completo arriva dopo.",
+    subtitle: "Configura il workspace, il Brand Kit e le preferenze dei preventivi.",
     profile: "Profilo workspace",
     brand: "Brand Kit",
     numbering: "Numerazione",
@@ -135,7 +135,7 @@ export const messages = {
   help: {
     title: "Aiuto",
     subtitle: "Orientamento sulla versione attuale del prodotto.",
-    body: "Questa è la base di CTRL® Quotes: account, workspace e interfaccia. Clienti, catalogo, editor e pagina pubblica non sono ancora attivi.",
+    body: "In questa versione di CTRL® Quotes sono attivi account, workspace, clienti, catalogo, Brand Kit, galleria template e impostazioni. Editor dei preventivi e pagina pubblica arrivano nelle prossime fasi.",
     contact: "Per segnalazioni usa l'indirizzo del progetto quando sarà pubblicato. Non inviare dati personali in questa fase.",
   },
   future: {
@@ -150,7 +150,7 @@ export const messages = {
     forfettario: "Forfettario",
     estero: "Estero",
     submit: "Crea workspace",
-    logoSkip: "Il caricamento del logo non è attivo. Lo aggiungerai dal Brand Kit.",
+    logoSkip: "Il logo si carica da Impostazioni, Brand Kit, dopo la creazione del workspace.",
   },
   errors: {
     notFoundTitle: "Pagina non trovata",

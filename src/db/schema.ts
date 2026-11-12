@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  blob,
   check,
   foreignKey,
   index,
@@ -262,6 +263,7 @@ export const catalogItems = sqliteTable(
     billing: text("billing").notNull().default("una_tantum"),
     periods: integer("periods"),
     optionalDefault: integer("optional_default", { mode: "boolean" }).notNull().default(false),
+    categoryId: text("category_id"),
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),
     deletedAt: timestamp("deleted_at"),
@@ -269,6 +271,7 @@ export const catalogItems = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
     index("catalog_items_type_idx").on(table.workspaceId, table.type),
+    index("catalog_items_category_idx").on(table.workspaceId, table.categoryId),
     check("catalog_type_chk", sql`${table.type} in ('servizio', 'prodotto', 'pacchetto')`),
     check("catalog_price_mode_chk", sql`${table.priceMode} in ('net', 'gross')`),
     check("catalog_billing_chk", sql`${table.billing} in ('una_tantum', 'mensile', 'annuale')`),
@@ -612,6 +615,60 @@ export const outboxJobs = sqliteTable(
   ],
 );
 
+export const workspaceSettings = sqliteTable(
+  "workspace_settings",
+  {
+    workspaceId: text("workspace_id")
+      .primaryKey()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    defaultTaxRateBp: integer("default_tax_rate_bp").notNull().default(2200),
+    defaultPriceMode: text("default_price_mode").notNull().default("net"),
+    defaultValidityDays: integer("default_validity_days").notNull().default(30),
+    stampDutyNote: integer("stamp_duty_note", { mode: "boolean" }).notNull().default(true),
+    numberReset: text("number_reset").notNull().default("yearly"),
+    defaultTemplateId: text("default_template_id").references(() => templates.id),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (table) => [
+    check("ws_settings_price_mode_chk", sql`${table.defaultPriceMode} in ('net', 'gross')`),
+    check("ws_settings_reset_chk", sql`${table.numberReset} in ('yearly', 'never')`),
+    check(
+      "ws_settings_validity_chk",
+      sql`${table.defaultValidityDays} between 1 and 365`,
+    ),
+  ],
+);
+
+export const templateFavorites = sqliteTable(
+  "template_favorites",
+  {
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    templateId: text("template_id")
+      .notNull()
+      .references(() => templates.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.workspaceId, table.templateId] })],
+);
+
+export const assetBlobs = sqliteTable(
+  "asset_blobs",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    assetId: text("asset_id").notNull(),
+    data: blob("data", { mode: "buffer" }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.assetId] }),
+    foreignKey({
+      columns: [table.workspaceId, table.assetId],
+      foreignColumns: [assets.workspaceId, assets.id],
+    }).onDelete("cascade"),
+  ],
+);
+
 export const auditLogs = sqliteTable(
   "audit_logs",
   {
@@ -666,4 +723,7 @@ export const schema = {
   emailDeliveries,
   outboxJobs,
   auditLogs,
+  workspaceSettings,
+  templateFavorites,
+  assetBlobs,
 };
