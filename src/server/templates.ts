@@ -1,7 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { templateFavorites, templates } from "@/db/schema";
-import type { TemplateKey } from "@/domain/quote-snapshot";
+import { templateIdFor, templateInfo, templateOrder, type TemplateKey } from "@/domain/templates";
 import { authorize, notFound, ok, type Actor, type Result } from "@/server/access";
 import { writeAuditLog } from "@/server/audit";
 import { getWorkspaceConfig, upsertSettings } from "@/server/settings";
@@ -17,7 +17,7 @@ export type TemplateRow = {
   isDefault: boolean;
 };
 
-const order: TemplateKey[] = ["minimal", "editorial", "corporate", "bold"];
+const order: TemplateKey[] = templateOrder;
 
 function asKey(value: string): TemplateKey | null {
   return (order as string[]).includes(value) ? (value as TemplateKey) : null;
@@ -34,7 +34,7 @@ export async function listTemplates(db: AppDatabase, actor: Actor): Promise<Resu
       .where(eq(templateFavorites.workspaceId, actor.workspaceId)),
   ]);
   const favoriteIds = new Set(favorites.map((row) => row.templateId));
-  const defaultId = config.value.settings.defaultTemplateId ?? "tpl_minimal";
+  const defaultId = config.value.settings.defaultTemplateId ?? templateIdFor("minimal");
   return ok(
     rows
       .flatMap((row) => {
@@ -44,8 +44,9 @@ export async function listTemplates(db: AppDatabase, actor: Actor): Promise<Resu
           {
             id: row.id,
             key,
-            name: row.name,
-            description: row.description,
+            // Names and descriptions live in code, so the redesign needs no data migration.
+            name: templateInfo[key].name,
+            description: templateInfo[key].description,
             isFavorite: favoriteIds.has(row.id),
             isDefault: row.id === defaultId,
           },

@@ -12,25 +12,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  AlignLeft,
-  ArrowDown,
-  ArrowUp,
-  Calculator,
-  Copy,
-  Eye,
-  EyeOff,
-  FileSignature,
-  GripVertical,
-  Image as ImageIcon,
-  Layers,
-  LayoutPanelTop,
-  ListChecks,
-  Plus,
-  Trash2,
-  Type,
-  UserRound,
-} from "lucide-react";
+import { AlignLeft, ArrowDown, ArrowUp, Calculator, CalendarRange, Copy, Eye, EyeOff, FileSignature, GripVertical, Image as ImageIcon, Layers, LayoutPanelTop, ListChecks, Plus, Sparkles, Trash2, Type, UserRound } from "lucide-react";
 import { ActionMenu } from "@/components/data/menu";
 import { blockHint, blockLabel, blockTypes, singletonBlocks, type BlockType, type QuoteBlock } from "@/domain/quote-document";
 import { cn } from "@/lib/cn";
@@ -42,7 +24,9 @@ export const blockIcon: Record<BlockType, typeof Type> = {
   image: ImageIcon,
   services: Layers,
   options: ListChecks,
+  highlights: Sparkles,
   summary: Calculator,
+  timeline: CalendarRange,
   terms: FileSignature,
   contacts: UserRound,
 };

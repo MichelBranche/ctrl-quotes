@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AppDatabase } from "@/db/client";
 import { computeTotals, documentSchema, initialDocument, lineFromCatalog, newBlock, type QuoteDocument, type QuoteLine } from "@/domain/quote-document";
 import { canonicalJson, sectionNumbers, summaryGroups } from "@/domain/quote-snapshot";
+import { templateKeys } from "@/domain/templates";
 import { createCatalogItem, updateCatalogItem } from "@/server/catalog";
 import { createClient } from "@/server/clients";
 import { renderQuotePdf } from "@/server/pdf/quote-pdf";
@@ -261,12 +262,12 @@ describe("motore preventivi", () => {
     expect((await uploadQuoteImage(db, alpha, id, { bytes: tinyPng, filename: "a.png" })).ok).toBe(true);
   });
 
-  it("genera un PDF vettoriale per ognuno dei quattro template", async () => {
+  it("genera un PDF vettoriale per ognuno dei cinque template", async () => {
     must(await saveFiscal(db, alpha, { taxProfile: "ordinario", defaultTaxRateBp: 2200, defaultPriceMode: "net", stampDutyNote: true }));
     must(await setLogo(db, alpha, { bytes: tinyPng, filename: "logo.png" }));
     const { id } = await newQuote();
     const snapshot = must(await getDraftSnapshot(db, alpha, id));
-    for (const template of ["minimal", "editorial", "corporate", "bold"] as const) {
+    for (const template of templateKeys) {
       const pdf = await renderQuotePdf({ ...snapshot, template }, { images: new Map(), watermark: "Bozza" });
       expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
       expect(pdf.length).toBeGreaterThan(3000);

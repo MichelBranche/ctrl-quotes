@@ -28,7 +28,7 @@ export async function GET(request: Request, context: { params: Promise<{ quoteId
   if (!result.ok) return new Response("Non trovato", { status: 404 });
   const snapshot = "snapshot" in result.value ? result.value.snapshot : result.value;
   const images = await loadSnapshotImages(db, actor, snapshot);
-  const pdf = await renderQuotePdf(snapshot, { images, watermark: versionNo ? null : "Bozza" });
+  const pdf = await renderQuotePdf(snapshot, { images, watermark: versionNo ? null : "Bozza", versionLabel: versionNo ? `v${versionNo}` : null });
   const disposition = url.searchParams.get("download") === "1" ? "attachment" : "inline";
   return new Response(new Uint8Array(pdf), {
     headers: {

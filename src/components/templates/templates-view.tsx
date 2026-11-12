@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { Check, Heart, Info, LayoutTemplate, Monitor } from "lucide-react";
-import { TemplateCover, templateMeta } from "@/components/templates/template-cover";
+import { TemplateCover } from "@/components/templates/template-cover";
+import { templateInfo } from "@/domain/templates";
 import { useHref } from "@/components/data/controls";
 import { useAction } from "@/components/data/use-action";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ export function TemplatesView({
                 <Link href={href({ t: template.key })} scroll={false} className="template-link">
                   <span className="visually-hidden">Dettagli del template {template.name}</span>
                   <span aria-hidden="true">
-                    <TemplateCover templateKey={template.key} name={template.name} brandName={brand.companyName} logoUrl={brand.logoUrl} />
+                    <TemplateCover templateKey={template.key} brandName={brand.companyName} logoUrl={brand.logoUrl} />
                   </span>
                 </Link>
                 <button
@@ -66,7 +67,7 @@ export function TemplatesView({
                 </button>
                 <div className="template-foot">
                   <span className="swatches" aria-hidden="true">
-                    {templateMeta[template.key].swatches.map((color) => (
+                    {templateInfo[template.key].swatches.map((color) => (
                       <i key={color} style={{ background: color }} />
                     ))}
                   </span>
@@ -105,9 +106,13 @@ export function TemplatesView({
             {selected.isDefault ? <StatusBadge tone="info">Predefinito</StatusBadge> : null}
           </header>
           <p className="muted">{selected.description}</p>
-          <TemplateCover templateKey={selected.key} name={selected.name} brandName={brand.companyName} logoUrl={brand.logoUrl} large />
+          <div className="template-pages">
+            {[0, 1, 2].map((page) => (
+              <TemplateCover key={`${selected.key}-${page}`} templateKey={selected.key} brandName={brand.companyName} logoUrl={brand.logoUrl} page={page} large />
+            ))}
+          </div>
           <ul className="feature-list">
-            {templateMeta[selected.key].features.map((feature) => (
+            {templateInfo[selected.key].features.map((feature) => (
               <li key={feature}>
                 <Check size={16} aria-hidden="true" /> {feature}
               </li>
@@ -119,8 +124,8 @@ export function TemplatesView({
           <p className="info-note">
             <Info size={16} aria-hidden="true" />
             <span>
-              Il template usa logo, colori e font del Brand Kit. Anteprima completa su più pagine e personalizzazione arrivano con l&apos;editor dei
-              preventivi.
+              Le miniature usano il tuo nome e il tuo logo con contenuti di esempio. Nell&apos;editor scegli la foto di copertina e il colore
+              d&apos;accento di ogni preventivo.
             </span>
           </p>
           {selected.isDefault ? (

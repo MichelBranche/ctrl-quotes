@@ -1,64 +1,51 @@
-import type { TemplateKey } from "@/server/templates";
+"use client";
+
+import { useMemo } from "react";
+import { QuoteDocumentView } from "@/components/quote-render/quote-document";
+import type { QuoteSnapshot } from "@/domain/quote-snapshot";
+import { demoSnapshot } from "@/domain/template-sample";
+import type { TemplateKey } from "@/domain/templates";
 import { cn } from "@/lib/cn";
 
-export const templateMeta: Record<TemplateKey, { tagline: string; swatches: string[]; features: string[] }> = {
-  minimal: {
-    tagline: "Pulito, essenziale e professionale.",
-    swatches: ["#8C8C8C", "#E5E2DD", "#F4F2EE"],
-    features: ["Copertina sobria con molto spazio bianco", "Servizi in elenco semplice", "Adatto a qualsiasi settore"],
-  },
-  editorial: {
-    tagline: "Elegante e curato nei dettagli.",
-    swatches: ["#E8DCCB", "#8A5A2B", "#C9A27A"],
-    features: ["Titoli serif di grande formato", "Impaginazione a colonne da rivista", "Ideale per studi creativi"],
-  },
-  corporate: {
-    tagline: "Strutturato, affidabile e istituzionale.",
-    swatches: ["#1F3A68", "#2B4C8C", "#C9D3E6"],
-    features: ["Intestazione formale con dati aziendali", "Tabelle prezzi dettagliate", "Pensato per aziende e team"],
-  },
-  bold: {
-    tagline: "Deciso, dinamico e d'impatto.",
-    swatches: ["#0B0B0F", "#FF6A13", "#FFFFFF"],
-    features: ["Forte contrasto e colore d'accento", "Numeri e totali in evidenza", "Per proposte che si fanno notare"],
-  },
-};
-
-/** Static cover sketch. The full renderer arrives with the quote engine. */
+/**
+ * A real, scaled-down render of a template page with sample content ("Cliente Esempio") and the
+ * workspace's own name and logo. Same renderer as the editor and the PDF, so the thumbnail never lies.
+ */
 export function TemplateCover({
   templateKey,
-  name,
   brandName,
   logoUrl,
+  photo,
+  accent,
+  page = 0,
   large = false,
+  className,
 }: {
   templateKey: TemplateKey;
-  name: string;
   brandName: string;
   logoUrl?: string | null;
+  /** Photo option id, as chosen in the editor. */
+  photo?: string | null;
+  /** Custom accent (hex) to preview. */
+  accent?: string | null;
+  page?: number;
   large?: boolean;
+  className?: string;
 }) {
+  const snapshot: QuoteSnapshot = useMemo(() => {
+    const base = demoSnapshot(templateKey);
+    return {
+      ...base,
+      issuer: { ...base.issuer, displayName: brandName.trim() || base.issuer.displayName },
+      document: {
+        ...base.document,
+        style: { accent: accent ?? "template", photos: photo ? { [templateKey]: photo } : {} },
+      },
+    };
+  }, [templateKey, brandName, photo, accent]);
   return (
-    <div className={cn("tpl-cover", `tpl-${templateKey}`, large && "is-large")} aria-hidden="true">
-      <div className="tpl-brand">
-        {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="" />
-        ) : (
-          <span>{brandName}</span>
-        )}
-      </div>
-      <small>Proposta commerciale</small>
-      <strong>{name}</strong>
-      <p>{templateMeta[templateKey].tagline}</p>
-      <i className="tpl-shape" />
-      {large ? (
-        <div className="tpl-lines">
-          <span />
-          <span />
-          <span />
-        </div>
-      ) : null}
+    <div className={cn("tpl-thumb", large && "is-large", className)} aria-hidden="true" inert>
+      <QuoteDocumentView snapshot={snapshot} logoSrc={logoUrl ?? null} animate={false} only={[page]} layout="sheet" />
     </div>
   );
 }

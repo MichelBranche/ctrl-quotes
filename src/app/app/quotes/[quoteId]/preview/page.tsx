@@ -57,12 +57,7 @@ async function PreviewContent({ params, searchParams }: { params: Params; search
         </a>
       </header>
       <div className="preview-paper">
-        <QuoteDocumentView
-          snapshot={snapshot}
-          logoSrc={logoSrc(snapshot)}
-          imageSrc={(assetId) => `/api/assets/${assetId}`}
-          watermark={versionNo ? null : "Bozza"}
-        />
+        <QuoteDocumentView snapshot={snapshot} logoSrc={logoSrc(snapshot)} watermark={versionNo ? null : "Bozza"} versionLabel={versionNo ? `v${versionNo}` : null} layout="auto" />
       </div>
     </div>
   );

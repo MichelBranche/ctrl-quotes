@@ -230,7 +230,7 @@ export function BrandKitForm({
                 } as React.CSSProperties
               }
             >
-              <TemplateCover templateKey={templateKey} name="Proposta di progetto" brandName={values.companyName || workspaceName} logoUrl={logoUrl} large />
+              <TemplateCover templateKey={templateKey} brandName={values.companyName || workspaceName} logoUrl={logoUrl} accent={values.colorSecondary || null} large />
               <div className="brand-sample">
                 <strong>Riepilogo</strong>
                 <span>Totale una tantum</span>

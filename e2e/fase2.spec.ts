@@ -205,21 +205,21 @@ test("template: preferiti e predefinito persistono", async ({ page }, testInfo) 
   const { mobile } = tag(testInfo);
   await page.goto("/app/templates");
   await expect(page.getByRole("heading", { level: 1, name: "Libreria template" })).toBeVisible();
-  for (const name of ["Minimal", "Editorial", "Corporate", "Bold"]) {
+  for (const name of ["Swiss Minimal", "Studio Editorial", "Editorial Atelier", "Corporate Executive", "Bold Impact"]) {
     await expect(page.getByRole("link", { name: `Dettagli del template ${name}` })).toBeVisible();
   }
-  const fav = page.getByRole("button", { name: /Bold (ai|dai) preferiti/ });
+  const fav = page.getByRole("button", { name: /Bold Impact (ai|dai) preferiti/ });
   const before = await fav.getAttribute("aria-pressed");
   await fav.click();
   await expect(fav).toHaveAttribute("aria-pressed", before === "true" ? "false" : "true");
   if (before === "true") await fav.click();
-  await expect(page.getByRole("button", { name: "Togli Bold dai preferiti" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Togli Bold Impact dai preferiti" })).toBeVisible();
   await page.goto("/app/templates?view=favorites");
-  await expect(page.getByRole("link", { name: "Dettagli del template Bold" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Dettagli del template Minimal" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Dettagli del template Bold Impact" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Dettagli del template Swiss Minimal" })).toHaveCount(0);
 
-  const target = mobile ? "Minimal" : "Editorial";
-  await page.goto(`/app/templates?t=${target.toLowerCase()}`);
+  const [targetKey, target] = mobile ? ["minimal", "Swiss Minimal"] : ["editorial", "Editorial Atelier"];
+  await page.goto(`/app/templates?t=${targetKey}`);
   await page.waitForLoadState("networkidle");
   const useButton = page.locator(".template-detail").getByRole("button", { name: `Usa ${target} come predefinito` });
   if (await useButton.count()) await useButton.click();
