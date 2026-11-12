@@ -261,3 +261,41 @@ export function insertionIndex(document: QuoteDocument, afterId: string | null):
   const at = document.blocks.findIndex((block) => block.id === afterId);
   return at < 0 ? document.blocks.length : at + 1;
 }
+
+/** Maximum length of a text field, the same as the schema. Null for numbers. */
+export function fieldLimit(block: QuoteBlock, field: FieldPath): number | null {
+  const { head, key } = parsePath(field);
+  if (head === "items" && key) {
+    if (key === "name") return block.type === "highlights" ? null : limits.lineName;
+    if (key === "description") return limits.lineDescription;
+    if (key === "title") return 80;
+    if (key === "body") return 300;
+    if (key === "unit") return 30;
+    return null;
+  }
+  if (head === "steps") return key === "label" ? 60 : 140;
+  if (head === "points") return 200;
+  switch (head) {
+    case "title":
+    case "heading":
+      return limits.heading;
+    case "subtitle":
+      return 400;
+    case "tagline":
+      return 120;
+    case "project":
+      return 80;
+    case "body":
+      return limits.body;
+    case "lead":
+      return 200;
+    case "quote":
+    case "caption":
+      return 300;
+    case "payment":
+    case "notes":
+      return 1000;
+    default:
+      return null;
+  }
+}

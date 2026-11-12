@@ -43,6 +43,9 @@ import { BlockList, blockIcon } from "./block-list";
 import { StylePanel } from "./style-panel";
 import { PercentInput } from "./inputs";
 import { useQuoteDraft, useUndoShortcuts, type SaveState } from "./state/use-quote-draft";
+import { useEditorMode } from "./mode";
+import { ModeToggle } from "./mode-toggle";
+import { VisualeView } from "./visuale/visuale-view";
 
 type Tab = "editor" | "details" | "versions";
 type Pane = "structure" | "content" | "preview";
@@ -58,6 +61,7 @@ export function QuoteEditor({
   templates,
   defaults,
   logoUrl,
+  visuale: visualeEnabled = false,
 }: {
   data: QuoteEditorData;
   clients: ClientOption[];
@@ -65,6 +69,8 @@ export function QuoteEditor({
   templates: TemplateRow[];
   defaults: { taxRateBp: number; priceMode: PriceMode };
   logoUrl: string | null;
+  /** The editor visuale flag, read on the server. */
+  visuale?: boolean;
 }) {
   const router = useRouter();
   const readOnly = !data.canEdit;
@@ -81,6 +87,8 @@ export function QuoteEditor({
   });
   const { document, meta, changeMeta, run, selectedId, setSelectedId, totals, save, saveState, saveError, savedAt, revision, unsaved } = draft;
   useUndoShortcuts(draft, !readOnly);
+  const editorMode = useEditorMode(visualeEnabled);
+  const visuale = editorMode.mode === "visuale";
   const [tab, setTab] = useState<Tab>("editor");
   const [pane, setPane] = useState<Pane>("content");
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
@@ -205,21 +213,40 @@ export function QuoteEditor({
         </p>
       ) : null}
 
-      <div className="tabs editor-tabs" role="tablist" aria-label="Sezioni dell'editor">
-        {(
-          [
-            ["editor", "Editor", SquarePen],
-            ["details", "Dettagli", Settings2],
-            ["versions", `Versioni${data.versions.length ? ` (${data.versions.length})` : ""}`, History],
-          ] as const
-        ).map(([id, label, Icon]) => (
-          <button key={id} type="button" role="tab" className="tab" aria-selected={tab === id} id={`editor-tab-${id}`} aria-controls={`editor-panel-${id}`} onClick={() => setTab(id)}>
-            <Icon size={15} aria-hidden="true" /> {label}
-          </button>
-        ))}
+      <div className="editor-tabbar">
+        <div className="tabs editor-tabs" role="tablist" aria-label="Sezioni dell'editor">
+          {(
+            [
+              ["editor", "Editor", SquarePen],
+              ["details", "Dettagli", Settings2],
+              ["versions", `Versioni${data.versions.length ? ` (${data.versions.length})` : ""}`, History],
+            ] as const
+          ).map(([id, label, Icon]) => (
+            <button key={id} type="button" role="tab" className="tab" aria-selected={tab === id} id={`editor-tab-${id}`} aria-controls={`editor-panel-${id}`} onClick={() => setTab(id)}>
+              <Icon size={15} aria-hidden="true" /> {label}
+            </button>
+          ))}
+        </div>
+        {editorMode.enabled ? (
+          <ModeToggle
+            mode={editorMode.mode}
+            capable={editorMode.capable}
+            onMode={(mode) => {
+              if (unsaved) void save();
+              editorMode.choose(mode);
+              setTab("editor");
+            }}
+          />
+        ) : null}
       </div>
 
-      {tab === "editor" ? (
+      {tab === "editor" && visuale ? (
+        <div role="tabpanel" id="editor-panel-editor" aria-labelledby="editor-tab-editor">
+          <VisualeView draft={draft} snapshot={snapshot} logoUrl={logoUrl} readOnly={readOnly} quoteId={data.quote.id} items={items} defaults={defaults} />
+        </div>
+      ) : null}
+
+      {tab === "editor" && !visuale ? (
         <div role="tabpanel" id="editor-panel-editor" aria-labelledby="editor-tab-editor">
           <div className="segmented editor-panes" role="group" aria-label="Pannello">
             {(

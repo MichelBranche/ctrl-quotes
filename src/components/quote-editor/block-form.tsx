@@ -480,7 +480,7 @@ function LinesForm({
   );
 }
 
-function CatalogPicker({ open, items, onClose, onLines }: { open: boolean; items: QuotableItem[]; onClose: () => void; onLines: (lines: QuoteLine[]) => void }) {
+export function CatalogPicker({ open, items, onClose, onLines }: { open: boolean; items: QuotableItem[]; onClose: () => void; onLines: (lines: QuoteLine[]) => void }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const { run, pending, error } = useAction();

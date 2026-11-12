@@ -4,6 +4,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
 import { photoUrl } from "@/domain/templates";
 import type { QuoteSnapshot } from "@/domain/quote-snapshot";
 import { cn } from "@/lib/cn";
+import type { Kit } from "./kit";
 import { IdScopeProvider, SheetProvider, webKit } from "./kit-web";
 import { buildModel, type LogoInfo, type Resources } from "./model";
 import { renderers } from "./templates";
@@ -28,6 +29,10 @@ export type QuoteDocumentProps = {
   /** Only these pages (0-based), e.g. [0] for a cover thumbnail. */
   only?: number[];
   className?: string;
+  /** Kit used to print the pages. The visual editor passes the edit kit; everything else the web kit. */
+  kit?: Kit;
+  /** Fixed scale of the sheets instead of fitting the width (visual editor zoom). */
+  zoom?: number;
 };
 
 /** Average tone and aspect of the logo, read in the browser so SVG logos work too. */
@@ -131,11 +136,14 @@ export function QuoteDocumentView({
   animate = true,
   only,
   className,
+  kit = webKit,
+  zoom,
 }: QuoteDocumentProps) {
   const logo = useLogo(logoSrc);
   const root = useRef<HTMLDivElement>(null);
   const scope = `qd${useId().replace(/[^\w-]/g, "")}`;
-  const scale = useFit(root);
+  const fit = useFit(root);
+  const scale = zoom ?? fit;
   const renderer = renderers[snapshot.template] ?? renderers.minimal;
   const model = useMemo(() => {
     const resources: Resources = {
@@ -147,7 +155,7 @@ export function QuoteDocumentView({
     };
     return buildModel(snapshot, resources, renderer.numbering);
   }, [snapshot, logo, assetBase, watermark, versionLabel, renderer.numbering]);
-  const pages = renderer.render(webKit, model);
+  const pages = renderer.render(kit, model);
   useReveal(root, animate, `${snapshot.template}:${pages.length}`);
   return (
     <div
