@@ -160,12 +160,18 @@ export function optionsTotalLabel(totals: QuoteTotals): string | null {
 }
 
 /** Headline amount: one-time total, or the first recurring bucket when the quote has only recurring lines. */
-export function headlineTotal(totals: QuoteTotals): string {
+/** The headline figure split in amount and period, so the editor can count it up. */
+export function headlineParts(totals: QuoteTotals): { cents: number; suffix: string } {
   const main = totals.main;
-  if (hasLines(main, "oneTime")) return formatEuro(main.oneTime.totalCents);
-  if (hasLines(main, "monthly")) return `${formatEuro(main.monthly.totalCents)} / mese`;
-  if (hasLines(main, "yearly")) return `${formatEuro(main.yearly.totalCents)} / anno`;
-  return formatEuro(0);
+  if (hasLines(main, "oneTime")) return { cents: main.oneTime.totalCents, suffix: "" };
+  if (hasLines(main, "monthly")) return { cents: main.monthly.totalCents, suffix: " / mese" };
+  if (hasLines(main, "yearly")) return { cents: main.yearly.totalCents, suffix: " / anno" };
+  return { cents: 0, suffix: "" };
+}
+
+export function headlineTotal(totals: QuoteTotals): string {
+  const { cents, suffix } = headlineParts(totals);
+  return `${formatEuro(cents)}${suffix}`;
 }
 
 export function billingSuffix(billing: string, periods: number | null): string {
