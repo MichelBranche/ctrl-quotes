@@ -144,11 +144,6 @@ body.ve-grabbing, body.ve-grabbing * { cursor: grabbing !important; user-select:
 .ve-picker-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; padding: 8px 4px 0; border-top: 1px solid var(--cq-border); font-size: 11.5px; color: var(--cq-muted); }
 
 /* All fields of a block */
-.ve-fields { position: absolute; top: 56px; right: 10px; bottom: 10px; z-index: 20; width: 380px; display: flex; flex-direction: column; border-radius: 14px; background: var(--cq-surface); border: 1px solid var(--cq-border); box-shadow: var(--cq-shadow-lg); }
-.ve-fields-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 14px 14px 10px; border-bottom: 1px solid var(--cq-border); }
-.ve-fields-head h2 { margin: 0; font-size: 15px; }
-.ve-fields-head p { margin: 2px 0 0; }
-.ve-fields-body { flex: 1; overflow-y: auto; padding: 12px 14px 16px; }
 
 .ve.is-readonly .ve-content [data-edit-field] { cursor: default; }
 
@@ -197,4 +192,82 @@ body.ve-grabbing, body.ve-grabbing * { cursor: grabbing !important; user-select:
 @media (prefers-reduced-motion: reduce) {
   .ve-frame.is-new { animation: none; }
   .ve-outline-grip, .ve-outline-act { transition: none; }
+}
+
+/* Side panel: Contenuto and Stile of the selection, docked on the right. */
+.ve.has-panel { grid-template-columns: 240px minmax(0, 1fr) 320px; }
+.ve-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-left: 1px solid var(--cq-border); background: var(--cq-surface); }
+.ve-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 48px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--cq-border); flex-shrink: 0; }
+.ve-panel-tabs { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--cq-surface-sunken); }
+.ve-panel-tab { position: relative; height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: var(--cq-muted); font: inherit; font-size: 13px; font-weight: 550; cursor: pointer; }
+.ve-panel-tab:hover { color: var(--cq-ink); }
+.ve-panel-tab.is-active { color: var(--cq-ink); }
+.ve-panel-tab:focus-visible { outline: 2px solid var(--ve-accent); outline-offset: 1px; }
+.ve-panel-pill { position: absolute; inset: 0; border-radius: 7px; background: var(--cq-surface); box-shadow: 0 1px 2px color-mix(in srgb, var(--cq-ink) 10%, transparent), 0 0 0 1px var(--cq-border); }
+.ve-panel-tab-label { position: relative; }
+.ve-panel-title { padding: 14px 16px 10px; flex-shrink: 0; }
+.ve-panel-title h2 { margin: 0; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; }
+.ve-panel-title p { margin: 3px 0 0; }
+.ve-panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 16px 20px; overscroll-behavior: contain; }
+.ve-panel-section { display: grid; gap: 10px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--cq-border); }
+.ve-panel-section h3, .ve-panel-body .style-panel.is-embedded h2 { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cq-muted); }
+.ve-panel-section p { margin: 0; }
+.ve-doc-fields { display: grid; gap: 14px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.ve-doc-fields .link-btn { justify-self: start; }
+
+.ve-switch { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 10px; font-size: 13.5px; font-weight: 550; color: var(--cq-ink); cursor: pointer; position: relative; }
+.ve-switch input { position: absolute; opacity: 0; width: 34px; height: 20px; margin: 0; cursor: pointer; }
+.ve-switch small { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; line-height: 1.35; }
+.ve-switch-track { position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--cq-border-strong, var(--cq-border)); transition: background 160ms ease; }
+.ve-switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.25); transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1); }
+.ve-switch input:checked + .ve-switch-track { background: var(--ve-accent); }
+.ve-switch input:checked + .ve-switch-track::after { transform: translateX(14px); }
+.ve-switch input:focus-visible + .ve-switch-track { outline: 2px solid var(--ve-accent); outline-offset: 2px; }
+.ve-switch input:disabled + .ve-switch-track { opacity: 0.5; }
+
+/* The whole-document style, embedded in the panel: narrower grids, no card. */
+.style-panel.is-embedded { display: grid; gap: 14px; }
+.style-panel.is-embedded .panel-head { padding: 0; border: 0; margin: 0; }
+.style-panel.is-embedded .panel-head p { margin: 3px 0 0; }
+.style-panel.is-embedded .style-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.style-panel.is-embedded .photo-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* Right click menu (portal on body). */
+.ve-menu-layer { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
+.ve-menu { position: fixed; pointer-events: auto; width: 272px; padding: 6px; border-radius: 14px; background: var(--cq-surface); border: 1px solid var(--cq-border); box-shadow: var(--cq-shadow-lg), 0 18px 40px -18px rgb(30 20 80 / 0.28); color: var(--cq-ink); font-size: 13px; transform-origin: 0 0; }
+.ve-menu.is-sub { width: 300px; max-height: calc(100vh - 16px); overflow-y: auto; }
+.ve-menu-head { display: flex; align-items: center; gap: 8px; padding: 7px 9px 8px; margin-bottom: 4px; border-bottom: 1px solid var(--cq-border); }
+.ve-menu-head-icon { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--cq-accent-wash); color: var(--cq-accent); flex-shrink: 0; }
+.ve-menu-head strong { display: block; font-size: 12.5px; font-weight: 650; max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ve-menu-head small { display: block; font-size: 11.5px; color: var(--cq-muted); max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ve-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 32px; padding: 0 9px; border: 0; border-radius: 8px; background: transparent; color: var(--cq-ink-soft, var(--cq-ink)); font: inherit; font-size: 13px; text-align: left; cursor: default; outline: none; }
+.ve-menu.is-sub .ve-menu-item { min-height: 40px; padding: 6px 9px; align-items: flex-start; }
+.ve-menu-icon { display: grid; place-items: center; width: 16px; height: 16px; flex-shrink: 0; color: var(--cq-muted); }
+.ve-menu.is-sub .ve-menu-icon { margin-top: 1px; }
+.ve-menu-label { flex: 1; min-width: 0; white-space: nowrap; }
+.ve-menu-label small { display: block; font-size: 11.5px; color: var(--cq-muted); line-height: 1.3; white-space: normal; }
+.ve-menu-note { font-size: 11px; color: var(--cq-muted); white-space: nowrap; }
+.ve-menu-kbd { font: 500 11px/1 inherit; color: var(--cq-muted); padding: 3px 5px; border-radius: 5px; background: var(--cq-surface-sunken); border: 1px solid var(--cq-border); white-space: nowrap; }
+.ve-menu-chevron { color: var(--cq-muted); flex-shrink: 0; }
+.ve-menu-item.is-active { background: var(--cq-accent-wash); color: var(--cq-accent); }
+.ve-menu-item.is-active .ve-menu-icon, .ve-menu-item.is-active .ve-menu-chevron { color: var(--cq-accent); }
+.ve-menu-item.is-active .ve-menu-label small { color: color-mix(in srgb, var(--cq-accent) 75%, var(--cq-muted)); }
+.ve-menu-item[aria-disabled="true"] { opacity: 0.45; }
+.ve-menu-item.is-danger { color: var(--cq-danger); }
+.ve-menu-item.is-danger .ve-menu-icon { color: var(--cq-danger); }
+.ve-menu-item.is-danger.is-active { background: color-mix(in srgb, var(--cq-danger) 10%, transparent); }
+.ve-menu-sep { height: 1px; margin: 5px 6px; background: var(--cq-border); }
+.ve-menu-group { padding: 8px 9px 4px; font-size: 10.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cq-muted); }
+.ve-menu-foot { margin: 4px 0 0; padding: 8px 9px 4px; border-top: 1px solid var(--cq-border); font-size: 11.5px; color: var(--cq-muted); }
+
+/* "Inserisci qui": where a block from the menu will land. */
+.ve-insert.is-here { justify-items: start; }
+.ve-insert.is-here .ve-insert-line { transform: scaleX(1); transition-delay: 0ms; height: 2px; }
+.ve-insert-here { position: relative; margin-left: -6px; display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 999px; background: var(--ve-accent); color: var(--cq-on-primary); font-size: 11.5px; font-weight: 600; }
+
+/* Undo and redo: a violet veil over what changed, fading out. */
+.ve-veil { position: absolute; z-index: 2; pointer-events: none; border-radius: 6px; background: color-mix(in srgb, var(--ve-accent) 14%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ve-accent) 55%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ve-switch-track, .ve-switch-track::after { transition: none; }
 }

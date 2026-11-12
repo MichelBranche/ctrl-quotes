@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -104,6 +105,10 @@ export function QuoteEditor({
 
   const selected = draft.selected;
   const client = clients.find((entry) => entry.id === meta.clientId);
+  const clientOptions = [
+    ...(meta.clientId && !client && data.snapshot.client ? [{ value: meta.clientId, label: `${data.snapshot.client.name} (archiviato)` }] : []),
+    ...clients.map((entry) => ({ value: entry.id, label: entry.name })),
+  ];
   const templateKey = asTemplateKey(templates.find((template) => template.id === meta.templateId)?.key);
 
   const snapshot: QuoteSnapshot = useMemo(
@@ -265,7 +270,51 @@ export function QuoteEditor({
 
       {tab === "editor" && visuale ? (
         <div role="tabpanel" id="editor-panel-editor" aria-labelledby="editor-tab-editor">
-          <VisualeView draft={draft} snapshot={snapshot} logoUrl={logoUrl} readOnly={readOnly} quoteId={data.quote.id} items={items} defaults={defaults} />
+          <VisualeView
+            draft={draft}
+            snapshot={snapshot}
+            logoUrl={logoUrl}
+            readOnly={readOnly}
+            quoteId={data.quote.id}
+            items={items}
+            defaults={defaults}
+            documentFields={
+              <fieldset disabled={readOnly} className="ve-doc-fields">
+                <legend className="visually-hidden">Dettagli del preventivo</legend>
+                <SelectField
+                  label="Cliente"
+                  value={meta.clientId ?? ""}
+                  options={clientOptions}
+                  onChange={(event) => changeMeta({ clientId: event.target.value || null })}
+                />
+                <div className="field">
+                  <label htmlFor="ve-valid-until">Valido fino al</label>
+                  <input id="ve-valid-until" type="date" value={meta.validUntil ?? ""} onChange={(event) => changeMeta({ validUntil: event.target.value || null })} />
+                </div>
+                {fiscal.taxProfile === "ordinario" ? (
+                  <PercentInput label="Ritenuta d'acconto (informativa)" bp={document.withholdingBp} max={5000} onBp={(bp) => run({ kind: "setWithholding", bp }, { group: "withholding" })} />
+                ) : null}
+                <button type="button" className="link-btn" onClick={() => setTab("details")}>
+                  Titolo, numero e altri dettagli
+                </button>
+              </fieldset>
+            }
+            documentStyle={
+              <StylePanel
+                embedded
+                templates={templates}
+                templateId={meta.templateId}
+                templateKey={templateKey}
+                document={document}
+                brandName={data.snapshot.issuer.displayName}
+                brandAccent={data.snapshot.brand.colorSecondary}
+                logoUrl={logoUrl}
+                readOnly={readOnly}
+                onTemplate={(templateId) => changeMeta({ templateId })}
+                onStyle={(style) => run({ kind: "setStyle", style }, { group: "style" })}
+              />
+            }
+          />
         </div>
       ) : null}
 
@@ -379,10 +428,7 @@ export function QuoteEditor({
             <SelectField
               label="Cliente"
               value={meta.clientId ?? ""}
-              options={[
-                ...(meta.clientId && !client && data.snapshot.client ? [{ value: meta.clientId, label: `${data.snapshot.client.name} (archiviato)` }] : []),
-                ...clients.map((entry) => ({ value: entry.id, label: entry.name })),
-              ]}
+              options={clientOptions}
               onChange={(event) => changeMeta({ clientId: event.target.value || null })}
             />
             <div className="field">
@@ -509,18 +555,25 @@ export function QuoteEditor({
 }
 
 function SaveIndicator({ state, savedAt, error, onRetry, readOnly }: { state: SaveState; savedAt: Date; error: string | null; onRetry: () => void; readOnly: boolean }) {
+  const reduced = useReducedMotion();
   if (readOnly) return null;
+  // The icon pops in when the state changes: spinner while saving, a check once it is stored.
+  const pop = (key: string, icon: React.ReactNode) => (
+    <motion.span key={key} className="save-icon" initial={reduced ? false : { scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 600, damping: 28 }}>
+      {icon}
+    </motion.span>
+  );
   if (state === "saving" || state === "dirty") {
     return (
       <span className="save-indicator" role="status">
-        <LoaderCircle size={15} aria-hidden="true" className="spin" /> {state === "saving" ? "Salvataggio in corso" : "Modifiche in attesa"}
+        {pop("saving", <LoaderCircle size={15} aria-hidden="true" className="spin" />)} {state === "saving" ? "Salvataggio in corso" : "Modifiche in attesa"}
       </span>
     );
   }
   if (state === "error" || state === "conflict") {
     return (
       <span className="save-indicator is-error" role="alert">
-        <CircleAlert size={15} aria-hidden="true" /> {error ?? "Salvataggio non riuscito."}
+        {pop("error", <CircleAlert size={15} aria-hidden="true" />)} {error ?? "Salvataggio non riuscito."}
         {state === "error" ? (
           <button type="button" className="link-btn" onClick={onRetry}>
             Riprova
@@ -535,7 +588,7 @@ function SaveIndicator({ state, savedAt, error, onRetry, readOnly }: { state: Sa
   }
   return (
     <span className="save-indicator is-ok" role="status">
-      <CheckCircle2 size={15} aria-hidden="true" /> Salvato alle {timeFormat.format(savedAt)}
+      {pop("ok", <CheckCircle2 size={15} aria-hidden="true" />)} Salvato alle {timeFormat.format(savedAt)}
     </span>
   );
 }

@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, BookOpen, Copy, EyeOff, FileText, GripVertical, Lock, LockOpen, Maximize2, Minus, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, BookOpen, Copy, Eye, EyeOff, FileText, GripVertical, Lock, LockOpen, Maximize2, Minus, PanelRightOpen, Plus, Search, SlidersHorizontal, TextCursorInput, Trash2 } from "lucide-react";
 import { QuoteDocumentView } from "@/components/quote-render/quote-document";
 import { editKit, readAnchor } from "@/components/quote-render/kit-edit";
 import { buildModel, type Resources } from "@/components/quote-render/model";
 import { renderers } from "@/components/quote-render/templates";
-import { applyCommand, fieldLimit, getField, lockedMessage, type DocumentCommand, type EditAnchor, type FieldPath } from "@/domain/document-ops";
-import { blankLine, blockLabel, starterBlock, type BlockType, type QuoteBlock, type QuoteLine } from "@/domain/quote-document";
-import { headlineTotal, type QuoteSnapshot } from "@/domain/quote-snapshot";
+import { applyCommand, fieldLimit, getField, insertionIndex, lockedMessage, type DocumentCommand, type EditAnchor, type FieldPath } from "@/domain/document-ops";
+import { blankLine, blockHint, blockLabel, starterBlock, type BlockType, type QuoteBlock, type QuoteLine } from "@/domain/quote-document";
+import { headlineParts, type QuoteSnapshot } from "@/domain/quote-snapshot";
 import type { PriceMode } from "@/domain/pricing";
 import type { QuotableItem } from "@/server/quotes";
 import { cn } from "@/lib/cn";
@@ -18,6 +18,9 @@ import { BlockForm, CatalogPicker } from "../block-form";
 import { blockIcon, blockTitle } from "../block-list";
 import type { QuoteDraft } from "../state/use-quote-draft";
 import { BlockPicker } from "./block-picker";
+import { ContextMenu, type MenuEntry } from "./context-menu";
+import { addableTypes, blockActions, hitTarget, type Gap, type MenuTarget } from "./menu-model";
+import { SidePanel, type PanelTab } from "./side-panel";
 import { DragGhost, useBlockDrag } from "./drag";
 import { blockElement, cssValue, useGeometry, type BlockBox } from "./geometry";
 import { LineCard, type LineFocus } from "./line-card";
@@ -32,6 +35,11 @@ const SPRING = { type: "spring" as const, stiffness: 500, damping: 40 };
 type Session = { key: number; anchor: EditAnchor; point: { x: number; y: number } | null; selectAll: boolean };
 type LineEdit = { blockId: string; lineId: string; focus: LineFocus };
 type Picker = { index: number; x: number; y: number; where: string };
+type Menu = { x: number; y: number; target: MenuTarget };
+
+const PANEL_KEY = "cq.visuale.panel";
+/** Below this width the panel starts closed, so the sheet keeps a readable size. */
+const PANEL_AUTO_MIN = 1320;
 
 const fieldNames: Record<string, string> = {
   title: "Titolo",
@@ -81,6 +89,8 @@ export function VisualeView({
   quoteId,
   items,
   defaults,
+  documentFields,
+  documentStyle,
 }: {
   draft: QuoteDraft;
   snapshot: QuoteSnapshot;
@@ -89,8 +99,12 @@ export function VisualeView({
   quoteId: string;
   items: QuotableItem[];
   defaults: { taxRateBp: number; priceMode: PriceMode };
+  /** Client, validity and the other quote details, for the panel when nothing is selected. */
+  documentFields: React.ReactNode;
+  /** Template, cover photo and accent: the whole-document style controls. */
+  documentStyle: React.ReactNode;
 }) {
-  const { document, run, totals, totalsFromServer, selection, setSelectedId, unsaved } = draft;
+  const { document, run, totals, totalsFromServer, selection, setSelectedId, unsaved, lastStep } = draft;
   const reduced = Boolean(useReducedMotion());
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -104,7 +118,12 @@ export function VisualeView({
   const [session, setSession] = useState<Session | null>(null);
   const [lineEdit, setLineEdit] = useState<LineEdit | null>(null);
   const [picker, setPicker] = useState<Picker | null>(null);
-  const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelTab, setPanelTab] = useState<PanelTab>("content");
+  const [menu, setMenu] = useState<Menu | null>(null);
+  const [veilDone, setVeilDone] = useState(0);
+  const liveRef = useRef<HTMLDivElement>(null);
+  const liveTimer = useRef(0);
   const [catalogFor, setCatalogFor] = useState<string | null>(null);
   const sessionKey = useRef(0);
   const pendingReveal = useRef<string | null>(null);
@@ -119,6 +138,31 @@ export function VisualeView({
     freshTimer.current = window.setTimeout(() => setFresh(null), 1600);
   }, []);
   useEffect(() => () => window.clearTimeout(freshTimer.current), []);
+
+  /** Screen reader announcements for what changed on the sheet (moves, inserts, deletes, undo). */
+  const announce = useCallback((text: string) => {
+    const node = liveRef.current;
+    if (!node) return;
+    window.clearTimeout(liveTimer.current);
+    node.textContent = "";
+    liveTimer.current = window.setTimeout(() => {
+      node.textContent = text;
+    }, 40);
+  }, []);
+  useEffect(() => () => window.clearTimeout(liveTimer.current), []);
+
+  // The side panel: open by default on wide screens, then as the user left it.
+  useLayoutEffect(() => {
+    const stored = window.localStorage.getItem(PANEL_KEY);
+    const wide = (rootRef.current?.clientWidth ?? 0) >= PANEL_AUTO_MIN;
+    const apply = (open: boolean) => setPanelOpen(open);
+    apply(stored === null ? wide : stored === "1");
+  }, []);
+  const showPanel = useCallback((open: boolean, tab?: PanelTab, remember = true) => {
+    setPanelOpen(open);
+    if (tab) setPanelTab(tab);
+    if (remember) window.localStorage.setItem(PANEL_KEY, open ? "1" : "0");
+  }, []);
 
   const byId = useMemo(() => new Map(document.blocks.map((block) => [block.id, block])), [document.blocks]);
   const order = useMemo(() => document.blocks.map((block) => block.id), [document.blocks]);
@@ -153,7 +197,6 @@ export function VisualeView({
   const select = useCallback(
     (id: string | null) => {
       setSelectedId(id);
-      if (!id) setFieldsOpen(false);
     },
     [setSelectedId],
   );
@@ -208,14 +251,31 @@ export function VisualeView({
       if (only) {
         // A move from the outline: just bring the block into view.
       } else if (box && first && field) openAnchor({ blockId: reveal, field, kind: first.dataset.editKind === "multiline" ? "multiline" : "line" }, null, true);
-      else setFieldsOpen(true);
+      else showPanel(true, "content", false);
     }
     const anchor = pendingAnchor.current;
     if (anchor && content?.querySelector(anchorSelector(anchor))) {
       pendingAnchor.current = null;
       openAnchor(anchor, null, true);
     }
-  }, [geometry.version, boxOf, openAnchor, scrollToBox]);
+  }, [geometry.version, boxOf, openAnchor, scrollToBox, showPanel]);
+
+  // When the zoom changes (the "Adatta" fit follows the panel opening or closing), the selection stays in view.
+  const zoomSeen = useRef(zoom);
+  useEffect(() => {
+    if (zoomSeen.current === zoom) return;
+    zoomSeen.current = zoom;
+    const id = selection;
+    const timer = window.setTimeout(() => {
+      const scroll = scrollRef.current;
+      const element = id ? blockElement(contentRef.current, id) : null;
+      if (!scroll || !element) return;
+      const rect = element.getBoundingClientRect();
+      const view = scroll.getBoundingClientRect();
+      if (rect.top < view.top || rect.top + Math.min(rect.height, view.height - 160) > view.bottom) scroll.scrollTo({ top: Math.max(0, scroll.scrollTop + rect.top - view.top - 96) });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [zoom, selection]);
 
   // The numbers card hangs under the cell that opened it, also after the table re-renders.
   useLayoutEffect(() => {
@@ -246,7 +306,10 @@ export function VisualeView({
     reduced,
     measure,
     onCommit: (ids) => exec({ kind: "reorderBlocks", ids }).ok,
-    onSettled: (id) => select(id),
+    onSettled: (id) => {
+      select(id);
+      tellMoved(id);
+    },
   });
 
   const dropNumber = useMemo(() => (drag.view ? numberIn(snapshot, drag.view.order, drag.view.id) : 0), [drag.view, snapshot]);
@@ -255,18 +318,33 @@ export function VisualeView({
   const selectedBox = selected ? boxOf.get(selected.id) : undefined;
   const selectedIndex = selected ? order.indexOf(selected.id) : -1;
 
-  const moveSelected = (delta: -1 | 1) => {
-    if (!selected) return;
-    exec({ kind: "moveBlock", blockId: selected.id, toIndex: selectedIndex + delta });
+  /** Reads the new position out loud; the latest document comes from the result, not from this render. */
+  function tellMoved(id: string, blocks?: QuoteBlock[]) {
+    const list = blocks ?? document.blocks;
+    const at = list.findIndex((block) => block.id === id);
+    const block = list[at];
+    if (block) announce(`${blockTitle(block)} spostato: ora è il blocco ${at + 1} di ${list.length}`);
+  }
+  const moveBlock = (id: string, delta: -1 | 1) => {
+    const result = exec({ kind: "moveBlock", blockId: id, toIndex: order.indexOf(id) + delta });
+    if (result.ok) tellMoved(id, result.value.blocks);
   };
-  const duplicateSelected = () => {
-    if (!selected) return;
-    const result = exec({ kind: "duplicateBlock", blockId: selected.id });
-    const copy = result.ok ? result.value.blocks[selectedIndex + 1] : undefined;
+  const moveSelected = (delta: -1 | 1) => {
+    if (selected) moveBlock(selected.id, delta);
+  };
+  const duplicateBlock = (id: string) => {
+    const at = order.indexOf(id);
+    const result = exec({ kind: "duplicateBlock", blockId: id });
+    const copy = result.ok ? result.value.blocks[at + 1] : undefined;
     if (copy) {
       select(copy.id);
+      flash(copy.id);
       pendingReveal.current = copy.id;
+      announce(`Duplicato: ${blockTitle(copy)}`);
     }
+  };
+  const duplicateSelected = () => {
+    if (selected) duplicateBlock(selected.id);
   };
   const removeBlock = (id: string) => {
     const block = byId.get(id);
@@ -288,11 +366,16 @@ export function VisualeView({
       }
     };
     toast(`Blocco eliminato: ${label}`, { id: "block-removed", action: { label: "Annulla", onClick: restore }, duration: 6000 });
+    announce(`Blocco eliminato: ${label}. Ctrl+Z per annullare.`);
   };
   const removeSelected = () => {
     if (selected) removeBlock(selected.id);
   };
-  const toggleBlock = (id: string) => exec({ kind: "toggleBlock", blockId: id });
+  const toggleBlock = (id: string) => {
+    const block = byId.get(id);
+    const result = exec({ kind: "toggleBlock", blockId: id });
+    if (result.ok && block) announce(block.visible ? `Nascosto nel documento: ${blockTitle(block)}` : `Di nuovo visibile: ${blockTitle(block)}`);
+  };
   const lockBlock = (id: string, locked: boolean) => {
     const result = exec({ kind: "lockBlock", blockId: id, locked });
     if (!result.ok) return;
@@ -316,6 +399,7 @@ export function VisualeView({
     select(block.id);
     flash(block.id);
     pendingReveal.current = block.id;
+    announce(`Aggiunto: ${blockLabel[type]}, blocco ${index + 1} di ${result.value.blocks.length}`);
   };
 
   const addLine = (block: QuoteBlock) => {
@@ -361,9 +445,10 @@ export function VisualeView({
   };
 
   const openPickerAfterSelection = () => {
-    const box = selectedBox ?? last;
-    const index = selected ? selectedIndex + 1 : order.length;
-    const where = selected ? `Dopo «${blockTitle(selected)}»` : "In fondo";
+    const index = insertionIndex(document, selected?.id ?? null);
+    const after = index > 0 ? byId.get(order[index - 1] ?? "") : undefined;
+    const box = (after ? boxOf.get(after.id) : undefined) ?? selectedBox ?? last;
+    const where = after ? `Dopo «${blockTitle(after)}»` : "All'inizio";
     if (box) {
       scrollToBox(box);
       openPicker(index, box.x + box.w / 2, box.y + box.h + 18, where);
@@ -372,13 +457,175 @@ export function VisualeView({
     }
   };
 
+  /** "Modifica il testo": the block's first printed text, selected and ready to be typed over. */
+  const editBlockText = (id: string) => {
+    const block = byId.get(id);
+    if (!block) return;
+    select(id);
+    if (block.locked) {
+      tellLocked(id);
+      return;
+    }
+    const first = blockElement(contentRef.current, id)?.querySelector<HTMLElement>('[data-edit-kind="line"], [data-edit-kind="multiline"]');
+    const field = first?.dataset.editField as FieldPath | undefined;
+    if (first && field) openAnchor({ blockId: id, field, kind: first.dataset.editKind === "multiline" ? "multiline" : "line" }, null, true);
+    else openFields();
+  };
+
+  const openFields = () => {
+    showPanel(true, "content");
+    // The first field of the panel takes focus once it is on screen.
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() => rootRef.current?.querySelector<HTMLElement>(".ve-panel-body input:not([type=hidden]), .ve-panel-body textarea, .ve-panel-body select")?.focus()),
+    );
+  };
+
+  const between = (index: number) => {
+    const before = document.blocks[index - 1];
+    const after = document.blocks[index];
+    if (before && after) return `Tra «${blockTitle(before)}» e «${blockTitle(after)}»`;
+    if (before) return `Dopo «${blockTitle(before)}»`;
+    return after ? `Prima di «${blockTitle(after)}»` : "In fondo";
+  };
+
+  const openMenu = (target: MenuTarget, x: number, y: number) => {
+    setPicker(null);
+    setLineEdit(null);
+    setSession(null);
+    if (target.kind === "block") select(target.id);
+    setMenu({ x, y, target });
+  };
+
+  const onCanvasContextMenu = (event: React.MouseEvent) => {
+    // Shift + right click, and right click while typing, keep the browser menu (spelling, copy, paste).
+    if (readOnly || event.shiftKey || drag.dragging) return;
+    const target = event.target as Element;
+    if (target.closest(".ve-session, input, textarea, select, [contenteditable]")) return;
+    if (target.closest("[data-ve-ui]")) {
+      event.preventDefault();
+      // The "+ Aggiungi blocco" line between two blocks is a place too.
+      const key = target.closest<HTMLElement>("[data-zone]")?.dataset.zone;
+      const gap = key ? zones.find((zone) => zone.key === key) : undefined;
+      if (gap) openMenu({ kind: "gap", gap }, event.clientX, event.clientY);
+      return;
+    }
+    const content = contentRef.current;
+    if (!content) return;
+    const origin = content.getBoundingClientRect();
+    const hit = hitTarget({ x: event.clientX - origin.left, y: event.clientY - origin.top }, geometry.blocks, zones);
+    if (!hit) return;
+    event.preventDefault();
+    openMenu(hit, event.clientX, event.clientY);
+  };
+
+  /** Menu key or Shift+F10: the menu of the selected block, or "add here" after the selection. */
+  const openMenuFromKeyboard = () => {
+    const content = contentRef.current;
+    if (!content) return;
+    const origin = content.getBoundingClientRect();
+    if (selected && selectedBox) {
+      scrollToBox(selectedBox);
+      openMenu({ kind: "block", id: selected.id }, origin.left + selectedBox.x + Math.min(48, selectedBox.w / 2), origin.top + selectedBox.y + Math.min(32, selectedBox.h / 2));
+      return;
+    }
+    const index = insertionIndex(document, null);
+    const gap = zones.find((zone) => zone.index === index) ?? zones[zones.length - 1];
+    if (!gap) return;
+    openMenu({ kind: "gap", gap }, origin.left + gap.x + gap.w / 2 - 120, origin.top + gap.y);
+  };
+
+  const typeEntries = (index: number, prefix: string): MenuEntry[] => {
+    const { content, once } = addableTypes(document);
+    const item = (entry: { type: BlockType; taken: boolean }): MenuEntry => ({
+      kind: "item",
+      id: `${prefix}:${entry.type}`,
+      label: blockLabel[entry.type],
+      icon: blockIcon[entry.type],
+      hint: blockHint[entry.type],
+      note: entry.taken ? "Già presente" : undefined,
+      disabled: entry.taken || !allowed({ kind: "insertBlock", block: starterBlock(entry.type, defaults), index }),
+    });
+    return [{ kind: "group", id: `${prefix}:content`, label: "Contenuti" }, ...content.map(item), { kind: "group", id: `${prefix}:once`, label: "Una sola volta" }, ...once.map(item)];
+  };
+  const anyEnabled = (entries: MenuEntry[]) => entries.some((entry) => entry.kind === "item" && !entry.disabled);
+
+  const menuEntries = (target: MenuTarget): MenuEntry[] => {
+    if (target.kind === "gap") {
+      const gap: Gap = target.gap;
+      const types = typeEntries(gap.index, "here");
+      return [
+        { kind: "submenu", id: "here", label: "Aggiungi un blocco", icon: Plus, disabled: !anyEnabled(types), entries: types },
+        {
+          kind: "item",
+          id: "search",
+          label: "Cerca un blocco",
+          icon: Search,
+          keys: "/",
+        },
+      ];
+    }
+    const block = byId.get(target.id);
+    if (!block) return [];
+    const at = order.indexOf(block.id);
+    const can = blockActions(document, block.id, readOnly);
+    const above = can.insertBefore ? typeEntries(at, "above") : [];
+    const below = typeEntries(at + 1, "below");
+    return [
+      { kind: "item", id: "edit", label: "Modifica il testo", icon: TextCursorInput, keys: "Invio", disabled: !can.edit },
+      { kind: "submenu", id: "above", label: "Aggiungi sopra", icon: ArrowUpToLine, disabled: !anyEnabled(above), entries: above },
+      { kind: "submenu", id: "below", label: "Aggiungi sotto", icon: ArrowDownToLine, disabled: !anyEnabled(below), entries: below },
+      { kind: "separator", id: "s1" },
+      { kind: "item", id: "up", label: "Sposta su", icon: ArrowUp, keys: "Alt ↑", disabled: !can.moveUp },
+      { kind: "item", id: "down", label: "Sposta giù", icon: ArrowDown, keys: "Alt ↓", disabled: !can.moveDown },
+      { kind: "item", id: "duplicate", label: "Duplica", icon: Copy, keys: "Ctrl D", disabled: !can.duplicate },
+      { kind: "separator", id: "s2" },
+      { kind: "item", id: "toggle", label: block.visible ? "Nascondi nel documento" : "Mostra nel documento", icon: block.visible ? EyeOff : Eye, disabled: !can.toggle },
+      { kind: "item", id: "lock", label: block.locked ? "Sblocca il contenuto" : "Blocca il contenuto", icon: block.locked ? LockOpen : Lock, disabled: !can.lock },
+      { kind: "item", id: "fields", label: "Tutti i campi", icon: SlidersHorizontal, keys: "F" },
+      { kind: "separator", id: "s3" },
+      { kind: "item", id: "remove", label: "Elimina", icon: Trash2, keys: "Canc", danger: true, disabled: !can.remove },
+    ];
+  };
+
+  /** What a menu item does, by id: "above:text" inserts a Testo above, "remove" deletes, and so on. */
+  const onMenuAction = (target: MenuTarget, action: string) => {
+    const [where, type] = action.split(":") as [string, BlockType | undefined];
+    if (target.kind === "gap") {
+      const gap = target.gap;
+      if (action === "search") openPicker(gap.index, gap.x + gap.w / 2, gap.y + 16, between(gap.index));
+      else if (where === "here" && type) insertAt(type, gap.index);
+      return;
+    }
+    const id = target.id;
+    const at = order.indexOf(id);
+    if (type && (where === "above" || where === "below")) {
+      insertAt(type, where === "above" ? at : at + 1);
+      return;
+    }
+    const block = byId.get(id);
+    if (!block) return;
+    if (action === "edit") editBlockText(id);
+    else if (action === "up") moveBlock(id, -1);
+    else if (action === "down") moveBlock(id, 1);
+    else if (action === "duplicate") duplicateBlock(id);
+    else if (action === "toggle") toggleBlock(id);
+    else if (action === "lock") lockBlock(id, !block.locked);
+    else if (action === "fields") openFields();
+    else if (action === "remove") removeBlock(id);
+  };
+
   // Shortcuts of the visual editor. Undo and redo are global (useUndoShortcuts).
   useEffect(() => {
     if (readOnly) return;
     const onKey = (event: KeyboardEvent) => {
-      if (drag.dragging || isTyping(event.target)) return;
+      if (drag.dragging || menu || isTyping(event.target)) return;
       const mod = event.metaKey || event.ctrlKey;
-      if (event.key === "Escape") {
+      const onSheet = event.target === window.document.body || (event.target instanceof Element && Boolean(event.target.closest(".ve-canvas")));
+      if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+        if (picker || session || lineEdit) return;
+        event.preventDefault();
+        openMenuFromKeyboard();
+      } else if (event.key === "Escape") {
         if (picker || session || lineEdit) return;
         select(null);
       } else if (!selected) {
@@ -392,6 +639,12 @@ export function VisualeView({
       } else if (mod && event.key.toLowerCase() === "d") {
         event.preventDefault();
         duplicateSelected();
+      } else if (event.key === "Enter" && onSheet && !mod && !event.altKey && !event.shiftKey) {
+        event.preventDefault();
+        editBlockText(selected.id);
+      } else if (event.key.toLowerCase() === "f" && onSheet && !mod && !event.altKey && !event.shiftKey) {
+        event.preventDefault();
+        openFields();
       } else if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
         removeSelected();
@@ -464,6 +717,18 @@ export function VisualeView({
   const lineBlock = lineEdit ? byId.get(lineEdit.blockId) : undefined;
   const line = lineEdit && lineBlock && (lineBlock.type === "services" || lineBlock.type === "options") ? lineBlock.items.find((entry) => entry.id === lineEdit.lineId) : undefined;
 
+  const closeMenu = useCallback(() => setMenu(null), []);
+  // The menu belongs to one place on the sheet: zooming moves it, so it closes.
+  useEffect(() => closeMenu, [zoom, closeMenu]);
+
+  // Undo and redo: a violet veil over what changed, and a word for screen readers.
+  useEffect(() => {
+    if (!lastStep) return;
+    announce(lastStep.direction === "undo" ? "Modifica annullata" : "Modifica ripristinata");
+    const timer = window.setTimeout(() => setVeilDone(lastStep.n), 700);
+    return () => window.clearTimeout(timer);
+  }, [lastStep, announce]);
+
   const totalLabel = totals.main.oneTime.totalCents > 0 ? "Totale una tantum" : "Totale";
   const showUi = !readOnly && !drag.dragging;
   const lockedIds = document.blocks.filter((block) => block.locked).map((block) => block.id);
@@ -471,14 +736,14 @@ export function VisualeView({
   const outlineBlocks = drag.view ? drag.view.order.map((id) => byId.get(id)).filter((block): block is QuoteBlock => Boolean(block)) : document.blocks;
 
   return (
-    <div ref={rootRef} className={cn("ve", readOnly && "is-readonly")} data-testid="editor-visuale">
+    <div ref={rootRef} className={cn("ve", readOnly && "is-readonly", panelOpen && "has-panel")} data-testid="editor-visuale">
       <Outline
         blocks={outlineBlocks}
         selectedId={selection}
         draggingId={drag.view?.id ?? null}
         readOnly={readOnly}
         totalLabel={totalLabel}
-        totalValue={headlineTotal(totals)}
+        total={headlineParts(totals)}
         fromServer={totalsFromServer}
         onSelect={(id) => {
           select(id);
@@ -487,10 +752,11 @@ export function VisualeView({
         onToggle={toggleBlock}
         onLock={lockBlock}
         onRemove={removeBlock}
-        onMove={(id, delta) => exec({ kind: "moveBlock", blockId: id, toIndex: order.indexOf(id) + delta })}
+        onMove={moveBlock}
         onReorder={(ids, movedId) => {
           const result = exec({ kind: "reorderBlocks", ids });
           if (!result.ok) return false;
+          tellMoved(movedId, result.value.blocks);
           select(movedId);
           pendingReveal.current = movedId;
           revealOnly.current = true;
@@ -501,7 +767,7 @@ export function VisualeView({
       <section className="ve-stage" aria-label="Foglio del preventivo">
         <div className="ve-bar">
           <p className="ve-hint muted small">
-            {readOnly ? "Sola lettura: il foglio si può consultare ma non modificare." : selected ? `Blocco: ${blockLabel[selected.type]} · Alt+frecce per spostarlo, / per aggiungerne uno` : "Clicca un testo per scriverci sopra, trascina la maniglia per spostare un blocco"}
+            {readOnly ? "Sola lettura: il foglio si può consultare ma non modificare." : selected ? `Blocco: ${blockLabel[selected.type]} · tasto destro per le azioni, Alt+frecce per spostarlo` : "Clicca un testo per scriverci sopra, tasto destro per aggiungere un blocco in quel punto"}
           </p>
           <div className="ve-zoom" role="group" aria-label="Zoom">
             <button type="button" className="icon-btn" aria-label="Riduci" disabled={zoom <= zoomSteps[0] + 0.001} onClick={() => setZoomChoice([...zoomSteps].reverse().find((step) => step < zoom - 0.001) ?? zoomSteps[0])}>
@@ -517,6 +783,11 @@ export function VisualeView({
               <Maximize2 size={13} aria-hidden="true" /> Adatta
             </button>
           </div>
+          {!panelOpen ? (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => showPanel(true)} aria-label="Apri il pannello delle proprietà" title="Apri il pannello (campi e stile)">
+              <PanelRightOpen size={14} aria-hidden="true" /> Pannello
+            </button>
+          ) : null}
           <a className="btn btn-secondary btn-sm" href={`/api/quotes/${quoteId}/pdf`} target="_blank" rel="noopener" aria-disabled={unsaved || undefined} onClick={(event) => unsaved && event.preventDefault()} title={unsaved ? "Attendi il salvataggio automatico." : "Apre il PDF vero della bozza"}>
             <FileText size={14} aria-hidden="true" /> Vista PDF
           </a>
@@ -529,6 +800,7 @@ export function VisualeView({
             }}
             className={cn("ve-content", !readOnly && "is-editable", drag.dragging && "is-dragging")}
             onClick={onCanvasClick}
+            onContextMenu={onCanvasContextMenu}
             onPointerMove={onCanvasMove}
             onPointerLeave={() => setHoverId(null)}
           >
@@ -612,7 +884,7 @@ export function VisualeView({
                     <ToolButton label={selected.locked ? "Sblocca il contenuto" : "Blocca il contenuto"} pressed={Boolean(selected.locked)} onClick={() => lockBlock(selected.id, !selected.locked)}>
                       {selected.locked ? <Lock size={15} aria-hidden="true" /> : <LockOpen size={15} aria-hidden="true" />}
                     </ToolButton>
-                    <ToolButton label="Tutti i campi" onClick={() => setFieldsOpen(true)} pressed={fieldsOpen}>
+                    <ToolButton label="Tutti i campi" keys="F" onClick={openFields} pressed={panelOpen && panelTab === "content"}>
                       <SlidersHorizontal size={15} aria-hidden="true" />
                     </ToolButton>
                     <span className="ve-toolbar-sep" aria-hidden="true" />
@@ -633,9 +905,9 @@ export function VisualeView({
                 </motion.div>
               ) : null}
 
-              {showUi && !session && !picker
+              {showUi && !session && !picker && !menu
                 ? zones.map((zone) => (
-                    <div key={zone.key} className="ve-insert" data-ve-ui="" style={{ left: zone.x, top: zone.y - 9, width: zone.w }}>
+                    <div key={zone.key} className="ve-insert" data-ve-ui="" data-zone={zone.key} style={{ left: zone.x, top: zone.y - 9, width: zone.w }}>
                       <span className="ve-insert-line" aria-hidden="true" />
                       <button type="button" className="ve-insert-btn" onClick={() => openPicker(zone.index, zone.x + zone.w / 2, zone.y + 16, zone.where)}>
                         <Plus size={13} aria-hidden="true" /> Aggiungi blocco
@@ -694,6 +966,30 @@ export function VisualeView({
                 ) : null}
               </AnimatePresence>
 
+              {menu?.target.kind === "gap" ? (
+                <div className="ve-insert is-here" style={{ left: menu.target.gap.x, top: menu.target.gap.y - 9, width: menu.target.gap.w }} aria-hidden="true">
+                  <span className="ve-insert-line" />
+                  <span className="ve-insert-here">Inserisci qui</span>
+                </div>
+              ) : null}
+
+              {lastStep && lastStep.n !== veilDone
+                ? lastStep.changed.map((id) => {
+                    const box = boxOf.get(id);
+                    return box ? (
+                      <motion.div
+                        key={`${lastStep.n}:${id}`}
+                        className="ve-veil"
+                        aria-hidden="true"
+                        style={{ left: box.x - 6, top: box.y - 6, width: box.w + 12, height: box.h + 12 }}
+                        initial={{ opacity: reduced ? 1 : 0.95 }}
+                        animate={{ opacity: reduced ? 1 : 0 }}
+                        transition={{ duration: 0.6, ease: "easeOut" }}
+                      />
+                    ) : null;
+                  })
+                : null}
+
               {picker ? (
                 <BlockPicker
                   position={{ x: picker.x, y: picker.y }}
@@ -707,38 +1003,78 @@ export function VisualeView({
           </div>
         </div>
 
-        <AnimatePresence>
-          {fieldsOpen && selected ? (
-            <motion.aside
-              key="fields"
-              className="ve-fields"
-              aria-label={`Campi di ${blockTitle(selected)}`}
-              initial={reduced ? false : { opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={reduced ? { opacity: 0 } : { opacity: 0, x: 24 }}
-              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <div className="ve-fields-head">
-                <div>
-                  <h2>{blockTitle(selected)}</h2>
-                  <p className="muted small">{selected.locked ? "Contenuto bloccato: sbloccalo per modificarlo." : `Tutti i campi del blocco ${blockLabel[selected.type]}`}</p>
-                </div>
-                <button type="button" className="icon-btn" aria-label="Chiudi i campi" onClick={() => setFieldsOpen(false)}>
-                  <X size={16} aria-hidden="true" />
-                </button>
-              </div>
-              <div className="ve-fields-body">
-                <BlockForm
-                  key={selected.id}
-                  block={selected}
-                  onChange={(block) => exec({ kind: "replaceBlock", block }, `block:${block.id}`)}
-                  ctx={{ quoteId, items, defaults, taxProfile: snapshot.fiscal.taxProfile, totals, readOnly: readOnly || Boolean(selected.locked) }}
-                />
-              </div>
-            </motion.aside>
-          ) : null}
-        </AnimatePresence>
       </section>
+
+      {panelOpen ? (
+        <SidePanel
+          tab={panelTab}
+          onTab={setPanelTab}
+          onClose={() => showPanel(false)}
+          reduced={reduced}
+          contextKey={selected?.id ?? "document"}
+          title={selected ? blockTitle(selected) : "Documento"}
+          subtitle={
+            selected
+              ? selected.locked
+                ? "Contenuto bloccato: sbloccalo per modificarlo."
+                : `Blocco ${blockLabel[selected.type]}${selected.visible ? "" : " · nascosto nel documento"}`
+              : "Nessun blocco selezionato: clicca un blocco sul foglio per vederne i campi."
+          }
+          content={
+            selected ? (
+              <BlockForm
+                key={selected.id}
+                block={selected}
+                onChange={(block) => exec({ kind: "replaceBlock", block }, `block:${block.id}`)}
+                ctx={{ quoteId, items, defaults, taxProfile: snapshot.fiscal.taxProfile, totals, readOnly: readOnly || Boolean(selected.locked) }}
+              />
+            ) : (
+              documentFields
+            )
+          }
+          style={
+            <>
+              {selected ? (
+                <section className="ve-panel-section" aria-labelledby="ve-block-style">
+                  <h3 id="ve-block-style">Questo blocco</h3>
+                  <label className="ve-switch">
+                    <input type="checkbox" role="switch" checked={selected.visible} disabled={readOnly} onChange={() => toggleBlock(selected.id)} />
+                    <span className="ve-switch-track" aria-hidden="true" />
+                    <span>
+                      Visibile nel documento
+                      <small className="muted">{selected.visible ? "Compare nel foglio, nella pagina pubblica e nel PDF." : "Nascosto: resta nella bozza ma non si stampa."}</small>
+                    </span>
+                  </label>
+                  <label className="ve-switch">
+                    <input type="checkbox" role="switch" checked={Boolean(selected.locked)} disabled={readOnly} onChange={() => lockBlock(selected.id, !selected.locked)} />
+                    <span className="ve-switch-track" aria-hidden="true" />
+                    <span>
+                      Contenuto bloccato
+                      <small className="muted">Protegge i testi da modifiche per sbaglio. Il PDF non cambia.</small>
+                    </span>
+                  </label>
+                  {selected.type === "cover" ? <p className="muted small">La foto della copertina si sceglie qui sotto, in Tutto il documento.</p> : null}
+                </section>
+              ) : null}
+              {documentStyle}
+            </>
+          }
+        />
+      ) : null}
+
+      <div ref={liveRef} className="visually-hidden" role="status" aria-live="polite" aria-atomic="true" data-testid="ve-live" />
+
+      {menu ? (
+        <ContextMenu
+          point={{ x: menu.x, y: menu.y }}
+          label={menu.target.kind === "block" ? `Azioni su ${blockTitle(byId.get(menu.target.id) as QuoteBlock)}` : "Aggiungi qui"}
+          entries={menuEntries(menu.target)}
+          head={<MenuHead target={menu.target} byId={byId} between={between} />}
+          foot={<p className="ve-menu-foot">Maiusc + clic destro: menu del browser</p>}
+          onAction={(action) => onMenuAction(menu.target, action)}
+          onClose={closeMenu}
+        />
+      ) : null}
 
       {drag.ghost ? <DragGhost ghost={drag.ghost} lifted={drag.lifted} x={drag.x} y={drag.y} reduced={reduced} /> : null}
       {drag.dragging ? (
@@ -782,5 +1118,39 @@ function ToolButton({
     <button type="button" className={cn("ve-tool", danger && "is-danger")} aria-label={label} aria-pressed={pressed} title={keys ? `${label} (${keys})` : label} disabled={disabled} onClick={onClick}>
       {children}
     </button>
+  );
+}
+
+function MenuHead({ target, byId, between }: { target: MenuTarget; byId: Map<string, QuoteBlock>; between: (index: number) => string }) {
+  if (target.kind === "gap") {
+    return (
+      <div className="ve-menu-head">
+        <span className="ve-menu-head-icon is-here" aria-hidden="true">
+          <Plus size={14} />
+        </span>
+        <span>
+          <strong>Qui</strong>
+          <small>{between(target.gap.index)}</small>
+        </span>
+      </div>
+    );
+  }
+  const block = byId.get(target.id);
+  if (!block) return null;
+  const Icon = blockIcon[block.type];
+  return (
+    <div className="ve-menu-head">
+      <span className="ve-menu-head-icon" aria-hidden="true">
+        <Icon size={14} />
+      </span>
+      <span>
+        <strong>{blockTitle(block)}</strong>
+        <small>
+          {blockLabel[block.type]}
+          {block.locked ? " · bloccato" : ""}
+          {block.visible ? "" : " · nascosto"}
+        </small>
+      </span>
+    </div>
   );
 }

@@ -5,6 +5,7 @@ import { Reorder, useDragControls, useReducedMotion } from "motion/react";
 import { CheckCircle2, Eye, EyeOff, GripVertical, LoaderCircle, Lock, LockOpen, Pin, Plus, Trash2 } from "lucide-react";
 import { blockLabel, type QuoteBlock } from "@/domain/quote-document";
 import { cn } from "@/lib/cn";
+import { CountUp } from "./count-up";
 import { blockIcon, blockTitle } from "../block-list";
 
 export type OutlineGroup = { key: "cover" | "content" | "summary"; label: string; blocks: QuoteBlock[] };
@@ -51,7 +52,7 @@ export function Outline({
   draggingId,
   readOnly,
   totalLabel,
-  totalValue,
+  total,
   fromServer,
   onReorder,
   onAdd,
@@ -63,7 +64,7 @@ export function Outline({
   draggingId: string | null;
   readOnly: boolean;
   totalLabel: string;
-  totalValue: string;
+  total: { cents: number; suffix: string };
   fromServer: boolean;
   /** Commits a new order from a drag in the outline; returns false when it is refused. */
   onReorder: (ids: string[], movedId: string) => boolean;
@@ -157,7 +158,7 @@ export function Outline({
       </nav>
       <div className="ve-total" aria-live="polite">
         <span className="muted small">{totalLabel}</span>
-        <strong>{totalValue}</strong>
+        <CountUp key={total.suffix} cents={total.cents} suffix={total.suffix} />
         <span className={cn("ve-total-source small", fromServer && "is-server")}>
           {fromServer ? <CheckCircle2 size={13} aria-hidden="true" /> : <LoaderCircle size={13} aria-hidden="true" className="spin" />}
           {fromServer ? "Calcolato dal server" : "Verifica in corso"}

@@ -7,9 +7,8 @@ import { blockHint, blockLabel, singletonBlocks, type BlockType } from "@/domain
 import { cn } from "@/lib/cn";
 import { blockIcon } from "../block-list";
 import { revealInCanvas } from "./geometry";
+import { contentTypes as content, onceTypes as once } from "./menu-model";
 
-const content: BlockType[] = ["text", "image", "services", "options", "highlights", "terms", "intro"];
-const once: BlockType[] = ["summary", "timeline", "contacts", "cover"];
 
 /** Block chooser opened from a "+" on the sheet: search, arrows and Enter, unique blocks greyed out. */
 export function BlockPicker({

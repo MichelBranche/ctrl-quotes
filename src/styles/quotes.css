@@ -316,3 +316,4 @@
 .lock-note { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--cq-surface-sunken); border: 1px solid var(--cq-border); color: var(--cq-ink-soft); font-size: 13px; }
 .lock-note span { flex: 1; }
 @media (hover: none) { .block-item .block-lock, .block-item .block-trash { display: inline-flex; } }
+.save-indicator .save-icon { display: inline-grid; place-items: center; }

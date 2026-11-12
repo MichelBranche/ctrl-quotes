@@ -143,6 +143,8 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
   await page.keyboard.press("Escape");
   expect(offered).toEqual(expect.arrayContaining(["Introduzione", "Testo", "Immagine", "Servizi", "Opzioni", "Vantaggi", "Condizioni"]));
   for (const label of offered) {
+    // With the signature (Contatti) selected, a new block still lands before the Riepilogo.
+    if (label === "Vantaggi") await row(page, "Contatti e accettazione").locator(".ve-outline-select").click();
     await page.locator(".ve-outline-add").click();
     await expect(picker).toBeVisible();
     await picker.locator(".ve-picker-item").filter({ hasText: label }).first().click();
@@ -154,6 +156,9 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
     await expect(block, `${label} in vista`).toBeInViewport();
     await expect(visuale.locator(".ve-frame.is-new")).toBeVisible();
     if (label === "Vantaggi") {
+      const order = await page.locator(".ve-outline-row").evaluateAll((rows) => rows.map((entry) => entry.getAttribute("data-block-id")));
+      const summaryId = await row(page, "Riepilogo economico").getAttribute("data-block-id");
+      expect(order.indexOf(id)).toBe(order.indexOf(summaryId) - 1);
       await expect(block).toContainText("Punto di forza 1");
       await shot(page, "struttura-vantaggi", testInfo);
     }

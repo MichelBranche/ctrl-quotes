@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import Link from "next/link";
 import { Check, ImageIcon } from "lucide-react";
 import { TemplateCover } from "@/components/templates/template-cover";
@@ -23,6 +24,7 @@ export function StylePanel({
   readOnly,
   onTemplate,
   onStyle,
+  embedded = false,
 }: {
   templates: TemplateRow[];
   templateId: string;
@@ -34,7 +36,10 @@ export function StylePanel({
   readOnly: boolean;
   onTemplate: (templateId: string) => void;
   onStyle: (style: DocumentStyle) => void;
+  /** Inside the visual editor's side panel: no card, a "whole document" heading. */
+  embedded?: boolean;
 }) {
+  const titleId = useId();
   const style = document.style;
   const info = templateInfo[templateKey];
   const chosen = photoOptionFor(templateKey, style.photos[templateKey]);
@@ -46,11 +51,11 @@ export function StylePanel({
   const setAccent = (value: DocumentStyle["accent"]) => onStyle({ ...style, accent: value });
 
   return (
-    <section className="card editor-panel style-panel" aria-labelledby="style-title">
+    <section className={embedded ? "style-panel is-embedded" : "card editor-panel style-panel"} aria-labelledby={titleId}>
       <div className="panel-head">
         <div>
-          <h2 id="style-title">Stile del preventivo</h2>
-          <p className="muted small">Cambia l&apos;impaginazione senza toccare i contenuti.</p>
+          <h2 id={titleId}>{embedded ? "Tutto il documento" : "Stile del preventivo"}</h2>
+          <p className="muted small">{embedded ? "Template, foto e colore valgono per tutte le pagine. I contenuti non cambiano." : "Cambia l'impaginazione senza toccare i contenuti."}</p>
         </div>
       </div>
 

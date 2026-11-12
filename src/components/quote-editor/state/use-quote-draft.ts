@@ -6,6 +6,7 @@ import { applyCommand, type CommandOptions, type DocumentCommand, type OpResult 
 import { computeTotals, type QuoteDocument, type QuoteTotals } from "@/domain/quote-document";
 import { saveDraftAction } from "@/server/actions/quotes";
 import type { QuoteEditorData } from "@/server/quotes";
+import { changedBlockIds } from "./changes";
 import { createHistory, record, redo as redoStep, undo as undoStep, type History } from "./history";
 
 export type SaveState = "saved" | "dirty" | "saving" | "error" | "conflict";
@@ -142,6 +143,8 @@ export function useQuoteDraft({ data, initialMeta, readOnly, order = "free" }: {
     [commit, readOnly],
   );
 
+  /** The last undo or redo, with the document it left: the visual editor flashes what changed. */
+  const [lastStep, setLastStep] = useState<{ n: number; direction: "undo" | "redo"; changed: string[] } | null>(null);
   const step = useCallback(
     (direction: "undo" | "redo") => {
       if (readOnly) return;
@@ -151,6 +154,7 @@ export function useQuoteDraft({ data, initialMeta, readOnly, order = "free" }: {
       historyRef.current = next;
       latest.current = next.present;
       setHistory(next);
+      setLastStep((previous) => ({ n: (previous?.n ?? 0) + 1, direction, changed: changedBlockIds(current.present.document, next.present.document) }));
       touch();
     },
     [readOnly, touch],
@@ -179,6 +183,7 @@ export function useQuoteDraft({ data, initialMeta, readOnly, order = "free" }: {
     changeMeta,
     undo,
     redo,
+    lastStep,
     canUndo: !readOnly && history.past.length > 0,
     canRedo: !readOnly && history.future.length > 0,
     totals,
