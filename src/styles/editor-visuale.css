@@ -75,6 +75,19 @@ body.ve-grabbing, body.ve-grabbing * { cursor: grabbing !important; user-select:
 .ve-handle:hover { color: var(--cq-accent); border-color: color-mix(in srgb, var(--ve-accent) 50%, var(--cq-border)); }
 .ve-handle:active { cursor: grabbing; transform: scale(0.94); }
 .ve-hover .ve-handle { animation: ve-fade 150ms ease-out; }
+/* Column width divider: a hairline between two columns with a grip; dragging snaps to sixths. */
+.ve-divider { position: absolute; width: 18px; display: grid; place-items: center; cursor: col-resize; touch-action: none; outline: none; animation: ve-fade 140ms ease-out; }
+.ve-divider::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 1.5px; transform: translateX(-50%); border-radius: 1px; background: color-mix(in srgb, var(--ve-accent) 55%, transparent); opacity: 0.55; transition: opacity 120ms ease-out, width 120ms ease-out, background-color 120ms ease-out; }
+.ve-divider-grip { position: relative; width: 8px; height: 34px; max-height: 60%; border-radius: 999px; background: var(--cq-surface); box-shadow: 0 0 0 1.5px var(--ve-accent), 0 4px 12px -4px color-mix(in srgb, var(--cq-ink) 40%, transparent); transition: transform 140ms ease-out, background-color 140ms ease-out; }
+.ve-divider-grip::after { content: ""; position: absolute; inset: 9px 2.5px; border-left: 1px solid color-mix(in srgb, var(--ve-accent) 70%, transparent); border-right: 1px solid color-mix(in srgb, var(--ve-accent) 70%, transparent); }
+.ve-divider:hover::before, .ve-divider:focus-visible::before, .ve-divider.is-active::before { opacity: 1; width: 2px; background: var(--ve-accent); }
+.ve-divider:hover .ve-divider-grip, .ve-divider:focus-visible .ve-divider-grip { transform: scaleY(1.08); }
+.ve-divider.is-active .ve-divider-grip { background: var(--ve-accent); transform: scaleX(1.15); }
+.ve-divider:focus-visible .ve-divider-grip { box-shadow: 0 0 0 1.5px var(--ve-accent), 0 0 0 5px color-mix(in srgb, var(--ve-accent) 22%, transparent); }
+.ve-divider-guides { position: absolute; pointer-events: none; }
+.ve-divider-guides i { position: absolute; top: -6px; bottom: -6px; width: 0; border-left: 1px dashed color-mix(in srgb, var(--ve-accent) 45%, transparent); }
+.ve-divider-guides i.is-on { border-left-style: solid; border-left-color: transparent; }
+.ve-divider-badge { position: absolute; top: -30px; transform: translateX(-50%); height: 22px; padding: 0 9px; display: inline-flex; align-items: center; border-radius: 7px; background: var(--cq-ink); color: var(--cq-on-primary); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--cq-ink) 50%, transparent); }
 .ve-toolbar { position: absolute; right: 0; top: -46px; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 11px; background: var(--cq-ink); box-shadow: 0 8px 24px -6px color-mix(in srgb, var(--cq-ink) 45%, transparent); }
 .ve-tool { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: color-mix(in srgb, var(--cq-on-primary) 86%, transparent); cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out; }
 .ve-tool:hover:not(:disabled) { background: color-mix(in srgb, var(--cq-on-primary) 14%, transparent); color: var(--cq-on-primary); }
@@ -151,7 +164,8 @@ body.ve-grabbing, body.ve-grabbing * { cursor: grabbing !important; user-select:
 @keyframes ve-rise { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ve-insert-line, .ve-insert-btn, .ve-outline-item, .ve-handle { transition: none !important; }
+  .ve-insert-line, .ve-insert-btn, .ve-outline-item, .ve-handle, .ve-divider::before, .ve-divider-grip { transition: none !important; }
+  .ve-divider { animation: none; }
   .ve-hover, .ve-drag-hint { animation: none; }
 }
 .ve-content [data-ve-editing], .ve-content [data-ve-editing] * { visibility: hidden !important; }

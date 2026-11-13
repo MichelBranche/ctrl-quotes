@@ -26,6 +26,7 @@ import { addableTypes, blockActions, hitTarget, type Gap, type MenuTarget } from
 import { SidePanel, type PanelTab } from "./side-panel";
 import { DragGhost, useBlockDrag } from "./drag";
 import { blockElement, cssValue, useGeometry, type BlockBox } from "./geometry";
+import { RowDivider, type DividerRow } from "./row-divider";
 import { LineCard, type LineFocus } from "./line-card";
 import { Outline } from "./outline";
 import { TextSession, anchorSelector } from "./text-session";
@@ -887,6 +888,17 @@ export function VisualeView({
   const showUi = !readOnly && !drag.dragging;
   const lockedIds = document.blocks.filter((block) => block.locked).map((block) => block.id);
   const hoverBox = showUi && hoverId && hoverId !== selection ? boxOf.get(hoverId) : undefined;
+  // The width divider shows on the row being worked on: the selected one, else the one under the pointer.
+  const dividerRow = ((): DividerRow | null => {
+    if (!showUi || session) return null;
+    const row = selectedRow ?? (hoverId ? rowOf(document.blocks, hoverId) : null);
+    const [a, b] = row?.blocks ?? [];
+    if (!row || row.blocks.length !== 2 || !a?.col || !b) return null;
+    const left = boxOf.get(a.id);
+    const right = boxOf.get(b.id);
+    if (!left || !right || left.page !== right.page) return null;
+    return { row: row.row, left, right, first: a.col.span, label: `${blockTitle(a)} e ${blockTitle(b)}` };
+  })();
   const outlineBlocks = drag.view ? drag.view.order.map((id) => byId.get(id)).filter((block): block is QuoteBlock => Boolean(block)) : document.blocks;
 
   return (
@@ -1083,6 +1095,15 @@ export function VisualeView({
                     </div>
                   ) : null}
                 </motion.div>
+              ) : null}
+
+              {dividerRow ? (
+                <RowDivider
+                  key={dividerRow.row}
+                  row={dividerRow}
+                  onChange={(spans, group) => exec({ kind: "setRowLayout", row: dividerRow.row, spans }, group)}
+                  onDone={(spans) => announce(`Larghezze: ${spans.map(spanLabel).join(" + ")}`)}
+                />
               ) : null}
 
               {showUi && !session && !picker && !menu

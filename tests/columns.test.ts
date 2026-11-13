@@ -255,3 +255,15 @@ describe("righe nel documento stampato", () => {
     }
   }, 120_000);
 });
+
+describe("maniglia tra due colonne", () => {
+  it("scatta sui sesti permessi, da 1/3 a 2/3", async () => {
+    const { snapSplit, splitSpans } = await import("@/domain/columns");
+    expect([0, 0.2, 0.3, 0.42, 0.5, 0.58, 0.6, 0.75, 1].map(snapSplit)).toEqual([2, 2, 2, 3, 3, 3, 4, 4, 4]);
+    expect(snapSplit(Number.NaN)).toBe(3);
+    expect(splitSpans(2)).toEqual([2, 4]);
+    expect(splitSpans(3)).toEqual([3, 3]);
+    expect(splitSpans(4)).toEqual([4, 2]);
+    expect(validLayout(splitSpans(snapSplit(0.66)))).toBe(true);
+  });
+});

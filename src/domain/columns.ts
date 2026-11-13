@@ -136,3 +136,17 @@ export function layoutChoices(count: number): Array<{ spans: Span[]; label: stri
   const options = count === 2 || count === 3 ? rowLayouts[count] : [];
   return options.map((spans) => ({ spans, label: spans.map(spanLabel).join(" + ") }));
 }
+
+/**
+ * Width of the first of two columns when the divider between them is dragged to `fraction` of the
+ * row (0 = left edge, 1 = right edge). Snaps to the nearest sixth the layouts allow: 1/3, 1/2, 2/3.
+ */
+export function snapSplit(fraction: number): Span {
+  const sixths = Number.isFinite(fraction) ? Math.round(fraction * 6) : 3;
+  return sixths <= 2 ? 2 : sixths >= 4 ? 4 : 3;
+}
+
+/** The two widths of a row whose first column is `first` sixths wide. */
+export function splitSpans(first: Span): [Span, Span] {
+  return [first, (6 - first) as Span];
+}
