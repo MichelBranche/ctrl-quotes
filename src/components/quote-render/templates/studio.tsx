@@ -3,7 +3,7 @@ import type { EditAnchor } from "@/domain/document-ops";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
 import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
-import { anchor, Brand, conditionAnchor, Icon, LineTable, optionsColumns, Paras, servicesColumns, Watermark } from "./shared";
+import { anchor, Brand, conditionAnchor, Icon, LineTable, optionsColumns, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
 /** Studio Editorial: warm white paper, uppercase tracked labels, soft boxes, stone arches on the cover. */
 
@@ -155,14 +155,26 @@ function tintOf(accent: string): string {
 
 const icons: Record<string, string> = { payment: "payment", validity: "calendar", notes: "notes", general: "document" };
 
-function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boolean }): ReactElement | null {
-  const wrap = (children: ReactElement, gap = 17, keep = false) => (
-    <k.V blockId={s.id} a="rise" keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
+/** `col`: width in percent when the section is a column of a row (the row draws the rule and the gap). */
+function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first: boolean; col?: number }): ReactElement | null {
+  const narrow = col !== undefined && col <= 55;
+  const frame = (children: ReactElement, gap: number, keep: boolean, blockId?: string) => (
+    <k.V blockId={blockId} a={blockId ? "rise" : undefined} keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
       {first ? null : rule(k)}
       <k.V style={{ paddingTop: first ? 0 : 15 }}>{children}</k.V>
     </k.V>
   );
+  const wrap = (children: ReactElement, gap = 17, keep = false) =>
+    col !== undefined ? (
+      <k.V blockId={s.id} a="rise">
+        {children}
+      </k.V>
+    ) : (
+      frame(children, gap, keep, s.id)
+    );
   switch (s.kind) {
+    case "row":
+      return frame(<RowColumns k={k} s={s} gap={22} render={(section, width) => <Block k={k} m={m} s={section} first col={width} />} />, 17, true);
     case "intro":
       return wrap(
         <k.V stack style={{ flexDirection: "row", paddingBottom: 6 }}>
@@ -201,8 +213,8 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       );
     case "image":
       return s.src ? (
-        <k.V blockId={s.id} a="fade" style={{ marginTop: 22 }} wrap={false}>
-          <k.Img src={s.src} alt={s.alt} style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: 4 }} />
+        <k.V blockId={s.id} a="fade" style={{ marginTop: col !== undefined ? 0 : 22 }} wrap={false}>
+          <k.Img src={s.src} alt={s.alt} style={{ width: "100%", height: col !== undefined ? 170 : 220, objectFit: "cover", borderRadius: 4 }} />
           {s.caption ? (
             <k.T edit={anchor(s.id, "caption")} style={{ ...t.small, marginTop: 6, color: c.muted }}>
               {s.caption}
@@ -214,9 +226,18 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       return wrap(
         <k.V>
           <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label>
-          <k.V stack style={{ flexDirection: "row" }}>
+          <k.V stack style={{ flexDirection: narrow ? "column" : "row" }}>
             {s.items.map((item, index) => (
-              <k.V key={item.id} a="rise" i={index} style={{ flex: 1, paddingLeft: index ? 14 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.light }}>
+              <k.V
+                key={item.id}
+                a="rise"
+                i={index}
+                style={
+                  narrow
+                    ? { paddingTop: index ? 8 : 0, marginTop: index ? 8 : 0, borderTopWidth: index ? 0.5 : 0, borderTopColor: c.light }
+                    : { flex: 1, paddingLeft: index ? 14 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.light }
+                }
+              >
                 <k.T edit={anchor(s.id, `items.${item.id}.title`)} style={{ fontSize: 10.6, fontWeight: 700, color: c.ink }}>
                   {item.title}
                 </k.T>
@@ -293,9 +314,16 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       return wrap(
         <k.V wrap={false}>
           <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label>
-          <k.V style={{ flexDirection: "row" }} stack>
+          <k.V style={{ flexDirection: col !== undefined ? "column" : "row" }} stack>
             {s.columns.map((column, index) => (
-              <k.V key={column.key} style={{ flex: column.key === "general" ? 1.4 : 1, paddingLeft: index ? 14 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.rule }}>
+              <k.V
+                key={column.key}
+                style={
+                  col !== undefined
+                    ? { marginTop: index ? 12 : 0 }
+                    : { flex: column.key === "general" ? 1.4 : 1, paddingLeft: index ? 14 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.rule }
+                }
+              >
                 <k.V style={{ flexDirection: "row", alignItems: "center", marginBottom: 7 }}>
                   <Icon k={k} name={icons[column.key] ?? "notes"} size={11} color={c.ink} width={1.6} />
                   <k.T style={{ fontSize: 9.8, fontWeight: 600, color: c.ink, marginLeft: 7 }}>{column.title}</k.T>
@@ -348,7 +376,7 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       return wrap(
         <k.V>
           <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label>
-          <ChartBody k={k} m={m} s={s} theme={studioChart(m)} />
+          <ChartBody k={k} m={m} s={s} theme={studioChart(m)} width={col} />
         </k.V>,
         17,
         true,

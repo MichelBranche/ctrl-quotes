@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
 import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
-import { anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, servicesColumns, Watermark } from "./shared";
+import { anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
 /** Swiss Minimal: typographic, white, numbered 01 to 08, one accent dot. Measured on the reference mockup. */
 
@@ -132,15 +132,27 @@ function Money({ k, g }: { k: Kit; g: MoneyGroup }) {
   );
 }
 
-function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boolean }): ReactElement | null {
+/** `col`: width in percent when the section is a column of a row (the row draws the rule and the gap). */
+function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first: boolean; col?: number }): ReactElement | null {
   const top = first ? null : rule(k, c.rule, 0.6);
-  const wrap = (children: ReactElement, gap = 26, keep = false) => (
-    <k.V blockId={s.id} a="rise" keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
+  const narrow = col !== undefined && col <= 55;
+  const frame = (children: ReactElement, gap: number, keep: boolean, blockId?: string) => (
+    <k.V blockId={blockId} a={blockId ? "rise" : undefined} keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
       {top}
       <k.V style={{ paddingTop: first ? 0 : 18 }}>{children}</k.V>
     </k.V>
   );
+  const wrap = (children: ReactElement, gap = 26, keep = false) =>
+    col !== undefined ? (
+      <k.V blockId={s.id} a="rise">
+        {children}
+      </k.V>
+    ) : (
+      frame(children, gap, keep, s.id)
+    );
   switch (s.kind) {
+    case "row":
+      return frame(<RowColumns k={k} s={s} gap={26} render={(section, width) => <Block k={k} m={m} s={section} first col={width} />} />, 26, true);
     case "intro":
       return wrap(
         <k.V>
@@ -176,8 +188,8 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       );
     case "image":
       return s.src ? (
-        <k.V blockId={s.id} a="fade" style={{ marginTop: 22 }} wrap={false}>
-          <k.Img src={s.src} alt={s.alt} style={{ width: "100%", height: 220, objectFit: "cover" }} />
+        <k.V blockId={s.id} a="fade" style={{ marginTop: col !== undefined ? 0 : 22 }} wrap={false}>
+          <k.Img src={s.src} alt={s.alt} style={{ width: "100%", height: col !== undefined ? 170 : 220, objectFit: "cover" }} />
           {s.caption ? (
             <k.T edit={anchor(s.id, "caption")} style={{ ...t.small, marginTop: 6, color: c.muted }}>
               {s.caption}
@@ -189,9 +201,18 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       return wrap(
         <k.V>
           <SectionHead k={k} s={s} />
-          <k.V stack style={{ flexDirection: "row" }}>
+          <k.V stack style={{ flexDirection: narrow ? "column" : "row" }}>
             {s.items.map((item, index) => (
-              <k.V key={item.id} a="rise" i={index} style={{ flex: 1, paddingLeft: index ? 12 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.4 : 0, borderLeftColor: c.light }}>
+              <k.V
+                key={item.id}
+                a="rise"
+                i={index}
+                style={
+                  narrow
+                    ? { paddingTop: index ? 8 : 0, marginTop: index ? 8 : 0, borderTopWidth: index ? 0.4 : 0, borderTopColor: c.light }
+                    : { flex: 1, paddingLeft: index ? 12 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.4 : 0, borderLeftColor: c.light }
+                }
+              >
                 <k.T edit={anchor(s.id, `items.${item.id}.title`)} style={{ fontSize: 10, fontWeight: 600, color: c.ink }}>
                   {item.title}
                 </k.T>
@@ -268,9 +289,16 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       return wrap(
         <k.V wrap={false}>
           <SectionHead k={k} s={s} />
-          <k.V style={{ flexDirection: "row" }} stack>
+          <k.V style={{ flexDirection: col !== undefined ? "column" : "row" }} stack>
             {s.columns.map((column, index) => (
-              <k.V key={column.key} style={{ flex: column.key === "general" ? 1.4 : 1, paddingLeft: index ? 12 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.6 : 0, borderLeftColor: c.rule }}>
+              <k.V
+                key={column.key}
+                style={
+                  col !== undefined
+                    ? { marginTop: index ? 10 : 0 }
+                    : { flex: column.key === "general" ? 1.4 : 1, paddingLeft: index ? 12 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.6 : 0, borderLeftColor: c.rule }
+                }
+              >
                 <k.T style={{ fontSize: 9.8, fontWeight: 600, color: c.ink }}>{column.title}</k.T>
                 <k.T edit={conditionAnchor(s.id, column)} style={{ ...t.small, marginTop: 5 }}>
                   {column.body}
@@ -318,7 +346,7 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       return wrap(
         <k.V>
           <SectionHead k={k} s={s} />
-          <ChartBody k={k} m={m} s={s} theme={swissChart(m)} />
+          <ChartBody k={k} m={m} s={s} theme={swissChart(m)} width={col} />
         </k.V>,
         26,
         true,

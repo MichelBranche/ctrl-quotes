@@ -1,4 +1,5 @@
 import { contrastRatio, readableOn } from "@/domain/brand";
+import { normalizeColumns, printedWidths } from "@/domain/columns";
 import {
   basisLabel,
   costData,
@@ -114,6 +115,8 @@ export type ChartView =
       ticks: string[];
       caption: string;
       phases: Array<{ id: string; no: number; label: string; title: string; start: number; end: number }>;
+      /** Editors only: why the phases are drawn in equal steps (periods not readable). Never printed. */
+      notice: string | null;
     }
   | { type: "payments"; legend: boolean; amounts: boolean; percents: boolean; caption: string; total: string; rates: ChartSlice[] }
   | { type: "empty"; chart: ChartBlockType; message: string };
@@ -134,7 +137,11 @@ export type Section =
   | { kind: "timeline"; id: string; no: number; heading: string; steps: Array<{ id: string; label: string; title: string }> }
   | { kind: "terms"; id: string; no: number; heading: string; columns: Condition[] }
   | { kind: "contacts"; id: string; no: number; heading: string; body: string }
-  | { kind: "chart"; id: string; no: number; heading: string; chart: ChartView; a11y: ChartA11y };
+  | { kind: "chart"; id: string; no: number; heading: string; chart: ChartView; a11y: ChartA11y }
+  /** Blocks side by side. `width` in percent of the content width; hidden or empty columns are already left out. */
+  | { kind: "row"; id: string; no: number; columns: RowColumn[] };
+
+export type RowColumn = { width: number; span: number; section: Section };
 
 /** A section before numbering, distributed over the union so object literals type-check. */
 type SectionInput = Section extends infer S ? (S extends Section ? Omit<S, "no"> : never) : never;
@@ -373,7 +380,16 @@ function chartSection(block: Extract<QuoteBlock, { type: ChartBlockType }>, snap
         kind: "chart",
         id: block.id,
         heading,
-        chart: { type: "timeline", legend: block.legend, unit, span: data.span, ticks, caption, phases },
+        chart: {
+          type: "timeline",
+          legend: block.legend,
+          unit,
+          span: data.span,
+          ticks,
+          caption,
+          phases,
+          notice: placeholders && !unit && phases.length > 1 ? "I periodi delle Tempistiche non si leggono: le fasi sono mostrate a passi uguali. Usa lo stesso formato per tutte, per esempio Settimana 1, Settimane 2-3." : null,
+        },
         a11y: {
           summary: `${heading}: ${phases.length} fasi, ${caption}. ${phases.map((phase) => `${phase.label ? `${phase.label}, ` : ""}${phase.title}`).join("; ")}.`,
           head: ["Fase", "Periodo", "Attività"],
@@ -439,7 +455,7 @@ export function buildModel(source: QuoteSnapshot, resources: Resources, numberin
   const key = snapshot.template;
   const accent = resolveAccent(snapshot, key);
   const ordinario = snapshot.fiscal.taxProfile === "ordinario";
-  const visible = snapshot.document.blocks.filter((block) => block.visible);
+  const visible = normalizeColumns(snapshot.document.blocks).filter((block) => block.visible);
   const coverBlock = visible.find((block): block is BlockOf<"cover"> => block.type === "cover") ?? null;
   const rest = visible.filter((block) => block.type !== "cover");
   const title = (coverBlock?.title.trim() || snapshot.quote.title).trim();
@@ -454,12 +470,26 @@ export function buildModel(source: QuoteSnapshot, resources: Resources, numberin
   const sections: Section[] = [];
   // Images never take a number; in Corporate and Bold the highlights card belongs to the intro.
   const quiet = new Set<Section["kind"]>(key === "corporate" || key === "bold" ? ["image", "highlights"] : ["image"]);
+  // Columns are numbered in reading order, left to right, like any other section.
+  const placed: Array<{ section: Section; col: QuoteBlock["col"] }> = [];
   for (const block of rest) {
     const section = toSection(block, snapshot, validity, groups, resources);
     if (!section) continue;
     const numbered = !quiet.has(section.kind) && numbering !== "none";
     if (numbered) counter += 1;
-    sections.push({ ...section, no: numbered ? counter : 0 } as Section);
+    placed.push({ section: { ...section, no: numbered ? counter : 0 } as Section, col: block.col });
+  }
+  for (const entry of placed) {
+    const previous = sections[sections.length - 1];
+    const before = placed[placed.indexOf(entry) - 1];
+    if (entry.col && before?.col?.row === entry.col.row && previous) {
+      const columns = previous.kind === "row" && previous.id === `row:${entry.col.row}` ? previous.columns : [{ width: 100, span: before.col.span, section: previous }];
+      columns.push({ width: 100, span: entry.col.span, section: entry.section });
+      const widths = printedWidths(columns.map((column) => column.span));
+      sections[sections.length - 1] = { kind: "row", id: `row:${entry.col.row}`, no: 0, columns: columns.map((column, index) => ({ ...column, width: widths[index] ?? 100 })) };
+      continue;
+    }
+    sections.push(entry.section);
   }
   const split = sections.findIndex((section) => section.kind === "summary");
   const pages = split > 0 ? [sections.slice(0, split), sections.slice(split)] : [sections];
