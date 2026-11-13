@@ -48,4 +48,14 @@ describe("intestazioni e accesso dei link pubblici", () => {
     expect(response.status).toBe(308);
     expect(response.headers.get("location")).toBe(`https://preventivi.example.com/q/${token}?x=1`);
   });
+
+  it("riconosce il vecchio dominio dall'header Host anche dietro una porta interna", () => {
+    process.env.PUBLIC_QUOTE_BASE_URL = "https://preventivi.example.com";
+    process.env.PUBLIC_QUOTE_LEGACY_HOSTS = "ctrl-quotes.vercel.app";
+    const response = proxy(new NextRequest(`http://localhost:3000/q/${token}`, { headers: { host: "ctrl-quotes.vercel.app" } }));
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe(`https://preventivi.example.com/q/${token}`);
+    const same = proxy(new NextRequest(`http://localhost:3000/q/${token}`, { headers: { host: "preventivi.example.com" } }));
+    expect(same.status).toBe(200);
+  });
 });
