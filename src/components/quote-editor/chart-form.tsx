@@ -121,7 +121,7 @@ export function ChartStyleFields({ block, onChange }: { block: ChartBlock; onCha
           <Switch label="Mostra le percentuali" hint="Arrotondate all'intero, sommano sempre a 100%." checked={block.percents} onChange={(percents) => onChange({ ...block, percents })} />
         </>
       ) : null}
-      <p className="muted small">Colori, caratteri e spaziature seguono il template e il colore d'accento scelto in Stile.</p>
+      <p className="muted small">Colori, caratteri e spaziature seguono il template e il colore d&apos;accento scelto in Stile.</p>
     </div>
   );
 }
