@@ -4,6 +4,8 @@ import { singletonBlocks, type BlockType, type QuoteDocument } from "@/domain/qu
 /** The order blocks are offered in, by the picker and by the right click menu. */
 export const contentTypes: BlockType[] = ["text", "image", "services", "options", "highlights", "terms", "intro"];
 export const onceTypes: BlockType[] = ["summary", "timeline", "contacts", "cover"];
+/** Charts drawn from the quote data: as many as you like, anywhere in the content. */
+export const chartTypes: BlockType[] = ["chartCosts", "chartBars", "chartTimeline", "chartPayments"];
 
 /** A point on the sheet, in canvas content coordinates (the same ones the geometry uses). */
 export type Point = { x: number; y: number };
@@ -61,10 +63,10 @@ export function blockActions(document: QuoteDocument, blockId: string, readOnly:
 export type AddableType = { type: BlockType; taken: boolean };
 
 /** Block types the "Aggiungi" submenu offers: everything but the cover, singletons already present switched off. */
-export function addableTypes(document: QuoteDocument): { content: AddableType[]; once: AddableType[] } {
+export function addableTypes(document: QuoteDocument): { content: AddableType[]; charts: AddableType[]; once: AddableType[] } {
   const present = new Set(document.blocks.map((block) => block.type));
   const entry = (type: BlockType) => ({ type, taken: singletonBlocks.has(type) && present.has(type) });
-  return { content: contentTypes.map(entry), once: onceTypes.filter((type) => type !== "cover").map(entry) };
+  return { content: contentTypes.map(entry), charts: chartTypes.map(entry), once: onceTypes.filter((type) => type !== "cover").map(entry) };
 }
 
 /** The first item whose label starts with the typed letters, after the current one (menu type-ahead). */

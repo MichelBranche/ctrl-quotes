@@ -7,7 +7,7 @@ import { blockHint, blockLabel, singletonBlocks, type BlockType } from "@/domain
 import { cn } from "@/lib/cn";
 import { blockIcon } from "../block-list";
 import { revealInCanvas } from "./geometry";
-import { contentTypes as content, onceTypes as once } from "./menu-model";
+import { chartTypes as charts, contentTypes as content, onceTypes as once } from "./menu-model";
 
 
 /** Block chooser opened from a "+" on the sheet: search, arrows and Enter, unique blocks greyed out. */
@@ -36,6 +36,7 @@ export function BlockPicker({
   };
   const groups = [
     { title: "Contenuti", types: content.filter(match) },
+    { title: "Grafici dai dati del preventivo", types: charts.filter(match) },
     { title: "Una sola volta per preventivo", types: once.filter(match) },
   ].filter((group) => group.types.length);
   const enabled = groups.flatMap((group) => group.types).filter((type) => !(singletonBlocks.has(type) && present.has(type)));

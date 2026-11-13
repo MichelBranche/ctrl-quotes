@@ -20,6 +20,10 @@ export const blockTypes = [
   "timeline",
   "terms",
   "contacts",
+  "chartCosts",
+  "chartBars",
+  "chartTimeline",
+  "chartPayments",
 ] as const;
 export type BlockType = (typeof blockTypes)[number];
 
@@ -35,6 +39,10 @@ export const blockLabel: Record<BlockType, string> = {
   timeline: "Tempistiche",
   terms: "Condizioni",
   contacts: "Contatti",
+  chartCosts: "Ripartizione costi",
+  chartBars: "Barre dei costi",
+  chartTimeline: "Timeline",
+  chartPayments: "Piano pagamenti",
 };
 
 export const blockHint: Record<BlockType, string> = {
@@ -49,6 +57,21 @@ export const blockHint: Record<BlockType, string> = {
   timeline: "Le fasi del progetto, dalla prima all'ultima.",
   terms: "Validità, pagamenti e condizioni.",
   contacts: "I dati aziendali del Brand Kit e il referente.",
+  chartCosts: "Torta o ciambella dei costi, calcolata dai servizi.",
+  chartBars: "I costi per voce o per sezione, in barre.",
+  chartTimeline: "Le fasi delle Tempistiche su una linea del tempo.",
+  chartPayments: "Le rate delle Condizioni, in euro sul totale.",
+};
+
+/** Chart blocks: drawn from the quote data, never typed in. */
+export const chartBlockTypes = ["chartCosts", "chartBars", "chartTimeline", "chartPayments"] as const;
+export type ChartBlockType = (typeof chartBlockTypes)[number];
+
+export const chartHeading: Record<ChartBlockType, string> = {
+  chartCosts: "Ripartizione dei costi",
+  chartBars: "Dove va il budget",
+  chartTimeline: "Piano di lavoro",
+  chartPayments: "Piano dei pagamenti",
 };
 
 /** Blocks that can appear only once in a document. */
@@ -145,6 +168,23 @@ const stepSchema = z.object({
 });
 export type TimelineStep = z.infer<typeof stepSchema>;
 
+/**
+ * Options shared by every chart block. All optional with a default, so documents saved before the
+ * charts existed parse exactly as before and charts saved now keep working if a field is added.
+ */
+const chartFields = {
+  heading,
+  /** Costs: full pie or ring with the total in the middle. */
+  variant: z.enum(["donut", "pie"]).default("donut"),
+  /** Costs and bars: one slice per service line (same names merged) or per services section. */
+  group: z.enum(["line", "section"]).default("line"),
+  /** "auto": taxable base for costs, VAT included for instalments. Ignored without VAT. */
+  vat: z.enum(["auto", "net", "gross"]).default("auto"),
+  legend: z.boolean().default(true),
+  amounts: z.boolean().default(true),
+  percents: z.boolean().default(true),
+};
+
 export const blockSchema = z.discriminatedUnion("type", [
   z.object({
     ...base,
@@ -190,6 +230,10 @@ export const blockSchema = z.discriminatedUnion("type", [
     notes: plain(1000, "Note").default(""),
   }),
   z.object({ ...base, type: z.literal("contacts"), heading, body }),
+  z.object({ ...base, type: z.literal("chartCosts"), ...chartFields }),
+  z.object({ ...base, type: z.literal("chartBars"), ...chartFields }),
+  z.object({ ...base, type: z.literal("chartTimeline"), ...chartFields }),
+  z.object({ ...base, type: z.literal("chartPayments"), ...chartFields }),
 ]);
 
 export type QuoteBlock = z.infer<typeof blockSchema>;
@@ -298,6 +342,11 @@ export function newBlock(type: BlockType, defaults: { terms?: string | null } = 
       return { id, visible: true, type, heading: "Condizioni", body: defaults.terms ?? "", payment: "", notes: "" };
     case "contacts":
       return { id, visible: true, type, heading: "Contatti e accettazione", body: "" };
+    case "chartCosts":
+    case "chartBars":
+    case "chartTimeline":
+    case "chartPayments":
+      return { id, visible: true, type, heading: chartHeading[type], variant: "donut", group: "line", vat: "auto", legend: true, amounts: true, percents: true };
     default: {
       const exhaustive: never = type;
       throw new Error(`Blocco sconosciuto: ${String(exhaustive)}`);

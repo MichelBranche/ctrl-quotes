@@ -11,7 +11,7 @@ export type Style = { [property: string]: string | number | undefined };
 
 /** Web-only motion hint: entrance, stagger index, hover. */
 export type Motion = {
-  a?: "sheet" | "rise" | "fade" | "row" | "bar" | "line" | "node" | "arc" | "stagger";
+  a?: "sheet" | "rise" | "fade" | "row" | "bar" | "line" | "node" | "arc" | "stagger" | "donut";
   i?: number;
   hover?: "row" | "box";
 };
@@ -23,6 +23,11 @@ export type ViewProps = Motion & {
   fixed?: boolean;
   /** False keeps the element on one PDF page. */
   wrap?: boolean;
+  /**
+   * Never split across PDF pages, also when the element would cross the page end: the PDF kit then
+   * passes no `fixed` key at all (react-pdf skips the page-break check for any node that has one).
+   */
+  keep?: boolean;
   /** Starts a new PDF page. */
   breakBefore?: boolean;
   /** PDF: move to the next page when less than this many pt remain. */
@@ -80,6 +85,18 @@ export type StopProps = { offset: string; stopColor: string; stopOpacity?: numbe
 
 export type AmountProps = Motion & { style?: Style | Array<Style | false | null | undefined>; cents: number; text: string; format: (cents: number) => string };
 
+/**
+ * A chart: on the web an image for assistive technology (role img, `label` as its summary) followed
+ * by the same data as a visually hidden table. In the PDF a plain box.
+ */
+export type FigureProps = Motion & {
+  style?: Style | Array<Style | false | null | undefined>;
+  children?: ReactNode;
+  label: string;
+  table: { head: string[]; rows: string[][] };
+  stack?: boolean;
+};
+
 export type PageProps = {
   style?: Style;
   children?: ReactNode;
@@ -109,6 +126,7 @@ export type Kit = {
   PageNo: ComponentType<{ style?: Style; format: (page: number, total: number) => string }>;
   /** A money amount that counts up on the web. `text` is the exact final string. */
   Amount: ComponentType<AmountProps>;
+  Figure: ComponentType<FigureProps>;
 };
 
 export const fonts = {

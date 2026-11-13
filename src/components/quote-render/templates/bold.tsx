@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import type { EditAnchor } from "@/domain/document-ops";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, mix, subtitleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
 import { anchor, Brand, conditionAnchor, highlightGlyph, Icon, LineTable, optionsColumns, pad, Paras, servicesColumns, Watermark } from "./shared";
 
 /** Bold Impact: black and orange, giant display type, a parametric glowing arc, dark bands on the last page. */
@@ -215,8 +216,8 @@ function BreakdownBand({ k, m, b }: { k: Kit; m: DocModel; b: Breakdown }) {
 const termIcons: Record<string, string> = { payment: "payment", validity: "calendar", notes: "info", general: "document" };
 
 function Block({ k, m, s, first, last }: { k: Kit; m: DocModel; s: Item; first: boolean; last: boolean }): ReactElement | null {
-  const light = (children: ReactElement, opts: { extra?: string; gap?: number; title?: string } = {}) => (
-    <k.V blockId={s.id} a="rise" style={{ paddingHorizontal: P, marginTop: first ? 0 : (opts.gap ?? 16) }}>
+  const light = (children: ReactElement, opts: { extra?: string; gap?: number; title?: string; keep?: boolean } = {}) => (
+    <k.V blockId={s.id} a="rise" keep={opts.keep || undefined} style={{ paddingHorizontal: P, marginTop: first ? 0 : (opts.gap ?? 16) }}>
       {first ? null : <k.V style={{ borderTopWidth: 0.6, borderTopColor: c.line, marginBottom: 13 }} />}
       {"heading" in s ? <SectionHead k={k} m={m} no={s.no} title={opts.title ?? s.heading} dark={false} extra={opts.extra} edit={opts.title === undefined ? anchor(s.id, "heading") : undefined} /> : null}
       {children}
@@ -370,9 +371,27 @@ function Block({ k, m, s, first, last }: { k: Kit; m: DocModel; s: Item; first: 
           </k.V>
         </k.V>,
       );
+    case "chart":
+      return light(<ChartBody k={k} m={m} s={s} theme={boldChart(m)} />, { keep: true });
     default:
       return null;
   }
+}
+
+function boldChart(m: DocModel): ChartTheme {
+  const type = chartType(sans, c.ink, c.secondary);
+  return {
+    page: c.paper,
+    ink: c.ink,
+    soft: c.ink,
+    muted: c.secondary,
+    rule: c.line,
+    track: c.muted,
+    palette: chartPalette(m.accent, c.ink, c.paper),
+    ...type,
+    figure: { ...type.figure, fontWeight: 800, fontSize: 19, letterSpacing: -0.6 },
+    radius: 7,
+  };
 }
 
 /** Bold gives the cost breakdown its own numbered section right after the timeline. */

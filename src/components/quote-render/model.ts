@@ -1,5 +1,19 @@
 import { contrastRatio, readableOn } from "@/domain/brand";
 import {
+  basisLabel,
+  costData,
+  paymentData,
+  percentLabel,
+  resolveVat,
+  timelineData,
+  unitPlural,
+  unitShort,
+  vatLabel,
+  type ChartBlockType,
+  type TimeUnit,
+} from "@/domain/charts";
+import {
+  chartHeading,
   documentSchema,
   formatPercentBp,
   formatQuantity,
@@ -53,6 +67,11 @@ export type Resources = {
   image: (assetId: string) => string | null;
   watermark: string | null;
   versionLabel: string | null;
+  /**
+   * Editors only: a chart without data prints an explanation instead of nothing, so the block just
+   * added is there to see and to select. The PDF and the public page never set it.
+   */
+  placeholders?: boolean;
 };
 
 export type Row = {
@@ -80,6 +99,28 @@ export type MoneyGroup = {
 
 export type Party = { name: string; lines: Array<{ label: string | null; value: string }>; missing: string | null };
 
+export type ChartSlice = { id: string; label: string; cents: number; share: number; amount: string; percent: string };
+
+/** What a chart block prints, already formatted. Templates only choose colours, fonts and spacing. */
+export type ChartView =
+  | { type: "costs"; variant: "donut" | "pie"; legend: boolean; amounts: boolean; percents: boolean; caption: string; total: string; slices: ChartSlice[] }
+  | { type: "bars"; amounts: boolean; percents: boolean; caption: string; total: string; slices: ChartSlice[] }
+  | {
+      type: "timeline";
+      legend: boolean;
+      unit: TimeUnit | null;
+      span: number;
+      /** Axis labels, one per unit ("S1", "S2"...). Empty when the phases have no readable period. */
+      ticks: string[];
+      caption: string;
+      phases: Array<{ id: string; no: number; label: string; title: string; start: number; end: number }>;
+    }
+  | { type: "payments"; legend: boolean; amounts: boolean; percents: boolean; caption: string; total: string; rates: ChartSlice[] }
+  | { type: "empty"; chart: ChartBlockType; message: string };
+
+/** Screen reader version of a chart: a one-line summary and the same data as a table. */
+export type ChartA11y = { summary: string; head: string[]; rows: string[][] };
+
 export type Condition = { key: "payment" | "validity" | "notes" | "general"; title: string; body: string };
 
 export type Section =
@@ -92,7 +133,8 @@ export type Section =
   | { kind: "summary"; id: string; no: number; heading: string; body: string; groups: MoneyGroup[]; notices: string[]; breakdown: boolean }
   | { kind: "timeline"; id: string; no: number; heading: string; steps: Array<{ id: string; label: string; title: string }> }
   | { kind: "terms"; id: string; no: number; heading: string; columns: Condition[] }
-  | { kind: "contacts"; id: string; no: number; heading: string; body: string };
+  | { kind: "contacts"; id: string; no: number; heading: string; body: string }
+  | { kind: "chart"; id: string; no: number; heading: string; chart: ChartView; a11y: ChartA11y };
 
 /** A section before numbering, distributed over the union so object literals type-check. */
 type SectionInput = Section extends infer S ? (S extends Section ? Omit<S, "no"> : never) : never;
@@ -256,34 +298,96 @@ function moneyGroups(snapshot: QuoteSnapshot, project: string): MoneyGroup[] {
   return groups;
 }
 
-/** Share of each one-time service line in the one-time taxable base, from real amounts. */
+/** Share of each one-time service line in the one-time taxable base, from real amounts. Same data as the cost charts. */
 export function computeBreakdown(snapshot: QuoteSnapshot): Breakdown {
-  const lines = snapshot.document.blocks.flatMap((block) => (block.type === "services" && block.visible ? block.items : []));
-  const items = lines
-    .filter((line) => line.billing === "una_tantum")
-    .map((line) => ({ id: line.id, name: line.name, cents: lineNetCents(line, snapshot.fiscal.taxProfile) }))
-    .filter((item) => item.cents > 0);
-  const total = items.reduce((sum, item) => sum + item.cents, 0);
-  if (total <= 0) return [];
-  // Lines with the same name are one cost item in the chart.
-  const merged = new Map<string, { id: string; name: string; cents: number }>();
-  for (const item of items) {
-    const key = item.name.trim().toLowerCase();
-    const found = merged.get(key);
-    if (found) found.cents += item.cents;
-    else merged.set(key, { ...item });
-  }
-  const sorted = [...merged.values()].sort((a, b) => b.cents - a.cents);
-  const keep = sorted.length > 6 ? 5 : 6;
-  const top = sorted.slice(0, keep);
-  const rest = sorted.slice(keep);
-  if (rest.length) top.push({ id: "altro", name: `Altre ${rest.length} voci`, cents: rest.reduce((sum, item) => sum + item.cents, 0) });
-  return top.map((item) => {
-    const share = item.cents / total;
-    const percent = share * 100;
-    return { ...item, share, percent: `${percent < 1 && percent > 0 ? "<1" : Math.round(percent)}%` };
+  const data = costData(snapshot.document, snapshot.fiscal.taxProfile, snapshot.totals.main, { group: "line", vat: "net", max: 6, basis: "oneTime" });
+  if (!("slices" in data)) return [];
+  return data.slices.map((slice) => {
+    const percent = slice.share * 100;
+    return { id: slice.id, name: slice.label, cents: slice.cents, share: slice.share, percent: `${percent < 1 && percent > 0 ? "<1" : Math.round(percent)}%` };
   });
 }
+
+function suffixOf(basis: "oneTime" | "monthly" | "yearly"): string {
+  return basis === "monthly" ? " / mese" : basis === "yearly" ? " / anno" : "";
+}
+
+function captionOf(...parts: Array<string | null>): string {
+  return parts.filter(Boolean).join(" · ");
+}
+
+/** Chart section of a chart block. Null when the quote has no data for it (or an explanation, in the editors). */
+function chartSection(block: Extract<QuoteBlock, { type: ChartBlockType }>, snapshot: QuoteSnapshot, placeholders: boolean): SectionInput | null {
+  const heading = block.heading.trim() || chartHeading[block.type];
+  const taxProfile = snapshot.fiscal.taxProfile;
+  const main = snapshot.totals.main;
+  const vat = resolveVat(block.type, block.vat, taxProfile);
+  const empty = (message: string): SectionInput | null =>
+    placeholders ? { kind: "chart", id: block.id, heading, chart: { type: "empty", chart: block.type, message }, a11y: { summary: `${heading}: ${message}`, head: [], rows: [] } } : null;
+  switch (block.type) {
+    case "chartCosts":
+    case "chartBars": {
+      const data = costData(snapshot.document, taxProfile, main, { group: block.group, vat, max: block.type === "chartCosts" ? 6 : 8 });
+      if (!("slices" in data)) return empty(data.reason);
+      const suffix = suffixOf(data.basis);
+      const slices = data.slices.map((slice) => ({ id: slice.id, label: slice.label, cents: slice.cents, share: slice.share, amount: `${euro(slice.cents)}${suffix}`, percent: percentLabel(slice.percent, slice.cents) }));
+      const caption = captionOf(basisLabel[data.basis], vatLabel[data.vat]);
+      const total = `${euro(data.totalCents)}${suffix}`;
+      const a11y: ChartA11y = {
+        summary: `${heading}, ${caption.toLowerCase()}: totale ${total}. ${slices.map((slice) => `${slice.label} ${slice.percent}`).join(", ")}.`,
+        head: [block.group === "section" ? "Sezione" : "Voce", "Importo", "Quota"],
+        rows: slices.map((slice) => [slice.label, slice.amount, slice.percent]),
+      };
+      const chart: ChartView =
+        block.type === "chartCosts"
+          ? { type: "costs", variant: block.variant, legend: block.legend, amounts: block.amounts, percents: block.percents, caption, total, slices }
+          : { type: "bars", amounts: block.amounts, percents: block.percents, caption, total, slices };
+      return { kind: "chart", id: block.id, heading, chart, a11y };
+    }
+    case "chartPayments": {
+      const data = paymentData(snapshot.document, main, vat);
+      if (!("rates" in data)) return empty(data.reason);
+      const rates = data.rates.map((rate) => ({ id: rate.id, label: rate.label, cents: rate.cents, share: rate.bp / 10000, amount: euro(rate.cents), percent: formatPercentBp(rate.bp) }));
+      const caption = captionOf("Sul totale una tantum", vatLabel[data.vat]);
+      const total = euro(data.totalCents);
+      return {
+        kind: "chart",
+        id: block.id,
+        heading,
+        chart: { type: "payments", legend: block.legend, amounts: block.amounts, percents: block.percents, caption, total, rates },
+        a11y: {
+          summary: `${heading}: ${rates.length} rate su ${total}. ${rates.map((rate) => `${rate.label} ${rate.percent}, ${rate.amount}`).join("; ")}.`,
+          head: ["Rata", "Quota", "Importo"],
+          rows: rates.map((rate) => [rate.label, rate.percent, rate.amount]),
+        },
+      };
+    }
+    case "chartTimeline": {
+      const data = timelineData(snapshot.document);
+      if (!("phases" in data)) return empty(data.reason);
+      const unit = data.unit;
+      const ticks = unit ? Array.from({ length: data.span }, (_, index) => `${unitShort[unit]}${index + 1}`) : [];
+      const phases = data.phases.map((phase, index) => ({ ...phase, no: index + 1 }));
+      const caption = unit ? `${data.span} ${data.span === 1 ? unit : unitPlural[unit]} in tutto` : `${phases.length} fasi in sequenza`;
+      return {
+        kind: "chart",
+        id: block.id,
+        heading,
+        chart: { type: "timeline", legend: block.legend, unit, span: data.span, ticks, caption, phases },
+        a11y: {
+          summary: `${heading}: ${phases.length} fasi, ${caption}. ${phases.map((phase) => `${phase.label ? `${phase.label}, ` : ""}${phase.title}`).join("; ")}.`,
+          head: ["Fase", "Periodo", "Attività"],
+          rows: phases.map((phase) => [String(phase.no), phase.label, phase.title]),
+        },
+      };
+    }
+    default: {
+      const exhaustive: never = block;
+      return exhaustive;
+    }
+  }
+}
+
 
 function issuerParty(snapshot: QuoteSnapshot): Party {
   const issuer = snapshot.issuer;
@@ -465,6 +569,11 @@ function toSection(
     }
     case "contacts":
       return { kind: "contacts", id: block.id, heading: heading("Contatti e accettazione", block.heading), body: block.body.trim() };
+    case "chartCosts":
+    case "chartBars":
+    case "chartTimeline":
+    case "chartPayments":
+      return chartSection(block, snapshot, Boolean(resources.placeholders));
     default: {
       const exhaustive: never = block;
       return exhaustive;

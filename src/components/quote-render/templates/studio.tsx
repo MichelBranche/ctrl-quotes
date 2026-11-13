@@ -1,7 +1,8 @@
 import type { ReactElement } from "react";
 import type { EditAnchor } from "@/domain/document-ops";
 import { fonts, type Kit, type Style } from "../kit";
-import { euro, fitTitle, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
 import { anchor, Brand, conditionAnchor, Icon, LineTable, optionsColumns, Paras, servicesColumns, Watermark } from "./shared";
 
 /** Studio Editorial: warm white paper, uppercase tracked labels, soft boxes, stone arches on the cover. */
@@ -155,8 +156,8 @@ function tintOf(accent: string): string {
 const icons: Record<string, string> = { payment: "payment", validity: "calendar", notes: "notes", general: "document" };
 
 function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boolean }): ReactElement | null {
-  const wrap = (children: ReactElement, gap = 17) => (
-    <k.V blockId={s.id} a="rise" style={{ marginTop: first ? 0 : gap }}>
+  const wrap = (children: ReactElement, gap = 17, keep = false) => (
+    <k.V blockId={s.id} a="rise" keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
       {first ? null : rule(k)}
       <k.V style={{ paddingTop: first ? 0 : 15 }}>{children}</k.V>
     </k.V>
@@ -343,9 +344,33 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
         </k.V>,
         14,
       );
+    case "chart":
+      return wrap(
+        <k.V>
+          <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label>
+          <ChartBody k={k} m={m} s={s} theme={studioChart(m)} />
+        </k.V>,
+        17,
+        true,
+      );
     default:
       return null;
   }
+}
+
+function studioChart(m: DocModel): ChartTheme {
+  return {
+    page: c.box,
+    ink: c.ink,
+    soft: c.soft,
+    muted: c.muted,
+    rule: c.light,
+    track: "#E4E1DE",
+    palette: chartPalette(mix(m.accent, c.ink, 0.25), c.ink, c.page),
+    ...chartType(sans, c.ink, c.muted),
+    card: { backgroundColor: c.box, borderRadius: 4, paddingVertical: 16, paddingHorizontal: 18 },
+    radius: 6,
+  };
 }
 
 function Track({ k, count, width }: { k: Kit; count: number; width: number }) {

@@ -31,6 +31,7 @@ import { summaryGroups } from "@/domain/quote-snapshot";
 import { catalogLinesAction, uploadQuoteImageAction } from "@/server/actions/quotes";
 import type { QuotableItem } from "@/server/quotes";
 import { cn } from "@/lib/cn";
+import { ChartContentFields, ChartStyleFields } from "./chart-form";
 import { IntInput, MoneyInput, PercentInput, QuantityInput } from "./inputs";
 
 export type FormContext = {
@@ -42,17 +43,21 @@ export type FormContext = {
   readOnly: boolean;
 };
 
-export function BlockForm({ block, onChange, ctx }: { block: QuoteBlock; onChange: (block: QuoteBlock) => void; ctx: FormContext }) {
+/**
+ * `part`: "content" leaves out the presentation fields of a block (charts), which the visual editor
+ * shows in its Stile tab. The form editor shows everything in one place.
+ */
+export function BlockForm({ block, onChange, ctx, part = "all" }: { block: QuoteBlock; onChange: (block: QuoteBlock) => void; ctx: FormContext; part?: "all" | "content" }) {
   return (
     <fieldset className="block-form" disabled={ctx.readOnly}>
       <legend className="visually-hidden">{blockLabel[block.type]}</legend>
       <p className="muted small">{blockHint[block.type]}</p>
-      <Fields block={block} onChange={onChange} ctx={ctx} />
+      <Fields block={block} onChange={onChange} ctx={ctx} part={part} />
     </fieldset>
   );
 }
 
-function Fields({ block, onChange, ctx }: { block: QuoteBlock; onChange: (block: QuoteBlock) => void; ctx: FormContext }) {
+function Fields({ block, onChange, ctx, part }: { block: QuoteBlock; onChange: (block: QuoteBlock) => void; ctx: FormContext; part: "all" | "content" }) {
   switch (block.type) {
     case "cover":
       return (
@@ -182,6 +187,21 @@ function Fields({ block, onChange, ctx }: { block: QuoteBlock; onChange: (block:
             <span>Mostra la ripartizione dei costi (Corporate Executive e Bold Impact)</span>
           </label>
           <TextAreaField label="Nota sotto il riepilogo" value={block.body} maxLength={6000} rows={4} onChange={(event) => onChange({ ...block, body: event.target.value })} />
+        </>
+      );
+    case "chartCosts":
+    case "chartBars":
+    case "chartTimeline":
+    case "chartPayments":
+      return (
+        <>
+          <ChartContentFields block={block} onChange={onChange} taxProfile={ctx.taxProfile} />
+          {part === "all" ? (
+            <div className="chart-form-style">
+              <p className="chart-field-label">Aspetto</p>
+              <ChartStyleFields block={block} onChange={onChange} />
+            </div>
+          ) : null}
         </>
       );
     default: {

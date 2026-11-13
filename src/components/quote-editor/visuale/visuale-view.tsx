@@ -9,12 +9,14 @@ import { editKit, readAnchor } from "@/components/quote-render/kit-edit";
 import { buildModel, type Resources } from "@/components/quote-render/model";
 import { renderers } from "@/components/quote-render/templates";
 import { applyCommand, fieldLimit, getField, insertionIndex, lockedMessage, type DocumentCommand, type EditAnchor, type FieldPath } from "@/domain/document-ops";
-import { blankLine, blockHint, blockLabel, starterBlock, type BlockType, type QuoteBlock, type QuoteLine } from "@/domain/quote-document";
+import { blankLine, blockHint, blockLabel, starterBlock, type BlockType, type ChartBlockType, type QuoteBlock, type QuoteLine } from "@/domain/quote-document";
 import { headlineParts, type QuoteSnapshot } from "@/domain/quote-snapshot";
 import type { PriceMode } from "@/domain/pricing";
 import type { QuotableItem } from "@/server/quotes";
 import { cn } from "@/lib/cn";
 import { BlockForm, CatalogPicker } from "../block-form";
+import { ChartStyleFields } from "../chart-form";
+import { isChartType } from "@/domain/charts";
 import { blockIcon, blockTitle } from "../block-list";
 import type { QuoteDraft } from "../state/use-quote-draft";
 import { BlockPicker } from "./block-picker";
@@ -73,7 +75,7 @@ function isTyping(target: EventTarget | null) {
 function numberIn(snapshot: QuoteSnapshot, order: string[], id: string): number {
   const byId = new Map(snapshot.document.blocks.map((block) => [block.id, block]));
   const blocks = order.map((entry) => byId.get(entry)).filter((block): block is QuoteBlock => Boolean(block));
-  const resources: Resources = { logo: null, photo: () => null, image: () => "", watermark: null, versionLabel: null };
+  const resources: Resources = { logo: null, photo: () => null, image: () => "", watermark: null, versionLabel: null, placeholders: true };
   const renderer = renderers[snapshot.template] ?? renderers.minimal;
   const model = buildModel({ ...snapshot, document: { ...snapshot.document, blocks } }, resources, renderer.numbering);
   return model.pages.flat().find((section) => section.id === id)?.no ?? 0;
@@ -535,7 +537,7 @@ export function VisualeView({
   };
 
   const typeEntries = (index: number, prefix: string): MenuEntry[] => {
-    const { content, once } = addableTypes(document);
+    const { content, charts, once } = addableTypes(document);
     const item = (entry: { type: BlockType; taken: boolean }): MenuEntry => ({
       kind: "item",
       id: `${prefix}:${entry.type}`,
@@ -545,7 +547,14 @@ export function VisualeView({
       note: entry.taken ? "Già presente" : undefined,
       disabled: entry.taken || !allowed({ kind: "insertBlock", block: starterBlock(entry.type, defaults), index }),
     });
-    return [{ kind: "group", id: `${prefix}:content`, label: "Contenuti" }, ...content.map(item), { kind: "group", id: `${prefix}:once`, label: "Una sola volta" }, ...once.map(item)];
+    return [
+      { kind: "group", id: `${prefix}:content`, label: "Contenuti" },
+      ...content.map(item),
+      { kind: "group", id: `${prefix}:charts`, label: "Grafici" },
+      ...charts.map(item),
+      { kind: "group", id: `${prefix}:once`, label: "Una sola volta" },
+      ...once.map(item),
+    ];
   };
   const anyEnabled = (entries: MenuEntry[]) => entries.some((entry) => entry.kind === "item" && !entry.disabled);
 
@@ -1024,6 +1033,7 @@ export function VisualeView({
             selected ? (
               <BlockForm
                 key={selected.id}
+                part="content"
                 block={selected}
                 onChange={(block) => exec({ kind: "replaceBlock", block }, `block:${block.id}`)}
                 ctx={{ quoteId, items, defaults, taxProfile: snapshot.fiscal.taxProfile, totals, readOnly: readOnly || Boolean(selected.locked) }}
@@ -1054,6 +1064,15 @@ export function VisualeView({
                     </span>
                   </label>
                   {selected.type === "cover" ? <p className="muted small">La foto della copertina si sceglie qui sotto, in Tutto il documento.</p> : null}
+                </section>
+              ) : null}
+              {selected && isChartType(selected.type) ? (
+                <section className="ve-panel-section" aria-labelledby="ve-chart-style">
+                  <h3 id="ve-chart-style">Grafico</h3>
+                  <fieldset className="block-form" disabled={readOnly || Boolean(selected.locked)}>
+                    <legend className="visually-hidden">Aspetto del grafico</legend>
+                    <ChartStyleFields block={selected as Extract<QuoteBlock, { type: ChartBlockType }>} onChange={(block) => exec({ kind: "replaceBlock", block }, `block:${block.id}`)} />
+                  </fieldset>
                 </section>
               ) : null}
               {documentStyle}
