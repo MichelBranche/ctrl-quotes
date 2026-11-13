@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode } from "react";
-import { flatten, type AmountProps, type ImageProps, type Kit, type Motion, type PageProps, type ShapeProps, type Style, type SvgProps, type TextProps, type ViewProps } from "./kit";
+import { flatten, type AmountProps, type FigureProps, type ImageProps, type Kit, type Motion, type PageProps, type ShapeProps, type Style, type SvgProps, type TextProps, type ViewProps } from "./kit";
 
 /**
  * DOM implementation of the template kit. Boxes reproduce the react-pdf (Yoga) model:
@@ -214,6 +214,36 @@ function Amount({ style, cents, text, format, a, i }: AmountProps) {
   );
 }
 
+function Figure({ style, children, label, table, a, i, stack }: FigureProps) {
+  return (
+    <>
+      <div className="k-v" role="img" aria-label={label} style={{ ...toCss(flatten(style)), ...motionStyle({ i }) }} {...motionAttrs({ a })} data-stack={stack ? "" : undefined}>
+        {children}
+      </div>
+      {table.rows.length ? (
+        <table className="visually-hidden">
+          <thead>
+            <tr>
+              {table.head.map((cell) => (
+                <th key={cell} scope="col">
+                  {cell}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row, index) => (
+              <tr key={index}>
+                {row.map((cell, column) => (column === 0 ? <th key={column} scope="row">{cell}</th> : <td key={column}>{cell}</td>))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+    </>
+  );
+}
+
 /** The plain web kit never prints anchors (`edit` is not read): preview, thumbnails and the public page stay as they are. */
 export const webKit: Kit = {
   mode: "web",
@@ -234,4 +264,5 @@ export const webKit: Kit = {
   Stop: (props) => <stop {...props} />,
   PageNo,
   Amount,
+  Figure,
 };

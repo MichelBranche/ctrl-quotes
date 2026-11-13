@@ -170,6 +170,8 @@ export function QuoteDocumentView({
       image: (assetId) => (imagePlaceholder && assetId === placeholderAsset ? imagePlaceholder : `${assetBase}${encodeURIComponent(assetId)}`),
       watermark: watermark ?? null,
       versionLabel: versionLabel ?? (watermark ? "Bozza" : null),
+      // The editors pass a placeholder picture; they also want charts without data to show what they need.
+      placeholders: Boolean(imagePlaceholder),
     };
     const source = imagePlaceholder
       ? {

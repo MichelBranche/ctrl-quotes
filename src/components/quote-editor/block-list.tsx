@@ -12,9 +12,9 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlignLeft, ArrowDown, ArrowUp, Calculator, CalendarRange, Copy, Eye, EyeOff, Lock, LockOpen, FileSignature, GripVertical, Image as ImageIcon, Layers, LayoutPanelTop, ListChecks, Plus, Sparkles, Trash2, Type, UserRound } from "lucide-react";
+import { AlignLeft, ArrowDown, ArrowUp, Calculator, CalendarRange, ChartBarBig, ChartGantt, ChartPie, WalletCards, Copy, Eye, EyeOff, Lock, LockOpen, FileSignature, GripVertical, Image as ImageIcon, Layers, LayoutPanelTop, ListChecks, Plus, Sparkles, Trash2, Type, UserRound } from "lucide-react";
 import { ActionMenu } from "@/components/data/menu";
-import { blockHint, blockLabel, blockTypes, singletonBlocks, type BlockType, type QuoteBlock } from "@/domain/quote-document";
+import { blockHint, blockLabel, blockTypes, chartBlockTypes, singletonBlocks, type BlockType, type QuoteBlock } from "@/domain/quote-document";
 import { cn } from "@/lib/cn";
 
 export const blockIcon: Record<BlockType, typeof Type> = {
@@ -29,6 +29,10 @@ export const blockIcon: Record<BlockType, typeof Type> = {
   timeline: CalendarRange,
   terms: FileSignature,
   contacts: UserRound,
+  chartCosts: ChartPie,
+  chartBars: ChartBarBig,
+  chartTimeline: ChartGantt,
+  chartPayments: WalletCards,
 };
 
 export function blockTitle(block: QuoteBlock): string {
@@ -103,7 +107,7 @@ export function BlockList({
             const Icon = blockIcon[type];
             const disabled = singletonBlocks.has(type) && present.has(type);
             return (
-              <li key={type}>
+              <li key={type} className={type === chartBlockTypes[0] ? "add-block-group" : undefined} data-group={type === chartBlockTypes[0] ? "Grafici" : undefined}>
                 <button
                   type="button"
                   className="add-block"

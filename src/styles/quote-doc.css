@@ -46,6 +46,8 @@
 .qd-anim [data-a="line"]:not(.is-in) { opacity: 1; clip-path: inset(0 100% 0 0); }
 .qd-anim [data-a="node"]:not(.is-in) { transform: scale(0.85); }
 .qd-anim [data-a="arc"]:not(.is-in) { transform: scale(1.04); }
+.qd-anim [data-a="donut"] { transition-duration: 700ms, 1100ms; transform-origin: center; }
+.qd-anim [data-a="donut"]:not(.is-in) { transform: rotate(-70deg) scale(0.9); }
 [data-hover] { transition: box-shadow 160ms ease-out, filter 180ms ease-out; }
 [data-hover="row"]:hover { box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 4%, transparent); }
 [data-hover="box"]:hover { filter: brightness(1.04); }

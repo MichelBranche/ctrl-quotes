@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { fonts, type Kit, type Style } from "../kit";
-import { euro, fitTitle, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { chartType, ChartBody, type ChartTheme } from "./charts";
 import { anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, servicesColumns, Watermark } from "./shared";
 
 /** Editorial Atelier: ivory paper, large serif, full-bleed architecture photo, terracotta figures, olive signature band. */
@@ -199,8 +200,8 @@ function Track({ k, count, width }: { k: Kit; count: number; width: number }) {
 }
 
 function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boolean }): ReactElement | null {
-  const section = (children: ReactElement | null, extra?: string, gap = 22) => (
-    <k.V blockId={s.id} a="rise" style={{ marginTop: first ? 0 : gap }}>
+  const section = (children: ReactElement | null, extra?: string, gap = 22, keep = false) => (
+    <k.V blockId={s.id} a="rise" keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
       {first ? null : hair(k, c.rule)}
       <k.V style={{ paddingTop: first ? 0 : 12 }}>
         <SectionHead k={k} m={m} s={s} first={first} extra={extra} />
@@ -339,9 +340,35 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
         undefined,
         15,
       );
+    case "chart":
+      return section(
+        <k.V style={{ paddingTop: 14 }}>
+          <ChartBody k={k} m={m} s={s} theme={atelierChart(m)} />
+        </k.V>,
+        undefined,
+        22,
+        true,
+      );
     default:
       return null;
   }
+}
+
+function atelierChart(m: DocModel): ChartTheme {
+  const type = chartType(sans, c.ink, c.muted, fonts.figures);
+  return {
+    page: c.paper,
+    ink: c.ink,
+    soft: c.muted,
+    muted: c.muted,
+    rule: c.soft,
+    track: "#EAE2D6",
+    palette: [m.accent, c.olive, mix(m.accent, c.paper, 0.5), c.ink, mix(c.olive, c.paper, 0.5), mix(c.ink, c.paper, 0.55), mix(m.accent, c.ink, 0.45), mix(c.olive, c.ink, 0.4)],
+    ...type,
+    figure: { ...type.figure, fontSize: 21 },
+    caption: { ...type.caption, fontFamily: serif, fontStyle: "italic", fontWeight: 500, fontSize: 11, letterSpacing: 0, textTransform: "none" },
+    radius: 0,
+  };
 }
 
 export function renderAtelier(k: Kit, m: DocModel): ReactElement[] {

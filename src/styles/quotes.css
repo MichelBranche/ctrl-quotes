@@ -179,6 +179,8 @@
 .add-block:hover:not(:disabled) { background: var(--cq-surface); }
 .add-block:disabled { opacity: 0.5; cursor: not-allowed; }
 .add-block svg { margin-top: 2px; flex: none; }
+.add-block-group { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--cq-border); }
+.add-block-group::before { content: attr(data-group); display: block; padding: 0 8px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cq-muted); }
 .block-form { display: flex; flex-direction: column; gap: 12px; border: 0; margin: 0; padding: 0; min-width: 0; }
 .block-form > p { margin: -4px 0 0; }
 .image-pick { display: flex; flex-direction: column; gap: 8px; }
@@ -317,3 +319,16 @@
 .lock-note span { flex: 1; }
 @media (hover: none) { .block-item .block-lock, .block-item .block-trash { display: inline-flex; } }
 .save-indicator .save-icon { display: inline-grid; place-items: center; }
+
+/* Chart blocks: options in the form editor and in the visual editor panel. */
+.chart-form { --ve-accent: var(--cq-accent-bright); display: grid; gap: 12px; }
+.chart-field { display: grid; gap: 6px; }
+.chart-field-label { margin: 0; font-size: var(--cq-font-size-sm); font-weight: 600; color: var(--cq-ink); }
+.chart-source { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--cq-surface-sunken); color: var(--cq-muted); line-height: 1.45; }
+.chart-seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--cq-border); border-radius: 10px; background: var(--cq-surface-sunken); }
+.chart-seg-item { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 4px 10px; border: 0; border-radius: 7px; background: transparent; font: inherit; font-size: 12.5px; font-weight: 550; color: var(--cq-muted); cursor: pointer; transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease; }
+.chart-seg-item:hover { color: var(--cq-ink); }
+.chart-seg-item.is-active { background: var(--cq-surface); color: var(--cq-ink); box-shadow: 0 1px 2px color-mix(in srgb, var(--cq-ink) 12%, transparent), 0 0 0 1px var(--cq-border); }
+.chart-seg-item:focus-visible { outline: 2px solid var(--cq-accent-bright); outline-offset: 1px; }
+.chart-form-style { display: grid; gap: 10px; margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--cq-border); }
+@media (prefers-reduced-motion: reduce) { .chart-seg-item { transition: none; } }

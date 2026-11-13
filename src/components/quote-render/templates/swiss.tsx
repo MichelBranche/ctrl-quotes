@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
 import { anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, servicesColumns, Watermark } from "./shared";
 
 /** Swiss Minimal: typographic, white, numbered 01 to 08, one accent dot. Measured on the reference mockup. */
@@ -133,8 +134,8 @@ function Money({ k, g }: { k: Kit; g: MoneyGroup }) {
 
 function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boolean }): ReactElement | null {
   const top = first ? null : rule(k, c.rule, 0.6);
-  const wrap = (children: ReactElement, gap = 26) => (
-    <k.V blockId={s.id} a="rise" style={{ marginTop: first ? 0 : gap }}>
+  const wrap = (children: ReactElement, gap = 26, keep = false) => (
+    <k.V blockId={s.id} a="rise" keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
       {top}
       <k.V style={{ paddingTop: first ? 0 : 18 }}>{children}</k.V>
     </k.V>
@@ -313,9 +314,32 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
         </k.V>,
         14,
       );
+    case "chart":
+      return wrap(
+        <k.V>
+          <SectionHead k={k} s={s} />
+          <ChartBody k={k} m={m} s={s} theme={swissChart(m)} />
+        </k.V>,
+        26,
+        true,
+      );
     default:
       return null;
   }
+}
+
+function swissChart(m: DocModel): ChartTheme {
+  return {
+    page: c.page,
+    ink: c.ink,
+    soft: c.soft,
+    muted: c.muted,
+    rule: c.light,
+    track: "#EFEFEF",
+    palette: chartPalette(m.accent, c.ink, c.page),
+    ...chartType(sans, c.ink, c.muted),
+    radius: 0,
+  };
 }
 
 function Track({ k, m, count }: { k: Kit; m: DocModel; count: number }) {

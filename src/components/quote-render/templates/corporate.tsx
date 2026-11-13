@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { fonts, type Kit, type Style } from "../kit";
-import { euro, fitTitle, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { chartType, ChartBody, type ChartTheme } from "./charts";
 import { anchor, Brand, conditionAnchor, highlightGlyph, Icon, LineTable, optionsColumns, pad, Paras, servicesColumns, Watermark } from "./shared";
 
 /** Corporate Executive: navy cover with architecture, orange numbering, navy table heads, cost breakdown chart. */
@@ -206,8 +207,8 @@ function BreakdownCards({ k, m, groups }: { k: Kit; m: DocModel; groups: MoneyGr
 const termIcons: Record<string, string> = { payment: "payment", validity: "calendar", notes: "document", general: "document" };
 
 function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boolean }): ReactElement | null {
-  const section = (children: ReactElement, opts: { extra?: string; gap?: number; head?: boolean; title?: string } = {}) => (
-    <k.V blockId={s.id} a="rise" style={{ marginTop: first ? 0 : (opts.gap ?? 18) }}>
+  const section = (children: ReactElement, opts: { extra?: string; gap?: number; head?: boolean; title?: string; keep?: boolean } = {}) => (
+    <k.V blockId={s.id} a="rise" keep={opts.keep || undefined} style={{ marginTop: first ? 0 : (opts.gap ?? 18) }}>
       {first || opts.head === false ? null : <k.V style={{ borderTopWidth: 0.5, borderTopColor: c.line, marginBottom: 12 }} />}
       {opts.head === false ? null : <SectionHead k={k} m={m} s={s} extra={opts.extra} title={opts.title} />}
       {children}
@@ -375,9 +376,26 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
         </k.V>,
         { gap: 12 },
       );
+    case "chart":
+      return section(<ChartBody k={k} m={m} s={s} theme={corporateChart(m)} />, { keep: true });
     default:
       return null;
   }
+}
+
+function corporateChart(m: DocModel): ChartTheme {
+  return {
+    page: c.surface,
+    ink: c.navyDeep,
+    soft: c.text,
+    muted: c.secondary,
+    rule: c.line,
+    track: c.surfaceAlt,
+    palette: [m.accent, c.navy, mix(m.accent, c.white, 0.45), c.secondary, mix(c.navy, c.white, 0.55), c.muted, mix(m.accent, c.navy, 0.45), c.line],
+    ...chartType(sans, c.text, c.secondary),
+    card: { backgroundColor: c.surface, borderRadius: 6, paddingVertical: 14, paddingHorizontal: 16 },
+    radius: 2,
+  };
 }
 
 export function renderCorporate(k: Kit, m: DocModel): ReactElement[] {

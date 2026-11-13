@@ -16,11 +16,16 @@ export const pdfKit: Kit = {
       {children}
     </Page>
   ),
-  V: ({ style, children, fixed, wrap, breakBefore, minPresenceAhead }) => (
-    <View style={s(style)} fixed={fixed} wrap={wrap} break={breakBefore} minPresenceAhead={minPresenceAhead}>
-      {children}
-    </View>
-  ),
+  V: ({ style, children, fixed, wrap, breakBefore, minPresenceAhead, keep }) =>
+    keep ? (
+      <View style={s(style)} wrap={false}>
+        {children}
+      </View>
+    ) : (
+      <View style={s(style)} fixed={fixed} wrap={wrap} break={breakBefore} minPresenceAhead={minPresenceAhead}>
+        {children}
+      </View>
+    ),
   T: ({ style, children, fixed }) => (
     <Text style={s(style)} fixed={fixed}>
       {children}
@@ -45,4 +50,9 @@ export const pdfKit: Kit = {
   Stop: (props) => <Stop {...props} />,
   PageNo: ({ style, format }) => <Text fixed style={s(style)} render={({ pageNumber, totalPages }) => format(pageNumber, totalPages)} />,
   Amount: ({ style, text }) => <Text style={s(style)}>{text}</Text>,
+  Figure: ({ style, children }) => (
+    <View style={s(style)} wrap={false}>
+      {children}
+    </View>
+  ),
 };
