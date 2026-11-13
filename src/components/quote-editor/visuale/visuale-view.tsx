@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, BookOpen, Copy, Eye, EyeOff, FileText, GripVertical, Lock, LockOpen, Maximize2, Minus, PanelRightOpen, Plus, Search, SlidersHorizontal, TextCursorInput, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, BookOpen, Columns2, Columns3, Copy, Eye, EyeOff, FileText, GripVertical, Lock, LockOpen, Maximize2, Minus, PanelRightOpen, Plus, Search, SlidersHorizontal, TextCursorInput, Trash2, Unlink } from "lucide-react";
 import { QuoteDocumentView } from "@/components/quote-render/quote-document";
 import { editKit, readAnchor } from "@/components/quote-render/kit-edit";
 import { buildModel, type Resources } from "@/components/quote-render/model";
 import { renderers } from "@/components/quote-render/templates";
+import { canColumn, columnTypes, layoutChoices, maxColumns, rowOf, spanLabel, unitsOf, type Span } from "@/domain/columns";
 import { applyCommand, fieldLimit, getField, insertionIndex, lockedMessage, type DocumentCommand, type EditAnchor, type FieldPath } from "@/domain/document-ops";
 import { blankLine, blockHint, blockLabel, starterBlock, type BlockType, type ChartBlockType, type QuoteBlock, type QuoteLine } from "@/domain/quote-document";
 import { headlineParts, type QuoteSnapshot } from "@/domain/quote-snapshot";
@@ -29,6 +30,32 @@ import { LineCard, type LineFocus } from "./line-card";
 import { Outline } from "./outline";
 import { TextSession, anchorSelector } from "./text-session";
 import { imagePlaceholder } from "../image-placeholder";
+
+/**
+ * Printed units for the insertion points: the boxes of the blocks, with the columns of a row merged
+ * into the box around them. `unitEnd` maps the first column of a row to its last one. No cover.
+ */
+function unitBoxes(boxes: BlockBox[], blocks: QuoteBlock[]): { flow: BlockBox[]; unitEnd: Map<string, string> } {
+  const rowKey = new Map<string, string>();
+  for (const unit of unitsOf(blocks)) if (unit.kind === "row") for (const block of unit.blocks) rowKey.set(block.id, unit.row);
+  const cover = new Set(blocks.filter((block) => block.type === "cover").map((block) => block.id));
+  const unitEnd = new Map<string, string>();
+  const flow: BlockBox[] = [];
+  for (const box of boxes) {
+    if (cover.has(box.id)) continue;
+    const previous = flow[flow.length - 1];
+    const row = rowKey.get(box.id);
+    if (previous && row && rowKey.get(previous.id) === row && previous.page === box.page) {
+      const x = Math.min(previous.x, box.x);
+      const y = Math.min(previous.y, box.y);
+      flow[flow.length - 1] = { ...previous, x, y, w: Math.max(previous.x + previous.w, box.x + box.w) - x, h: Math.max(previous.y + previous.h, box.y + box.h) - y };
+      unitEnd.set(previous.id, box.id);
+      continue;
+    }
+    flow.push(box);
+  }
+  return { flow, unitEnd };
+}
 
 const SHEET_PX = (595.28 * 96) / 72;
 const zoomSteps = [0.5, 0.75, 0.9, 1, 1.25] as const;
@@ -312,13 +339,25 @@ export function VisualeView({
       select(id);
       tellMoved(id);
     },
+    canJoin: (id, targetId) => allowed({ kind: "joinRow", blockId: id, targetId, side: "after" }),
+    onJoin: (id, targetId, side) => joinRow(id, targetId, side),
   });
 
+  /** "Affianca a destra · 1/2 ciascuno", or "Prima colonna · diventano 3 da 1/3". */
+  const joinLabel = (join: { targetId: string; side: "before" | "after" }) => {
+    const row = rowOf(document.blocks, join.targetId);
+    const count = (row?.blocks.filter((block) => block.id !== drag.view?.id).length ?? 1) + 1;
+    const members = row?.blocks.filter((block) => block.id !== drag.view?.id) ?? [];
+    const at = members.findIndex((block) => block.id === join.targetId) + (join.side === "after" ? 1 : 0);
+    const place = count === 2 ? (join.side === "before" ? "Affianca a sinistra" : "Affianca a destra") : at === 0 ? "Prima colonna" : at === count - 1 ? "Ultima colonna" : "Colonna centrale";
+    return `${place} · ${count === 2 ? "1/2 ciascuno" : `diventano ${count} da 1/${count}`}`;
+  };
   const dropNumber = useMemo(() => (drag.view ? numberIn(snapshot, drag.view.order, drag.view.id) : 0), [drag.view, snapshot]);
 
   const selected = selection ? (byId.get(selection) ?? null) : null;
   const selectedBox = selected ? boxOf.get(selected.id) : undefined;
-  const selectedIndex = selected ? order.indexOf(selected.id) : -1;
+  const selectedRow = selected ? rowOf(document.blocks, selected.id) : null;
+  const selectedCan = blockActions(document, selected?.id ?? "", readOnly);
 
   /** Reads the new position out loud; the latest document comes from the result, not from this render. */
   function tellMoved(id: string, blocks?: QuoteBlock[]) {
@@ -327,9 +366,50 @@ export function VisualeView({
     const block = list[at];
     if (block) announce(`${blockTitle(block)} spostato: ora è il blocco ${at + 1} di ${list.length}`);
   }
+  /** Up or down by one printed unit: a column takes its whole row along, a block hops over a whole row. */
   const moveBlock = (id: string, delta: -1 | 1) => {
-    const result = exec({ kind: "moveBlock", blockId: id, toIndex: order.indexOf(id) + delta });
+    const result = exec({ kind: "moveUnit", blockId: id, delta });
     if (result.ok) tellMoved(id, result.value.blocks);
+  };
+
+  /** Side by side with an existing block (drag on its edge). */
+  const joinRow = (id: string, targetId: string, side: "before" | "after") => {
+    const result = exec({ kind: "joinRow", blockId: id, targetId, side });
+    if (!result.ok) return false;
+    const row = rowOf(result.value.blocks, id);
+    const count = row?.blocks.length ?? 2;
+    announce(`${blockTitle(byId.get(id) as QuoteBlock)} affiancato: riga di ${count} colonne`);
+    select(id);
+    return true;
+  };
+  /** A new block in a column next to an existing one. */
+  const insertBeside = (type: BlockType, targetId: string, side: "before" | "after" = "after") => {
+    const block = starterBlock(type, defaults);
+    const result = exec({ kind: "insertBeside", block, targetId, side });
+    if (!result.ok) return;
+    select(block.id);
+    flash(block.id);
+    pendingReveal.current = block.id;
+    announce(`Aggiunto accanto: ${blockLabel[type]}`);
+  };
+  /** A new row of text columns with a given layout, at an insertion point. */
+  const insertRow = (spans: Span[], index: number) => {
+    const blocks = spans.map(() => starterBlock("text", defaults));
+    const result = exec({ kind: "insertRow", blocks, spans, index });
+    setPicker(null);
+    if (!result.ok || !blocks[0]) return;
+    select(blocks[0].id);
+    flash(blocks[0].id);
+    pendingReveal.current = blocks[0].id;
+    announce(`Aggiunta una riga a ${spans.length} colonne`);
+  };
+  const leaveRow = (id: string) => {
+    const result = exec({ kind: "leaveRow", blockId: id });
+    if (result.ok) announce(`${blockTitle(byId.get(id) as QuoteBlock)} tolto dalla riga: ora è a piena larghezza`);
+  };
+  const setRowLayout = (row: string, spans: Span[]) => {
+    const result = exec({ kind: "setRowLayout", row, spans });
+    if (result.ok) announce(`Larghezze: ${spans.map(spanLabel).join(" + ")}`);
   };
   const moveSelected = (delta: -1 | 1) => {
     if (selected) moveBlock(selected.id, delta);
@@ -423,18 +503,22 @@ export function VisualeView({
     setLineEdit(null);
   };
 
-  /** Insertion points between the printed blocks; the cover keeps its page. */
-  const flow = geometry.blocks.filter((box) => byId.get(box.id)?.type !== "cover");
+  /**
+   * Insertion points between the printed units; the cover keeps its page. The columns of a row
+   * count as one unit, measured as the box around them: nothing goes in between two columns.
+   */
+  const { flow, unitEnd } = unitBoxes(geometry.blocks, document.blocks);
   const zones = flow.map((box, index) => {
     const previous = flow[index - 1];
     const y = previous && previous.page === box.page ? (previous.y + previous.h + box.y) / 2 : box.y - 12;
-    const before = previous ? byId.get(previous.id) : document.blocks.find((block) => block.type === "cover");
+    const before = previous ? byId.get(unitEnd.get(previous.id) ?? previous.id) : document.blocks.find((block) => block.type === "cover");
     return { key: `before:${box.id}`, x: box.x, w: box.w, y, index: order.indexOf(box.id), where: before ? `Dopo «${blockTitle(before)}»` : "In apertura" };
   });
   const last = flow[flow.length - 1];
   if (last) {
-    const block = byId.get(last.id);
-    zones.push({ key: "end", x: last.x, w: last.w, y: last.y + last.h + 16, index: order.indexOf(last.id) + 1, where: block ? `Dopo «${blockTitle(block)}»` : "In fondo" });
+    const lastId = unitEnd.get(last.id) ?? last.id;
+    const block = byId.get(lastId);
+    zones.push({ key: "end", x: last.x, w: last.w, y: last.y + last.h + 16, index: order.indexOf(lastId) + 1, where: block ? `Dopo «${blockTitle(block)}»` : "In fondo" });
   }
 
   const openPicker = (index: number, x: number, y: number, where: string) => {
@@ -562,8 +646,15 @@ export function VisualeView({
     if (target.kind === "gap") {
       const gap: Gap = target.gap;
       const types = typeEntries(gap.index, "here");
+      const rows: MenuEntry[] = [
+        { kind: "group", id: "row:g", label: "Colonne di testo, poi scegli il contenuto" },
+        ...[[3, 3], [2, 4], [4, 2], [2, 2, 2]].map(
+          (spans): MenuEntry => ({ kind: "item", id: `row:${spans.join("-")}`, label: spans.map(spanLabel).join(" + "), icon: spans.length === 3 ? Columns3 : Columns2, disabled: !allowed({ kind: "insertRow", blocks: spans.map(() => starterBlock("text", defaults)), spans, index: gap.index }) }),
+        ),
+      ];
       return [
         { kind: "submenu", id: "here", label: "Aggiungi un blocco", icon: Plus, disabled: !anyEnabled(types), entries: types },
+        { kind: "submenu", id: "rows", label: "Aggiungi una riga a colonne", icon: Columns2, disabled: !anyEnabled(rows), entries: rows },
         {
           kind: "item",
           id: "search",
@@ -579,13 +670,47 @@ export function VisualeView({
     const can = blockActions(document, block.id, readOnly);
     const above = can.insertBefore ? typeEntries(at, "above") : [];
     const below = typeEntries(at + 1, "below");
+    const row = rowOf(document.blocks, block.id);
+    const beside: MenuEntry[] = [
+      { kind: "group", id: "beside:g", label: row ? `Nella riga, a destra (${row.blocks.length + 1} colonne)` : "Accanto, a destra (2 colonne)" },
+      ...[...columnTypes].map(
+        (type): MenuEntry => ({ kind: "item", id: `beside:${type}`, label: blockLabel[type], icon: blockIcon[type], hint: blockHint[type], disabled: !allowed({ kind: "insertBeside", block: starterBlock(type, defaults), targetId: block.id, side: "after" }) }),
+      ),
+    ];
+    const layouts: MenuEntry[] = row
+      ? layoutChoices(row.blocks.length).map((choice) => ({
+          kind: "item",
+          id: `layout:${choice.spans.join("-")}`,
+          label: choice.label,
+          icon: row.blocks.length === 3 ? Columns3 : Columns2,
+          note: choice.spans.every((span, index) => row.blocks[index]?.col?.span === span) ? "Attuale" : undefined,
+        }))
+      : [];
+    const columns: MenuEntry[] = [
+      {
+        kind: "submenu",
+        id: "beside",
+        label: "Affianca un blocco",
+        icon: Columns2,
+        disabled: !can.beside || !anyEnabled(beside),
+        note: !canColumn(block.type) ? "Resta a piena larghezza" : row && row.blocks.length >= maxColumns ? "Riga piena" : undefined,
+        entries: beside,
+      },
+      ...(row
+        ? ([
+            { kind: "submenu", id: "layout", label: "Larghezze della riga", icon: row.blocks.length === 3 ? Columns3 : Columns2, disabled: layouts.length < 2, entries: layouts },
+            { kind: "item", id: "leave", label: "Togli dalla riga", icon: Unlink },
+          ] as MenuEntry[])
+        : []),
+    ];
     return [
       { kind: "item", id: "edit", label: "Modifica il testo", icon: TextCursorInput, keys: "Invio", disabled: !can.edit },
       { kind: "submenu", id: "above", label: "Aggiungi sopra", icon: ArrowUpToLine, disabled: !anyEnabled(above), entries: above },
       { kind: "submenu", id: "below", label: "Aggiungi sotto", icon: ArrowDownToLine, disabled: !anyEnabled(below), entries: below },
+      ...columns,
       { kind: "separator", id: "s1" },
-      { kind: "item", id: "up", label: "Sposta su", icon: ArrowUp, keys: "Alt ↑", disabled: !can.moveUp },
-      { kind: "item", id: "down", label: "Sposta giù", icon: ArrowDown, keys: "Alt ↓", disabled: !can.moveDown },
+      { kind: "item", id: "up", label: row ? "Sposta su la riga" : "Sposta su", icon: ArrowUp, keys: "Alt ↑", disabled: !can.moveUp },
+      { kind: "item", id: "down", label: row ? "Sposta giù la riga" : "Sposta giù", icon: ArrowDown, keys: "Alt ↓", disabled: !can.moveDown },
       { kind: "item", id: "duplicate", label: "Duplica", icon: Copy, keys: "Ctrl D", disabled: !can.duplicate },
       { kind: "separator", id: "s2" },
       { kind: "item", id: "toggle", label: block.visible ? "Nascondi nel documento" : "Mostra nel documento", icon: block.visible ? EyeOff : Eye, disabled: !can.toggle },
@@ -603,12 +728,28 @@ export function VisualeView({
       const gap = target.gap;
       if (action === "search") openPicker(gap.index, gap.x + gap.w / 2, gap.y + 16, between(gap.index));
       else if (where === "here" && type) insertAt(type, gap.index);
+      else if (where === "row" && type) insertRow(String(type).split("-").map(Number) as Span[], gap.index);
       return;
     }
     const id = target.id;
     const at = order.indexOf(id);
     if (type && (where === "above" || where === "below")) {
-      insertAt(type, where === "above" ? at : at + 1);
+      // Above a row means above its first column, below it after the last one.
+      const row = rowOf(document.blocks, id);
+      insertAt(type, where === "above" ? (row ? row.start : at) : row ? row.start + row.blocks.length : at + 1);
+      return;
+    }
+    if (type && where === "beside") {
+      insertBeside(type, id);
+      return;
+    }
+    if (type && where === "layout") {
+      const row = rowOf(document.blocks, id);
+      if (row) setRowLayout(row.row, String(type).split("-").map(Number) as Span[]);
+      return;
+    }
+    if (action === "leave") {
+      leaveRow(id);
       return;
     }
     const block = byId.get(id);
@@ -762,6 +903,7 @@ export function VisualeView({
         onLock={lockBlock}
         onRemove={removeBlock}
         onMove={moveBlock}
+        onMenu={(id, x, y) => openMenu({ kind: "block", id }, x, y)}
         onReorder={(ids, movedId) => {
           const result = exec({ kind: "reorderBlocks", ids });
           if (!result.ok) return false;
@@ -849,6 +991,7 @@ export function VisualeView({
                       return <Icon size={12} aria-hidden="true" />;
                     })()}
                     {blockLabel[selected.type]}
+                    {selected.col && selectedRow ? <span className="ve-frame-col">{`Colonna ${spanLabel(selected.col.span)}`}</span> : null}
                     {selected.locked ? (
                       <>
                         <Lock size={11} aria-hidden="true" /> Bloccato
@@ -877,10 +1020,10 @@ export function VisualeView({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.14, delay: reduced ? 0 : 0.04 }}
                   >
-                    <ToolButton label="Sposta su" keys="Alt+↑" disabled={!allowed({ kind: "moveBlock", blockId: selected.id, toIndex: selectedIndex - 1 }) || selectedIndex === 0} onClick={() => moveSelected(-1)}>
+                    <ToolButton label={selectedRow ? "Sposta su la riga" : "Sposta su"} keys="Alt+↑" disabled={!selectedCan.moveUp} onClick={() => moveSelected(-1)}>
                       <ArrowUp size={15} aria-hidden="true" />
                     </ToolButton>
-                    <ToolButton label="Sposta giù" keys="Alt+↓" disabled={!allowed({ kind: "moveBlock", blockId: selected.id, toIndex: selectedIndex + 1 }) || selectedIndex === order.length - 1} onClick={() => moveSelected(1)}>
+                    <ToolButton label={selectedRow ? "Sposta giù la riga" : "Sposta giù"} keys="Alt+↓" disabled={!selectedCan.moveDown} onClick={() => moveSelected(1)}>
                       <ArrowDown size={15} aria-hidden="true" />
                     </ToolButton>
                     <span className="ve-toolbar-sep" aria-hidden="true" />
@@ -896,6 +1039,29 @@ export function VisualeView({
                     <ToolButton label="Tutti i campi" keys="F" onClick={openFields} pressed={panelOpen && panelTab === "content"}>
                       <SlidersHorizontal size={15} aria-hidden="true" />
                     </ToolButton>
+                    {selectedRow ? (
+                      <>
+                        <span className="ve-toolbar-sep" aria-hidden="true" />
+                        <span className="ve-widths" role="group" aria-label="Larghezze della riga">
+                          {layoutChoices(selectedRow.blocks.length).map((choice) => {
+                            const on = choice.spans.every((span, index) => selectedRow.blocks[index]?.col?.span === span);
+                            return (
+                              <button key={choice.label} type="button" className={cn("ve-width", on && "is-on")} aria-pressed={on} title={`Larghezze ${choice.label}`} disabled={readOnly} onClick={() => setRowLayout(selectedRow.row, choice.spans)}>
+                                <span className="ve-width-glyph" aria-hidden="true">
+                                  {choice.spans.map((span, index) => (
+                                    <i key={index} style={{ flexGrow: span }} />
+                                  ))}
+                                </span>
+                                {selectedRow.blocks.length === 3 ? "1/3 ciascuna" : choice.label.replace(" + ", " · ")}
+                              </button>
+                            );
+                          })}
+                        </span>
+                        <ToolButton label="Togli dalla riga" disabled={readOnly} onClick={() => leaveRow(selected.id)}>
+                          <Unlink size={15} aria-hidden="true" />
+                        </ToolButton>
+                      </>
+                    ) : null}
                     <span className="ve-toolbar-sep" aria-hidden="true" />
                     <ToolButton label="Elimina" keys="Canc" danger disabled={!allowed({ kind: "removeBlock", blockId: selected.id })} onClick={removeSelected}>
                       <Trash2 size={15} aria-hidden="true" />
@@ -925,7 +1091,12 @@ export function VisualeView({
                   ))
                 : null}
 
-              {drag.view ? (
+              {drag.view?.join ? (
+                <div className="ve-join" style={{ left: drag.view.region.x, top: drag.view.region.y - 6, height: drag.view.region.h + 12 }} aria-hidden="true">
+                  <span className="ve-join-line" />
+                  <span className={cn("ve-join-label", drag.view.join.side === "before" ? "is-before" : "is-after")}>{joinLabel(drag.view.join)}</span>
+                </div>
+              ) : drag.view ? (
                 <>
                   <motion.div
                     className="ve-drop-slot"

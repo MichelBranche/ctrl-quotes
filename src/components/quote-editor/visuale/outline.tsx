@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Reorder, useDragControls, useReducedMotion } from "motion/react";
-import { CheckCircle2, Eye, EyeOff, GripVertical, LoaderCircle, Lock, LockOpen, Pin, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Columns2, Columns3, Eye, EyeOff, GripVertical, LoaderCircle, Lock, LockOpen, Pin, Plus, Trash2 } from "lucide-react";
+import { spanLabel, unitsOf } from "@/domain/columns";
 import { blockLabel, type QuoteBlock } from "@/domain/quote-document";
 import { cn } from "@/lib/cn";
 import { CountUp } from "./count-up";
@@ -38,12 +39,28 @@ export function outlineGroups(blocks: QuoteBlock[]): OutlineGroup[] {
   return groups;
 }
 
+/** Where a block sits in its row, for the outline: a group header on the first column, a width on each. */
+type ColumnInfo = { count: number; position: "first" | "middle" | "last"; span: number };
+
+export function columnInfo(blocks: QuoteBlock[]): Map<string, ColumnInfo> {
+  const info = new Map<string, ColumnInfo>();
+  for (const unit of unitsOf(blocks)) {
+    if (unit.kind !== "row") continue;
+    unit.blocks.forEach((block, index) => {
+      info.set(block.id, { count: unit.blocks.length, position: index === 0 ? "first" : index === unit.blocks.length - 1 ? "last" : "middle", span: block.col?.span ?? 3 });
+    });
+  }
+  return info;
+}
+
 type RowActions = {
   onSelect: (id: string) => void;
   onToggle: (id: string) => void;
   onLock: (id: string, locked: boolean) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, delta: -1 | 1) => void;
+  /** Right click (or the menu key) on a row: the same block menu as on the sheet. */
+  onMenu?: (id: string, x: number, y: number) => void;
 };
 
 export function Outline({
@@ -77,6 +94,7 @@ export function Outline({
   const ids = live ?? blocks.map((block) => block.id);
   const ordered = ids.map((id) => byId.get(id)).filter((block): block is QuoteBlock => Boolean(block));
   const coverId = blocks.find((block) => block.type === "cover")?.id ?? null;
+  const columns = columnInfo(ordered);
   const labelOf = new Map<string, string>();
   for (const group of outlineGroups(ordered)) {
     const first = group.blocks.find((block) => block.id !== held);
@@ -135,6 +153,7 @@ export function Outline({
               key={block.id}
               block={block}
               label={labelOf.get(block.id) ?? null}
+              column={columns.get(block.id) ?? null}
               selected={selectedId === block.id}
               dragging={draggingId === block.id || held === block.id}
               canDrag={!readOnly && !draggingId && block.type !== "cover"}
@@ -184,9 +203,12 @@ function OutlineRow({
   onLock,
   onRemove,
   onMove,
+  onMenu,
+  column,
 }: RowActions & {
   block: QuoteBlock;
   label: string | null;
+  column: ColumnInfo | null;
   selected: boolean;
   dragging: boolean;
   canDrag: boolean;
@@ -216,7 +238,21 @@ function OutlineRow({
       data-block-id={block.id}
     >
       {label ? <p className="ve-outline-page">{label}</p> : null}
-      <div className={cn("ve-outline-item", selected && "is-selected", !block.visible && "is-hidden", locked && "is-locked", dragging && "is-dragging")}>
+      {column?.position === "first" ? (
+        <p className="ve-outline-rowhead" title="I blocchi di una riga stanno affiancati. Trascina una colonna fuori dal gruppo per separarla.">
+          {column.count === 3 ? <Columns3 size={12} aria-hidden="true" /> : <Columns2 size={12} aria-hidden="true" />}
+          {`Riga · ${column.count} colonne`}
+        </p>
+      ) : null}
+      <div
+        className={cn("ve-outline-item", selected && "is-selected", !block.visible && "is-hidden", locked && "is-locked", dragging && "is-dragging", column && "in-row")}
+        data-col={column?.position}
+        onContextMenu={(event) => {
+          if (!onMenu || event.shiftKey || readOnly) return;
+          event.preventDefault();
+          onMenu(block.id, event.clientX, event.clientY);
+        }}
+      >
         {cover ? (
           <span className="ve-outline-pin" title="La copertina resta sempre in apertura: non si sposta.">
             <Pin size={12} aria-hidden="true" />
@@ -252,6 +288,7 @@ function OutlineRow({
         <button type="button" className="ve-outline-select" aria-current={selected || undefined} onClick={() => onSelect(block.id)} title={blockLabel[block.type]}>
           <Icon size={14} aria-hidden="true" />
           <span className="clamp-1">{title}</span>
+          {column ? <span className="ve-outline-span">{spanLabel(column.span)}</span> : null}
         </button>
         {readOnly ? null : (
           <span className="ve-outline-actions">

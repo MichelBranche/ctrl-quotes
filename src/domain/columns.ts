@@ -123,3 +123,16 @@ export function printedWidths(spans: number[]): number[] {
   const total = spans.reduce((sum, span) => sum + span, 0) || 1;
   return spans.map((span) => Math.round((span / total) * 10000) / 100);
 }
+
+/** Index of the printed unit (block or row) that holds a block, and how many units there are. */
+export function unitIndex(blocks: QuoteBlock[], blockId: string): { at: number; count: number } {
+  const units = unitsOf(blocks);
+  const at = units.findIndex((unit) => (unit.kind === "row" ? unit.blocks.some((block) => block.id === blockId) : unit.block.id === blockId));
+  return { at, count: units.length };
+}
+
+/** Layouts offered for a row of n columns, with their labels ("1/3 + 2/3"). */
+export function layoutChoices(count: number): Array<{ spans: Span[]; label: string }> {
+  const options = count === 2 || count === 3 ? rowLayouts[count] : [];
+  return options.map((spans) => ({ spans, label: spans.map(spanLabel).join(" + ") }));
+}

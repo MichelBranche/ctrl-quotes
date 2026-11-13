@@ -109,6 +109,8 @@ export type DocumentCommand =
   | { kind: "joinRow"; blockId: string; targetId: string; side: "before" | "after" }
   /** Adds a new block in a row next to another one, in one step. */
   | { kind: "insertBeside"; block: QuoteBlock; targetId: string; side: "before" | "after" }
+  /** A new row of two or three new blocks, with the given widths, in one step. */
+  | { kind: "insertRow"; blocks: QuoteBlock[]; spans: number[]; index: number }
   /** Takes a block out of its row: it goes full width right after the row. */
   | { kind: "leaveRow"; blockId: string }
   /** Every column of a row goes back to full width, in the same order. */
@@ -310,6 +312,18 @@ export function applyCommand(document: QuoteDocument, command: DocumentCommand, 
       const first = rest.findIndex((block) => block.id === members[0]?.id);
       const blocks = rest.filter((block) => !placed.has(block.id));
       blocks.splice(first, 0, ...ordered.map((block) => placed.get(block.id) as QuoteBlock));
+      next = withBlocks(document, blocks);
+      break;
+    }
+    case "insertRow": {
+      if (command.blocks.length !== command.spans.length || !validLayout(command.spans)) return { ok: false, message: "Larghezze non valide: le colonne scattano su 1/3, 1/2 e 2/3." };
+      if (command.blocks.some((block) => !canColumn(block.type))) return { ok: false, message: "Questo blocco resta a piena larghezza." };
+      if (command.blocks.some((block) => index(block.id) >= 0)) return { ok: false, message: "Due blocchi hanno lo stesso identificativo." };
+      const row = makeId();
+      const spans = command.spans;
+      const at = Math.max(0, Math.min(command.index, document.blocks.length));
+      const blocks = [...document.blocks];
+      blocks.splice(at, 0, ...command.blocks.map((block, position) => ({ ...block, col: { row, span: spans[position] as 2 | 3 | 4 } }) as QuoteBlock));
       next = withBlocks(document, blocks);
       break;
     }
