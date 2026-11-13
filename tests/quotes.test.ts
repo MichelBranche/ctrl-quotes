@@ -177,6 +177,42 @@ describe("motore preventivi", () => {
     expect(after.quote).toMatchObject({ templateKey: "bold", validUntil: "2026-12-31" });
   });
 
+  it("il lucchetto vale anche sul server: un blocco bloccato non cambia contenuto", async () => {
+    const { id } = await newQuote();
+    const editor = must(await getQuoteEditor(db, alpha, id));
+    const base = { title: "Con lucchetto", clientId, templateId: "tpl_minimal", validUntil: null };
+    const locked = structuredClone(editor.document);
+    const intro = locked.blocks.find((block) => block.type === "intro");
+    if (!intro || intro.type !== "intro") throw new Error("manca l'introduzione");
+    intro.locked = true;
+    // Edit and lock in the same save: allowed, the block was not locked yet.
+    intro.heading = "Titolo fissato";
+    let revision = must(await saveDraft(db, alpha, id, { ...base, revision: editor.revision, document: locked })).revision;
+    // Locked before and after, content changed: refused, and nothing is stored.
+    const tampered = structuredClone(locked);
+    const target = tampered.blocks.find((block) => block.id === intro.id);
+    if (target?.type === "intro") target.heading = "Cambiato di nascosto";
+    const refused = await saveDraft(db, alpha, id, { ...base, revision, document: tampered });
+    expect(refused.ok).toBe(false);
+    expect(!refused.ok && refused.message).toContain("è bloccato");
+    expect(must(await getQuoteEditor(db, alpha, id)).document.blocks.find((block) => block.id === intro.id)).toMatchObject({ heading: "Titolo fissato", locked: true });
+    // Moving, hiding and the lock itself stay free.
+    const moved = structuredClone(locked);
+    const at = moved.blocks.findIndex((block) => block.id === intro.id);
+    const [block] = moved.blocks.splice(at, 1);
+    if (!block) throw new Error("blocco perso");
+    moved.blocks.push({ ...block, visible: false });
+    revision = must(await saveDraft(db, alpha, id, { ...base, revision, document: moved })).revision;
+    // Unlock and edit in the same save (autosave batches them): allowed.
+    const unlocked = structuredClone(moved);
+    const free = unlocked.blocks.find((entry) => entry.id === intro.id);
+    if (free?.type === "intro") {
+      delete free.locked;
+      free.heading = "Di nuovo libero";
+    }
+    must(await saveDraft(db, alpha, id, { ...base, revision, document: unlocked }));
+  });
+
   it("rifiuta clienti, template e immagini di altri workspace", async () => {
     const { id } = await newQuote();
     const editor = must(await getQuoteEditor(db, alpha, id));

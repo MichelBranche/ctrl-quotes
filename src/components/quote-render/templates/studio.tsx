@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import type { EditAnchor } from "@/domain/document-ops";
 import { fonts, type Kit, type Style } from "../kit";
-import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section, mayBreak } from "../model";
 import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
 import { anchor, Brand, conditionAnchor, Icon, LineTable, optionsColumns, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
@@ -158,8 +158,16 @@ const icons: Record<string, string> = { payment: "payment", validity: "calendar"
 /** `col`: width in percent when the section is a column of a row (the row draws the rule and the gap). */
 function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first: boolean; col?: number }): ReactElement | null {
   const narrow = col !== undefined && col <= 55;
+  // `keep` stays whole on one PDF page unless the pagination pass found it taller than a page.
   const frame = (children: ReactElement, gap: number, keep: boolean, blockId?: string) => (
-    <k.V blockId={blockId} a={blockId ? "rise" : undefined} keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
+    <k.V
+      blockId={blockId}
+      printId={blockId ? undefined : s.id}
+      a={blockId ? "rise" : undefined}
+      keep={(keep && !mayBreak(m.print, s.id)) || undefined}
+      breakBefore={m.print.fresh.has(s.id) || undefined}
+      style={{ marginTop: first ? 0 : gap }}
+    >
       {first ? null : rule(k)}
       <k.V style={{ paddingTop: first ? 0 : 15 }}>{children}</k.V>
     </k.V>
@@ -312,7 +320,7 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
       );
     case "terms":
       return wrap(
-        <k.V wrap={false}>
+        <k.V>
           <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label>
           <k.V style={{ flexDirection: col !== undefined ? "column" : "row" }} stack>
             {s.columns.map((column, index) => (
@@ -336,10 +344,11 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
           </k.V>
         </k.V>,
         14,
+        true,
       );
     case "contacts":
       return wrap(
-        <k.V wrap={false}>
+        <k.V>
           <Label k={k} edit={anchor(s.id, "heading")}>{s.heading}</Label>
           {s.body ? <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.small, marginBottom: 8 }} /> : null}
           <k.V style={{ flexDirection: "row" }} stack>
@@ -371,6 +380,7 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
           </k.V>
         </k.V>,
         14,
+        true,
       );
     case "chart":
       return wrap(

@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import type { EditAnchor } from "@/domain/document-ops";
 import { fonts, type Kit, type Style } from "../kit";
-import { euro, fitTitle, mix, subtitleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { euro, fitTitle, mix, subtitleLines, type DocModel, type MoneyGroup, type Section, mayBreak } from "../model";
 import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
 import { anchor, Brand, conditionAnchor, highlightGlyph, Icon, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
@@ -228,15 +228,26 @@ function Block({ k, m, s, first, last, col }: { k: Kit; m: DocModel; s: Item; fi
         {children}
       </k.V>
     ) : (
-      <k.V blockId={s.id} a="rise" keep={opts.keep || undefined} style={{ paddingHorizontal: P, marginTop: first ? 0 : (opts.gap ?? 16) }}>
+      <k.V
+        blockId={s.id}
+        a="rise"
+        keep={(opts.keep && !mayBreak(m.print, s.id)) || undefined}
+        breakBefore={m.print.fresh.has(s.id) || undefined}
+        style={{ paddingHorizontal: P, marginTop: first ? 0 : (opts.gap ?? 16) }}
+      >
         {first ? null : <k.V style={{ borderTopWidth: 0.6, borderTopColor: c.line, marginBottom: 13 }} />}
         {head(opts)}
         {children}
       </k.V>
     );
-  // In a column the dark band becomes a dark card.
+  // In a column the dark band becomes a dark card. On paper the band stays whole on one page, unless
+  // the pagination pass found it taller than a page: then it breaks and goes on at the top of the next.
   const dark = (children: ReactElement) => (
-    <k.V blockId={s.id} style={inCol ? { backgroundColor: c.ink, borderRadius: 7, paddingHorizontal: 16, paddingTop: 13, paddingBottom: 13 } : { backgroundColor: c.ink, paddingHorizontal: P, paddingTop: 13, paddingBottom: 13, flexGrow: last ? 1 : 0 }}>
+    <k.V
+      blockId={s.id}
+      keep={(!inCol && !mayBreak(m.print, s.id)) || undefined}
+      breakBefore={(!inCol && m.print.fresh.has(s.id)) || undefined}
+      style={inCol ? { backgroundColor: c.ink, borderRadius: 7, paddingHorizontal: 16, paddingTop: 13, paddingBottom: 13 } : { backgroundColor: c.ink, paddingHorizontal: P, paddingTop: 13, paddingBottom: 13, flexGrow: last ? 1 : 0, ...(last && k.mode === "pdf" ? { marginBottom: -pdfDarkPad.bottom } : {}) }}>
       {"heading" in s ? <SectionHead k={k} m={m} no={s.no} title={s.heading} dark edit={anchor(s.id, "heading")} /> : null}
       {children}
     </k.V>
@@ -252,7 +263,7 @@ function Block({ k, m, s, first, last, col }: { k: Kit; m: DocModel; s: Item; fi
   switch (s.kind) {
     case "row":
       return (
-        <k.V keep style={{ paddingHorizontal: P, marginTop: first ? 0 : 16 }}>
+        <k.V printId={s.id} keep={!m.print.probe || undefined} style={{ paddingHorizontal: P, marginTop: first ? 0 : 16 }}>
           {first ? null : <k.V style={{ borderTopWidth: 0.6, borderTopColor: c.line, marginBottom: 13 }} />}
           <RowColumns k={k} s={s} gap={22} render={(column, width) => <Block k={k} m={m} s={column} first last={false} col={width} />} />
         </k.V>
@@ -352,7 +363,7 @@ function Block({ k, m, s, first, last, col }: { k: Kit; m: DocModel; s: Item; fi
     }
     case "terms":
       return dark(
-        <k.V wrap={false} style={{ flexDirection: inCol ? "column" : "row" }} stack>
+        <k.V style={{ flexDirection: inCol ? "column" : "row" }} stack>
           {s.columns.map((column, index) => (
             <k.V
               key={column.key}
@@ -375,7 +386,7 @@ function Block({ k, m, s, first, last, col }: { k: Kit; m: DocModel; s: Item; fi
       );
     case "contacts":
       return dark(
-        <k.V wrap={false} style={{ borderTopWidth: 0.6, borderTopColor: "#5A5A5A", paddingTop: 0 }}>
+        <k.V style={{ borderTopWidth: 0.6, borderTopColor: "#5A5A5A", paddingTop: 0 }}>
           {s.body ? <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.small, color: c.onDark, marginBottom: 8 }} /> : null}
           <k.V style={{ flexDirection: "row" }} stack>
             {[m.issuer, m.client].map((party, index) => (
@@ -426,27 +437,44 @@ function boldChart(m: DocModel): ChartTheme {
 }
 
 /** Bold gives the cost breakdown its own numbered section right after the timeline. */
-function withBreakdown(m: DocModel, sections: Section[]): Item[] {
+export function withBreakdown(m: DocModel, sections: Section[]): Item[] {
   const summary = sections.find((section): section is Extract<Section, { kind: "summary" }> => section.kind === "summary");
   if (!summary || !summary.breakdown || !m.breakdown.length) return sections;
   const anchor = sections.findIndex((section) => section.kind === "timeline");
   const at = (anchor >= 0 ? anchor : sections.indexOf(summary)) + 1;
   const no = sections[at - 1]?.no ? (sections[at - 1]?.no ?? 0) + 1 : 0;
-  const shifted = sections.map((section, index) => (index >= at && section.no ? { ...section, no: section.no + 1 } : section));
+  // A row carries no number of its own: its columns do, and they move up too.
+  const bump = (section: Section): Section =>
+    section.kind === "row" ? { ...section, columns: section.columns.map((column) => ({ ...column, section: bump(column.section) })) } : section.no ? { ...section, no: section.no + 1 } : section;
+  const shifted = sections.map((section, index) => (index >= at ? bump(section) : section));
   return [...shifted.slice(0, at), { kind: "breakdown", id: `${summary.id}-breakdown`, no, groups: summary.groups }, ...shifted.slice(at)];
 }
 
+/** Margins of the page that opens with the dark summary, for the pages it overflows to. */
+const pdfDarkPad = { top: 28, bottom: 30 };
+
 export function renderBold(k: Kit, m: DocModel): ReactElement[] {
   const pages: ReactElement[] = [];
+  // The web prints one sheet per page and never overflows, so it needs no margins there.
+  const darkPad = k.mode === "pdf" ? { page: { paddingTop: pdfDarkPad.top, paddingBottom: pdfDarkPad.bottom }, head: { marginTop: -pdfDarkPad.top } } : { page: {}, head: {} };
   if (m.cover) pages.push(<Cover key="cover" k={k} m={m} />);
   m.pages.forEach((sections, index) => {
     const items = withBreakdown(m, sections);
     const darkTop = items[0]?.kind === "summary";
     if (darkTop) {
       const [summary, ...rest] = items;
+      const bands = new Set(rest.filter((item) => item.kind === "terms" || item.kind === "contacts").map((item) => item.id));
+      // A dark band cut by a page break bleeds into the margin it was cut at, like the page it started on.
+      const bleed = (page: number) => {
+        const edge = m.print.edges?.get(page);
+        const strip = (side: "top" | "bottom") => <k.V key={side} style={{ position: "absolute", left: 0, right: 0, [side]: 0, height: pdfDarkPad[side], backgroundColor: c.ink }} />;
+        return [edge?.top && bands.has(edge.top) ? strip("top") : null, edge?.bottom && bands.has(edge.bottom) ? strip("bottom") : null];
+      };
       pages.push(
-        <k.Page key={`p${index}`} label={`Pagina ${index + 2}`} style={{ backgroundColor: c.paper, color: c.ink, fontFamily: sans }}>
-          <k.V style={{ backgroundColor: c.ink }}>
+        <k.Page key={`p${index}`} label={`Pagina ${index + 2}`} style={{ backgroundColor: c.paper, color: c.ink, fontFamily: sans, ...darkPad.page }}>
+          <k.PageArt draw={bleed} />
+          {/* The dark head sits on the page edge; the padding only shows on the pages this one overflows to. */}
+          <k.V style={{ backgroundColor: c.ink, ...darkPad.head }}>
             <Arc k={k} accent={m.accent} id={`bi-head-${index}`} width={W} height={300} cx={W + 250} cy={-124} r={433} fade={64} style={{ top: 0, left: 0 }} />
             <Header k={k} m={m} dark />
             {summary ? <Block k={k} m={m} s={summary} first last={false} /> : null}

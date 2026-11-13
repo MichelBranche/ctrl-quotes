@@ -264,6 +264,8 @@ export const webKit: Kit = {
   RadialGradient,
   Stop: (props) => <stop {...props} />,
   PageNo,
+  Overflow: () => null,
+  PageArt: () => null,
   Amount,
   Figure,
 };

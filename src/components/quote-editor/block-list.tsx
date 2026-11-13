@@ -289,10 +289,20 @@ function SortableBlock({
       <button type="button" className="drag-handle" aria-label={`Sposta ${title}`} disabled={readOnly} {...attributes} {...listeners}>
         <GripVertical size={14} aria-hidden="true" />
       </button>
-      <button type="button" className="block-select" onClick={onSelect} aria-current={selected ? "true" : undefined}>
+      <button type="button" className="block-select" onClick={onSelect} aria-current={selected ? "true" : undefined} title={title}>
         <Icon size={16} aria-hidden="true" />
-        <span className="clamp-1">{title}</span>
-        {place ? <span className="block-col-span" title={`Colonna larga ${spanLabel(place.span)}`}>{spanLabel(place.span)}</span> : null}
+        {place ? (
+          // In a row the title gets two lines and the width goes under it, so short columns stay readable.
+          <span className="block-select-text">
+            <span className="block-select-title">{title}</span>
+            <span className="block-col-span">
+              <span className="block-col-word">Colonna </span>
+              {spanLabel(place.span)}
+            </span>
+          </span>
+        ) : (
+          <span className="clamp-1">{title}</span>
+        )}
       </button>
       <button
         type="button"

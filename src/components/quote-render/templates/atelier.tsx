@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { fonts, type Kit, type Style } from "../kit";
-import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section, mayBreak } from "../model";
 import { chartType, ChartBody, type ChartTheme } from "./charts";
 import { anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
@@ -38,6 +38,18 @@ function SectionHead({ k, m, s, first, extra, compact }: { k: Kit; m: DocModel; 
         {extra ? <k.T style={{ fontSize: 12.5, fontWeight: 400 }}>{`  ${extra}`}</k.T> : null}
       </k.T>
       {first && !compact ? <k.T style={{ fontFamily: serif, fontStyle: "italic", fontSize: 12.5, color: c.ink }}>{m.issuer.display}</k.T> : null}
+    </k.V>
+  );
+}
+
+/**
+ * The studio name the first section head of a page carries on its right. A page that opens with a
+ * row of columns has no such head (column heads are compact), so the row prints it above itself.
+ */
+function PageSignature({ k, m }: { k: Kit; m: DocModel }) {
+  return (
+    <k.V style={{ flexDirection: "row", justifyContent: "flex-end", paddingBottom: 9, marginBottom: 14, borderBottomWidth: 0.5, borderBottomColor: c.rule }}>
+      <k.T style={{ fontFamily: serif, fontStyle: "italic", fontSize: 12.5, color: c.ink }}>{m.issuer.display}</k.T>
     </k.V>
   );
 }
@@ -210,7 +222,7 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
         {children}
       </k.V>
     ) : (
-      <k.V blockId={s.id} a="rise" keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
+      <k.V blockId={s.id} a="rise" keep={(keep && !mayBreak(m.print, s.id)) || undefined} breakBefore={m.print.fresh.has(s.id) || undefined} style={{ marginTop: first ? 0 : gap }}>
         {first ? null : hair(k, c.rule)}
         <k.V style={{ paddingTop: first ? 0 : 12 }}>
           <SectionHead k={k} m={m} s={s} first={first} extra={extra} />
@@ -222,8 +234,8 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
   switch (s.kind) {
     case "row":
       return (
-        <k.V keep style={{ marginTop: first ? 0 : 22 }}>
-          {first ? null : hair(k, c.rule)}
+        <k.V printId={s.id} keep={!m.print.probe || undefined} style={{ marginTop: first ? 0 : 22 }}>
+          {first ? <PageSignature k={k} m={m} /> : hair(k, c.rule)}
           <k.V style={{ paddingTop: first ? 0 : 12 }}>
             <RowColumns k={k} s={s} gap={26} render={(column, width) => <Block k={k} m={m} s={column} first col={width} />} />
           </k.V>
@@ -319,7 +331,7 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
       );
     case "terms":
       return section(
-        <k.V wrap={false} style={{ flexDirection: col !== undefined ? "column" : "row", paddingTop: 12 }} stack>
+        <k.V style={{ flexDirection: col !== undefined ? "column" : "row", paddingTop: 12 }} stack>
           {s.columns.map((column, index) => (
             <k.V
               key={column.key}
@@ -338,10 +350,11 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
         </k.V>,
         undefined,
         15,
+        true,
       );
     case "contacts":
       return section(
-        <k.V wrap={false} style={{ paddingTop: 12 }}>
+        <k.V style={{ paddingTop: 12 }}>
           {s.body ? <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.small, marginBottom: 8 }} /> : null}
           <k.V style={{ flexDirection: "row" }} stack>
             {[m.issuer, m.client].map((party, index) => (
@@ -410,6 +423,8 @@ export function renderAtelier(k: Kit, m: DocModel): ReactElement[] {
     pages.push(
       <k.Page key={`p${index}`} label={`Pagina ${index + 2}`} style={{ backgroundColor: c.paper, color: c.ink, fontFamily: sans, paddingHorizontal: P, paddingTop: 30, paddingBottom: 30 }}>
         <Watermark k={k} m={m} style={{ color: c.muted }} />
+        {/* Pages this one overflows onto open mid-flow, without a first head: sign them in the margin. */}
+        <k.Overflow text={m.issuer.display} style={{ position: "absolute", top: 11, left: P, right: P, textAlign: "right", fontFamily: serif, fontStyle: "italic", fontSize: 11, color: c.muted }} />
         {sections.map((section, position) => (
           <Block key={section.id} k={k} m={m} s={section} first={position === 0} />
         ))}

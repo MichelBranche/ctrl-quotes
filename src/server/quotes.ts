@@ -42,6 +42,7 @@ import {
   type QuoteSnapshot,
   type TemplateKey,
 } from "@/domain/quote-snapshot";
+import { lockedChange, lockedChangeMessage } from "@/domain/locks";
 import { asQuoteStatus, isEditable, type QuoteFilter, type QuoteStatus } from "@/domain/quote-status";
 import { authorize, conflict, invalid, notFound, ok, type Actor, type Failure, type Result } from "@/server/access";
 import { writeAuditLog } from "@/server/audit";
@@ -691,6 +692,12 @@ export async function saveDraft(db: AppDatabase, actor: Actor, quoteId: string, 
   if (!(await templateExists(db, input.templateId))) return notFound("Template non trovato.");
   const assetIssue = await checkAssets(db, actor.workspaceId, input.document);
   if (assetIssue) return assetIssue;
+  // Locked blocks keep their content, whatever the client sends. The revision check below makes
+  // sure the draft compared here is the one this save replaces.
+  const stored = await findDraft(db, actor.workspaceId, quoteId);
+  const storedDocument = stored && stored.revision === input.revision ? parseDocument(stored.blocksJson) : null;
+  const locked = storedDocument ? lockedChange(storedDocument, input.document) : null;
+  if (locked) return invalid(lockedChangeMessage(locked));
   const config = await getWorkspaceConfig(db, actor);
   if (!config.ok) return config;
   const totals = computeTotals(input.document, fiscalOf(config.value));

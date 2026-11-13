@@ -40,8 +40,10 @@ export type ViewProps = Motion & {
   flowStart?: boolean;
   /** Web: a row of side-by-side blocks; on narrow screens the columns stack with room between them. */
   columns?: boolean;
-  /** Editor: block highlighted when selected. */
+  /** Editor: block highlighted when selected. The PDF also tags the element with it for the pagination pass. */
   blockId?: string;
+  /** PDF: tag read by the pagination pass, for elements without a block (rows of columns). */
+  printId?: string;
   /** Visual editor: the stored value this region prints. Only the edit kit reads it; web and PDF ignore it. */
   edit?: EditAnchor;
 };
@@ -126,6 +128,16 @@ export type Kit = {
   Stop: ComponentType<StopProps>;
   /** "02 / 03" style page counter. The web knows its sheet index, the PDF its real page. */
   PageNo: ComponentType<{ style?: Style; format: (page: number, total: number) => string }>;
+  /**
+   * Text printed only on the pages a PDF page overflows onto (its second sheet onwards), as a
+   * running head. The web and the editor lay each page out as one sheet, so they render nothing.
+   */
+  Overflow: ComponentType<{ style?: Style; text: string }>;
+  /**
+   * Page-wide artwork drawn behind the content of every PDF page a page overflows to, chosen per
+   * printed page (1-based). Absolute, so it never moves the content. The web renders nothing.
+   */
+  PageArt: ComponentType<{ draw: (page: number) => ReactNode }>;
   /** A money amount that counts up on the web. `text` is the exact final string. */
   Amount: ComponentType<AmountProps>;
   Figure: ComponentType<FigureProps>;

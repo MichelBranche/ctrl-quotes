@@ -313,7 +313,22 @@
 .editor-tabbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 /* Lock and trash take room only on hover or focus, so titles stay readable; an active lock always shows. */
 .block-item .block-lock, .block-item .block-trash { display: none; }
-.block-item:hover .block-lock, .block-item:hover .block-trash, .block-item:focus-within .block-lock, .block-item:focus-within .block-trash, .block-item .block-lock.is-on { display: inline-flex; }
+.block-item:hover .block-lock, .block-item:hover .block-trash, .block-item:has(:focus-visible) .block-lock, .block-item:has(:focus-visible) .block-trash, .block-item .block-lock.is-on { display: inline-flex; }
+/*
+ * In a row of columns the quick actions sit on the second line, beside "Colonna 1/3", so the title
+ * keeps the full width and never reflows on hover. That line is always reserved: no layout shift.
+ */
+.block-item.in-row { --item-bg: var(--cq-surface); }
+.block-item.in-row.is-selected { --item-bg: var(--cq-accent-wash); }
+.block-item.in-row .block-col-span { display: flex; align-items: center; min-height: 24px; }
+.block-item.in-row > .icon-btn.ghost { position: absolute; bottom: 4px; z-index: 1; width: 26px; height: 26px; min-height: 26px; background: var(--item-bg); }
+.block-item.in-row > .icon-btn.ghost:nth-of-type(3) { right: 90px; }
+.block-item.in-row > .block-lock { right: 63px; }
+.block-item.in-row > .block-trash { right: 36px; }
+.block-item.in-row:not(.is-hidden):not(:hover):not(:has(:focus-visible)) > .icon-btn.ghost:nth-of-type(3) { display: none; }
+/* While the actions show, the line keeps just the width ("1/3") so nothing hides under them. */
+.block-item.in-row:is(:hover, :has(:focus-visible), .is-hidden, :has(.block-lock.is-on)) .block-col-word { display: none; }
+.block-col-word { white-space: pre; }
 .block-lock.is-on { color: var(--cq-accent); }
 .lock-note { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--cq-surface-sunken); border: 1px solid var(--cq-border); color: var(--cq-ink-soft); font-size: 13px; }
 .lock-note span { flex: 1; }
@@ -352,16 +367,21 @@
 .block-item.in-row[data-col="first"]::after, .block-item.in-row[data-col="last"]::after { content: ""; position: absolute; left: -10px; width: 7px; height: 2px; background: color-mix(in srgb, var(--cq-accent-bright) 40%, transparent); }
 .block-item.in-row[data-col="first"]::after { top: 10px; }
 .block-item.in-row[data-col="last"]::after { bottom: 10px; }
-.block-col-span { margin-left: auto; flex-shrink: 0; padding: 1px 6px; border-radius: 5px; background: var(--cq-surface-sunken); color: var(--cq-muted); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.block-item.in-row .block-select { min-height: 40px; padding-block: 4px; }
+.block-select-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.block-select-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.25; overflow-wrap: break-word; }
+.block-col-span { font-size: 11px; font-weight: 550; line-height: 1.2; color: var(--cq-muted); font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .block-row-width { transition: none; } }
 .field-note { margin: -4px 0 0; font-size: 12px; line-height: 1.45; color: var(--cq-muted); }
 .structure-panel { container-type: inline-size; }
 .block-row-name { overflow: hidden; text-overflow: ellipsis; }
 .block-row-width { width: 26px; }
 @container (max-width: 250px) {
-  .block-row-long, .block-col-span { display: none; }
+  .block-row-long { display: none; }
   .block-row-head { margin-left: 10px; gap: 4px; }
   .block-item.in-row { margin-left: 10px; }
+  .block-item.in-row .drag-handle { width: 16px; }
+  .block-item.in-row .block-select { gap: 6px; padding-inline: 2px; }
   .block-item.in-row::before, .block-item.in-row[data-col]::after { left: -7px; }
   .block-item.in-row[data-col]::after { width: 5px; }
   .block-row-split { padding: 0 6px; }
