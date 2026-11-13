@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildModel, type Resources, type Section } from "@/components/quote-render/model";
-import { canColumn, fitLayout, normalizeColumns, printedWidths, rowOf, unitsOf, validLayout } from "@/domain/columns";
+import { canColumn, fitLayout, layoutChoices, normalizeColumns, printedWidths, rowOf, unitIndex, unitsOf, validLayout } from "@/domain/columns";
+import { joinTarget } from "@/components/quote-editor/visuale/drag";
+import { blockActions } from "@/components/quote-editor/visuale/menu-model";
 import { applyCommand, type DocumentCommand } from "@/domain/document-ops";
 import { computeTotals, documentSchema, newBlock, type QuoteBlock, type QuoteDocument } from "@/domain/quote-document";
 import type { QuoteSnapshot } from "@/domain/quote-snapshot";
@@ -182,6 +184,42 @@ function withRows(blocks: QuoteBlock[]): QuoteBlock[] {
 }
 
 const rowsOf = (sections: Section[]) => sections.filter((section): section is Extract<Section, { kind: "row" }> => section.kind === "row");
+
+describe("righe nell'editor", () => {
+  it("aggiunge una riga a colonne nuova in un solo passo, solo con larghezze valide", () => {
+    const document = base();
+    const next = run(document, { kind: "insertRow", blocks: [text("n1"), block("chartCosts", "n2")], spans: [2, 4], index: 2 });
+    const row = rowOf(next.blocks, "n1");
+    expect(row?.blocks.map((entry) => `${entry.id}:${entry.col?.span}`)).toEqual(["n1:2", "n2:4"]);
+    expect(next.blocks.map((entry) => entry.id).slice(1, 5)).toEqual(["a", "n1", "n2", "b"]);
+    const bad = applyCommand(document, { kind: "insertRow", blocks: [text("x1"), text("x2")], spans: [2, 2], index: 1 }, { makeId, order: "template" });
+    expect(bad.ok).toBe(false);
+    const wide = applyCommand(document, { kind: "insertRow", blocks: [text("x1"), block("services", "x2")], spans: [3, 3], index: 1 }, { makeId, order: "template" });
+    expect(wide.ok).toBe(false);
+  });
+
+  it("una riga conta come un posto: frecce e indice saltano la riga intera", () => {
+    const joined = run(base(), { kind: "joinRow", blockId: "c", targetId: "b", side: "after" });
+    expect(unitIndex(joined.blocks, "c")).toEqual(unitIndex(joined.blocks, "b"));
+    const actions = blockActions(joined, "c", false);
+    expect(actions.moveUp && actions.moveDown).toBe(true);
+    expect(actions.beside).toBe(true);
+    const full = run(joined, { kind: "joinRow", blockId: "d", targetId: "c", side: "after" });
+    expect(blockActions(full, "d", false).beside).toBe(false);
+    expect(blockActions(full, "srv", false).beside).toBe(false);
+    expect(layoutChoices(2).map((choice) => choice.label)).toEqual(["1/2 + 1/2", "1/3 + 2/3", "2/3 + 1/3"]);
+    expect(layoutChoices(3).map((choice) => choice.spans)).toEqual([[2, 2, 2]]);
+  });
+
+  it("trascinando sul bordo di un blocco si affianca; al centro si riordina", () => {
+    const items = [{ id: "t", top: 0, bottom: 100, left: 0, right: 500 }];
+    expect(joinTarget(items, 30, 50, () => true)).toEqual({ targetId: "t", side: "before" });
+    expect(joinTarget(items, 480, 50, () => true)).toEqual({ targetId: "t", side: "after" });
+    expect(joinTarget(items, 250, 50, () => true)).toBeNull();
+    expect(joinTarget(items, 480, 50, () => false)).toBeNull();
+    expect(joinTarget(items, 480, 150, () => true)).toBeNull();
+  });
+});
 
 describe("righe nel documento stampato", () => {
   it("buildModel raggruppa le colonne, numera da sinistra a destra, larghezze in percento", () => {
