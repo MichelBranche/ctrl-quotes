@@ -355,3 +355,14 @@
 .block-col-span { margin-left: auto; flex-shrink: 0; padding: 1px 6px; border-radius: 5px; background: var(--cq-surface-sunken); color: var(--cq-muted); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .block-row-width { transition: none; } }
 .field-note { margin: -4px 0 0; font-size: 12px; line-height: 1.45; color: var(--cq-muted); }
+.structure-panel { container-type: inline-size; }
+.block-row-name { overflow: hidden; text-overflow: ellipsis; }
+.block-row-width { width: 26px; }
+@container (max-width: 250px) {
+  .block-row-long, .block-col-span { display: none; }
+  .block-row-head { margin-left: 10px; gap: 4px; }
+  .block-item.in-row { margin-left: 10px; }
+  .block-item.in-row::before, .block-item.in-row[data-col]::after { left: -7px; }
+  .block-item.in-row[data-col]::after { width: 5px; }
+  .block-row-split { padding: 0 6px; }
+}

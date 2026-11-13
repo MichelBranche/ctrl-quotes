@@ -299,3 +299,5 @@ body.ve-grabbing, body.ve-grabbing * { cursor: grabbing !important; user-select:
   .ve-join-line { animation: none; }
   .ve-width { transition: none; }
 }
+.ve-toolbar.is-start { right: auto; left: 0; }
+.ve-width { padding: 0 6px; }

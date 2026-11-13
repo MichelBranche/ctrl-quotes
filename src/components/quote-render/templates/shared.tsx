@@ -336,7 +336,7 @@ export function RowColumns({
 }) {
   const last = s.columns.length - 1;
   return (
-    <k.V stack style={{ flexDirection: "row", alignItems: "stretch" }}>
+    <k.V stack columns style={{ flexDirection: "row", alignItems: "stretch" }}>
       {s.columns.map((column, index) => (
         <k.V
           key={column.section.id}

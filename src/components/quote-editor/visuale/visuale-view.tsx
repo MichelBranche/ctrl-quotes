@@ -343,6 +343,10 @@ export function VisualeView({
     onJoin: (id, targetId, side) => joinRow(id, targetId, side),
   });
 
+  const canColumnId = (id: string | undefined) => {
+    const block = id ? document.blocks.find((entry) => entry.id === id) : undefined;
+    return Boolean(block && canColumn(block.type));
+  };
   /** "Affianca a destra · 1/2 ciascuno", or "Prima colonna · diventano 3 da 1/3". */
   const joinLabel = (join: { targetId: string; side: "before" | "after" }) => {
     const row = rowOf(document.blocks, join.targetId);
@@ -1012,7 +1016,7 @@ export function VisualeView({
                   ) : null}
                   <motion.div
                     key={selected.id}
-                    className="ve-toolbar"
+                    className={cn("ve-toolbar", selectedRow && selectedRow.blocks.at(-1)?.id !== selected.id && "is-start")}
                     role="toolbar"
                     aria-label={`Azioni su ${blockTitle(selected)}`}
                     data-ve-ui=""
@@ -1042,21 +1046,22 @@ export function VisualeView({
                     {selectedRow ? (
                       <>
                         <span className="ve-toolbar-sep" aria-hidden="true" />
+                        {layoutChoices(selectedRow.blocks.length).length > 1 ? (
                         <span className="ve-widths" role="group" aria-label="Larghezze della riga">
                           {layoutChoices(selectedRow.blocks.length).map((choice) => {
                             const on = choice.spans.every((span, index) => selectedRow.blocks[index]?.col?.span === span);
                             return (
-                              <button key={choice.label} type="button" className={cn("ve-width", on && "is-on")} aria-pressed={on} title={`Larghezze ${choice.label}`} disabled={readOnly} onClick={() => setRowLayout(selectedRow.row, choice.spans)}>
+                              <button key={choice.label} type="button" className={cn("ve-width", on && "is-on")} aria-pressed={on} aria-label={`Larghezze ${choice.label}`} title={`Larghezze ${choice.label}`} disabled={readOnly} onClick={() => setRowLayout(selectedRow.row, choice.spans)}>
                                 <span className="ve-width-glyph" aria-hidden="true">
                                   {choice.spans.map((span, index) => (
                                     <i key={index} style={{ flexGrow: span }} />
                                   ))}
                                 </span>
-                                {selectedRow.blocks.length === 3 ? "1/3 ciascuna" : choice.label.replace(" + ", " · ")}
                               </button>
                             );
                           })}
                         </span>
+                        ) : null}
                         <ToolButton label="Togli dalla riga" disabled={readOnly} onClick={() => leaveRow(selected.id)}>
                           <Unlink size={15} aria-hidden="true" />
                         </ToolButton>
@@ -1269,7 +1274,12 @@ export function VisualeView({
       {drag.ghost ? <DragGhost ghost={drag.ghost} lifted={drag.lifted} x={drag.x} y={drag.y} reduced={reduced} /> : null}
       {drag.dragging ? (
         <div className="ve-drag-hint" role="status">
-          Sposta su e giù tra le sezioni · la copertina resta in apertura <kbd>Esc</kbd>
+          {drag.view?.join
+            ? "Rilascia per affiancare: le colonne si dividono la larghezza"
+            : canColumnId(drag.view?.id)
+              ? "Sposta su e giù · sul bordo di un blocco per affiancarlo"
+              : "Sposta su e giù tra le sezioni · la copertina resta in apertura"}{" "}
+          <kbd>Esc</kbd>
         </div>
       ) : null}
 

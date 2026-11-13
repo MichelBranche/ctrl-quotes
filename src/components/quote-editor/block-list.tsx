@@ -213,7 +213,10 @@ function RowHead({ place, readOnly, onLayout, onSplit }: { place: ColumnPlace; r
     <li className="block-row-head">
       <span className="block-row-title">
         {place.count === 3 ? <Columns3 size={13} aria-hidden="true" /> : <Columns2 size={13} aria-hidden="true" />}
-        {`Riga · ${place.count} colonne`}
+        <span className="block-row-name">
+          Riga · {place.count}
+          <span className="block-row-long"> colonne</span>
+        </span>
       </span>
       {choices.length > 1 ? (
         <span className="block-row-widths" role="group" aria-label="Larghezze">
@@ -229,8 +232,9 @@ function RowHead({ place, readOnly, onLayout, onSplit }: { place: ColumnPlace; r
           })}
         </span>
       ) : null}
-      <button type="button" className="block-row-split" onClick={onSplit} disabled={readOnly} title="Separa: i blocchi tornano uno sotto l'altro">
-        <Unlink size={13} aria-hidden="true" /> Separa
+      <button type="button" className="block-row-split" onClick={onSplit} disabled={readOnly} aria-label="Separa la riga" title="Separa: i blocchi tornano uno sotto l'altro">
+        <Unlink size={13} aria-hidden="true" />
+        <span className="block-row-long">Separa</span>
       </button>
     </li>
   );
