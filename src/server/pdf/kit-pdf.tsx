@@ -59,6 +59,7 @@ export const pdfKit: Kit = {
   RadialGradient: ({ children, ...props }) => <RadialGradient {...props}>{children}</RadialGradient>,
   Stop: (props) => <Stop {...props} />,
   PageNo: ({ style, format }) => <Text fixed style={s(style)} render={({ pageNumber, totalPages }) => format(pageNumber, totalPages)} />,
+  PageArt: ({ draw }) => <View fixed style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} render={({ pageNumber }) => draw(pageNumber)} />,
   Overflow: ({ style, text }) => <Text fixed style={s(style)} render={({ subPageNumber }) => ((subPageNumber ?? 1) > 1 ? text : "")} />,
   Amount: ({ style, text }) => <Text style={s(style)}>{text}</Text>,
   Figure: ({ style, children }) => (

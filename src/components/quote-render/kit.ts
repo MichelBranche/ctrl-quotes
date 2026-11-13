@@ -133,6 +133,11 @@ export type Kit = {
    * running head. The web and the editor lay each page out as one sheet, so they render nothing.
    */
   Overflow: ComponentType<{ style?: Style; text: string }>;
+  /**
+   * Page-wide artwork drawn behind the content of every PDF page a page overflows to, chosen per
+   * printed page (1-based). Absolute, so it never moves the content. The web renders nothing.
+   */
+  PageArt: ComponentType<{ draw: (page: number) => ReactNode }>;
   /** A money amount that counts up on the web. `text` is the exact final string. */
   Amount: ComponentType<AmountProps>;
   Figure: ComponentType<FigureProps>;

@@ -265,6 +265,7 @@ export const webKit: Kit = {
   Stop: (props) => <stop {...props} />,
   PageNo,
   Overflow: () => null,
+  PageArt: () => null,
   Amount,
   Figure,
 };

@@ -437,13 +437,16 @@ function boldChart(m: DocModel): ChartTheme {
 }
 
 /** Bold gives the cost breakdown its own numbered section right after the timeline. */
-function withBreakdown(m: DocModel, sections: Section[]): Item[] {
+export function withBreakdown(m: DocModel, sections: Section[]): Item[] {
   const summary = sections.find((section): section is Extract<Section, { kind: "summary" }> => section.kind === "summary");
   if (!summary || !summary.breakdown || !m.breakdown.length) return sections;
   const anchor = sections.findIndex((section) => section.kind === "timeline");
   const at = (anchor >= 0 ? anchor : sections.indexOf(summary)) + 1;
   const no = sections[at - 1]?.no ? (sections[at - 1]?.no ?? 0) + 1 : 0;
-  const shifted = sections.map((section, index) => (index >= at && section.no ? { ...section, no: section.no + 1 } : section));
+  // A row carries no number of its own: its columns do, and they move up too.
+  const bump = (section: Section): Section =>
+    section.kind === "row" ? { ...section, columns: section.columns.map((column) => ({ ...column, section: bump(column.section) })) } : section.no ? { ...section, no: section.no + 1 } : section;
+  const shifted = sections.map((section, index) => (index >= at ? bump(section) : section));
   return [...shifted.slice(0, at), { kind: "breakdown", id: `${summary.id}-breakdown`, no, groups: summary.groups }, ...shifted.slice(at)];
 }
 
@@ -460,8 +463,16 @@ export function renderBold(k: Kit, m: DocModel): ReactElement[] {
     const darkTop = items[0]?.kind === "summary";
     if (darkTop) {
       const [summary, ...rest] = items;
+      const bands = new Set(rest.filter((item) => item.kind === "terms" || item.kind === "contacts").map((item) => item.id));
+      // A dark band cut by a page break bleeds into the margin it was cut at, like the page it started on.
+      const bleed = (page: number) => {
+        const edge = m.print.edges?.get(page);
+        const strip = (side: "top" | "bottom") => <k.V key={side} style={{ position: "absolute", left: 0, right: 0, [side]: 0, height: pdfDarkPad[side], backgroundColor: c.ink }} />;
+        return [edge?.top && bands.has(edge.top) ? strip("top") : null, edge?.bottom && bands.has(edge.bottom) ? strip("bottom") : null];
+      };
       pages.push(
         <k.Page key={`p${index}`} label={`Pagina ${index + 2}`} style={{ backgroundColor: c.paper, color: c.ink, fontFamily: sans, ...darkPad.page }}>
+          <k.PageArt draw={bleed} />
           {/* The dark head sits on the page edge; the padding only shows on the pages this one overflows to. */}
           <k.V style={{ backgroundColor: c.ink, ...darkPad.head }}>
             <Arc k={k} accent={m.accent} id={`bi-head-${index}`} width={W} height={300} cx={W + 250} cy={-124} r={433} fade={64} style={{ top: 0, left: 0 }} />

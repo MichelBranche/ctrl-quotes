@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { buildModel, emptyPlan, mayBreak, type Resources } from "@/components/quote-render/model";
 import { computeTotals, newBlock, type QuoteBlock } from "@/domain/quote-document";
 import { templateKeys } from "@/domain/templates";
-import { improves, jumpedRows, nextStep, orphans, pageGaps, readPages, tallTags, waste, withTall, type LayoutNode, type PrintPage } from "@/server/pdf/fit";
+import { improves, jumpedRows, nextStep, orphans, pageEdges, pageGaps, readPages, tallTags, waste, withTall, type LayoutNode, type PrintPage } from "@/server/pdf/fit";
 import { pdfViewProps } from "@/server/pdf/kit-pdf";
 import { fitPages, renderQuotePdfPlan } from "@/server/pdf/quote-pdf";
+import { withBreakdown } from "@/components/quote-render/templates/bold";
 import { demoSnapshot } from "./fixtures/template-demo";
 
 const page = (label: string, items: Array<[string | null, number, number]>, bottom = 800): PrintPage => ({ label, top: 40, bottom, items: items.map(([tag, top, end]) => ({ tag, top, bottom: end })) });
@@ -41,6 +42,20 @@ describe("lettura dell'impaginazione", () => {
     // A small gap, or a block that is not a row, is not worth stacking.
     expect(jumpedRows([page("Pagina 2", [["a", 40, 700]]), page("Pagina 2", [["row:r1", 40, 400]])], 150)).toEqual([]);
     expect(jumpedRows([page("Pagina 2", [["a", 40, 300]]), page("Pagina 2", [["b-terms", 40, 400]])], 150)).toEqual([]);
+  });
+
+  it("segna i bordi di pagina che un'interruzione lascia scoperti", () => {
+    const pages = [
+      page("Pagina 4", [["a", 40, 300], ["b-terms", 300, 800]]),
+      page("Pagina 4", [["b-terms", 40, 800]]),
+      page("Pagina 4", [["b-terms", 40, 200], ["b-contacts", 200, 400]]),
+      page("Pagina 5", [["b-next", 40, 200]]),
+    ];
+    expect([...pageEdges(pages)]).toEqual([
+      [1, { top: null, bottom: "b-terms" }],
+      [2, { top: "b-terms", bottom: "b-terms" }],
+      [3, { top: "b-terms", bottom: null }],
+    ]);
   });
 
   it("trova dalla sonda gli elementi più alti di una pagina e li lascia spezzare", () => {
@@ -104,6 +119,24 @@ describe("piano di stampa", () => {
     expect(stacked.some((section) => section.id === "row:r")).toBe(false);
     const numbers = (sections: typeof rowed) => sections.flatMap((section) => (section.kind === "row" ? section.columns.map((column) => column.section) : [section])).map((section) => [section.id, section.no]);
     expect(numbers(stacked)).toEqual(numbers(rowed));
+  });
+
+  it("Bold numera il totale del progetto senza doppioni anche con una riga dopo la tempistica", () => {
+    const snapshot = demoSnapshot("bold");
+    const blocks = snapshot.document.blocks.flatMap((block) =>
+      block.type === "timeline" ? [block, col("text", "xa", { heading: "Uno", body: "A", col: { row: "rt", span: 3 } }), col("text", "xb", { heading: "Due", body: "B", col: { row: "rt", span: 3 } })] : [block],
+    );
+    const document = { ...snapshot.document, blocks };
+    const s = { ...snapshot, document, totals: computeTotals(document, snapshot.fiscal) };
+    const m = buildModel(s, resources, "fromIntro");
+    expect(m.pages.flat().some((section) => section.id === "row:rt")).toBe(true);
+    const items: Array<{ kind: string; no: number }> = m.pages.flatMap((sections) => withBreakdown(m, sections));
+    const numbers = items
+      .flatMap((item) => (item.kind === "row" && "columns" in item ? (item.columns as Array<{ section: { no: number } }>).map((column) => column.section) : [item]))
+      .map((item) => item.no)
+      .filter((no) => no > 0);
+    expect(numbers.some((no, index) => index > 0 && no <= (numbers[index - 1] ?? 0))).toBe(false);
+    expect(numbers).toEqual(numbers.map((_, index) => (numbers[0] ?? 1) + index));
   });
 
   it("si ferma dopo una sola resa quando non c'è niente da migliorare", async () => {

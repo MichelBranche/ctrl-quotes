@@ -189,7 +189,13 @@ export type DocModel = {
  * under the other, `tall` blocks may break across pages, `fresh` blocks start on a new page.
  * `probe` lets every block break, to measure them.
  */
-export type PrintPlan = { stack: ReadonlySet<string>; tall: ReadonlySet<string>; fresh: ReadonlySet<string>; probe?: boolean };
+/**
+ * `edges`: for a printed page (1-based, cover included) the block a break cuts at its top and at its
+ * bottom, when that block goes on from the page before or to the page after. Templates use it to
+ * bleed a band into the margin of such a page. Filled in by a last render; layout never depends on it.
+ */
+export type PageEdges = ReadonlyMap<number, { top: string | null; bottom: string | null }>;
+export type PrintPlan = { stack: ReadonlySet<string>; tall: ReadonlySet<string>; fresh: ReadonlySet<string>; probe?: boolean; edges?: PageEdges };
 export const emptyPlan: PrintPlan = { stack: new Set(), tall: new Set(), fresh: new Set() };
 
 /** Whether a block that normally stays whole on one PDF page may break across pages. */

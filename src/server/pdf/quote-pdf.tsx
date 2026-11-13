@@ -5,7 +5,7 @@ import { Document, Font, renderToBuffer } from "@react-pdf/renderer";
 import { buildModel, type LogoInfo, type Resources } from "@/components/quote-render/model";
 import { renderers } from "@/components/quote-render/templates";
 import type { QuoteSnapshot } from "@/domain/quote-snapshot";
-import { emptyPlan, improves, nextStep, readPages, tallTags, withTall, type LayoutNode, type PrintPage, type PrintPlan } from "./fit";
+import { emptyPlan, improves, nextStep, pageEdges, readPages, tallTags, withTall, type LayoutNode, type PrintPage, type PrintPlan } from "./fit";
 import { pdfKit } from "./kit-pdf";
 import { prepareLogo } from "./logo";
 
@@ -95,7 +95,7 @@ export async function renderQuotePdfPlan(snapshot: QuoteSnapshot, options: PdfOp
       return { buffer: null, pages: [], overflow: true };
     }
   };
-  const result = await fitPages(pass);
+  const result = await fitPages(pass, { edges: renderer.edges === true });
   if (!result.buffer) throw new Error("PDF non generato");
   return { buffer: result.buffer, plan: result.plan, pages: result.pages };
 }
@@ -129,7 +129,7 @@ const fit = { minGap: 150, minStart: 110, minSaving: 120, maxRenders: 7 };
  * Renders, reads the pagination, and renders again with a better print plan while it helps
  * (see ./fit.ts). Most documents need a single render.
  */
-export async function fitPages<T extends Pass>(render: (plan: PrintPlan) => Promise<T>): Promise<T & { plan: PrintPlan }> {
+export async function fitPages<T extends Pass>(render: (plan: PrintPlan) => Promise<T>, options: { edges?: boolean } = {}): Promise<T & { plan: PrintPlan }> {
   watchOverflow();
   let plan = emptyPlan;
   let best = await render(plan);
@@ -153,6 +153,13 @@ export async function fitPages<T extends Pass>(render: (plan: PrintPlan) => Prom
     if (step.trial && !improves(best.pages, attempt.pages, fit.minSaving)) continue;
     plan = step.plan;
     best = attempt;
+  }
+  // A template that bleeds bands across a break learns where the breaks fell. Its artwork is
+  // absolute, so this last render lands everything on the same spot.
+  const edges = options.edges ? pageEdges(best.pages) : null;
+  if (edges && edges.size) {
+    const final = await render({ ...plan, edges });
+    if (final.buffer && !final.overflow) return { ...final, plan: { ...plan, edges } };
   }
   return { ...best, plan };
 }

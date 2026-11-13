@@ -128,3 +128,21 @@ export function nextStep(plan: PrintPlan, pages: PrintPage[], tried: ReadonlySet
 export function improves(before: PrintPage[], after: PrintPage[], minSaving: number): boolean {
   return after.length <= before.length && waste(after) <= waste(before) - minSaving;
 }
+
+/**
+ * The page edges a break leaves bare. `top`: the block opening a page that its template page
+ * overflowed onto (going on from the page before, or starting there). `bottom`: the block a break
+ * cuts at the foot of a page. Keyed by printed page, 1-based.
+ */
+export function pageEdges(pages: PrintPage[]): Map<number, { top: string | null; bottom: string | null }> {
+  const out = new Map<number, { top: string | null; bottom: string | null }>();
+  pages.forEach((page, index) => {
+    const first = page.items[0];
+    const last = page.items[page.items.length - 1];
+    const after = continues(pages, index) ? pages[index + 1]?.items[0] : undefined;
+    const top = first?.tag && index > 0 && continues(pages, index - 1) ? first.tag : null;
+    const bottom = last?.tag && after?.tag === last.tag ? last.tag : null;
+    if (top || bottom) out.set(index + 1, { top, bottom });
+  });
+  return out;
+}
