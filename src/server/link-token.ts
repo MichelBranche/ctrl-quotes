@@ -43,7 +43,7 @@ function parseKey(raw: string): Buffer {
 }
 
 /** Root key for everything link related. Subkeys are derived per purpose. */
-export function linkRootKey(env: NodeJS.ProcessEnv = process.env): Buffer {
+export function linkRootKey(env: Record<string, string | undefined> = process.env): Buffer {
   if (env.QUOTE_LINK_KEY) return parseKey(env.QUOTE_LINK_KEY);
   return Buffer.from(hkdfSync("sha256", resolveAuthSecret(), "ctrl-quotes", "quote-link-root/v1", 32));
 }

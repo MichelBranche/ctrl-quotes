@@ -83,7 +83,7 @@ class UpstashRateLimiter implements RateLimiter {
   }
 }
 
-export function createRateLimiter(db: AppDatabase, env: NodeJS.ProcessEnv = process.env): RateLimiter {
+export function createRateLimiter(db: AppDatabase, env: Record<string, string | undefined> = process.env): RateLimiter {
   const url = env.UPSTASH_REDIS_REST_URL;
   const token = env.UPSTASH_REDIS_REST_TOKEN;
   if (url && token) return new UpstashRateLimiter(new Redis({ url, token }));
