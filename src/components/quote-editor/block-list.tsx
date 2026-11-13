@@ -295,7 +295,10 @@ function SortableBlock({
           // In a row the title gets two lines and the width goes under it, so short columns stay readable.
           <span className="block-select-text">
             <span className="block-select-title">{title}</span>
-            <span className="block-col-span">{`Colonna ${spanLabel(place.span)}`}</span>
+            <span className="block-col-span">
+              <span className="block-col-word">Colonna </span>
+              {spanLabel(place.span)}
+            </span>
           </span>
         ) : (
           <span className="clamp-1">{title}</span>
