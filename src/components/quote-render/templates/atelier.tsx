@@ -423,6 +423,8 @@ export function renderAtelier(k: Kit, m: DocModel): ReactElement[] {
     pages.push(
       <k.Page key={`p${index}`} label={`Pagina ${index + 2}`} style={{ backgroundColor: c.paper, color: c.ink, fontFamily: sans, paddingHorizontal: P, paddingTop: 30, paddingBottom: 30 }}>
         <Watermark k={k} m={m} style={{ color: c.muted }} />
+        {/* Pages this one overflows onto open mid-flow, without a first head: sign them in the margin. */}
+        <k.Overflow text={m.issuer.display} style={{ position: "absolute", top: 11, left: P, right: P, textAlign: "right", fontFamily: serif, fontStyle: "italic", fontSize: 11, color: c.muted }} />
         {sections.map((section, position) => (
           <Block key={section.id} k={k} m={m} s={section} first={position === 0} />
         ))}

@@ -128,6 +128,11 @@ export type Kit = {
   Stop: ComponentType<StopProps>;
   /** "02 / 03" style page counter. The web knows its sheet index, the PDF its real page. */
   PageNo: ComponentType<{ style?: Style; format: (page: number, total: number) => string }>;
+  /**
+   * Text printed only on the pages a PDF page overflows onto (its second sheet onwards), as a
+   * running head. The web and the editor lay each page out as one sheet, so they render nothing.
+   */
+  Overflow: ComponentType<{ style?: Style; text: string }>;
   /** A money amount that counts up on the web. `text` is the exact final string. */
   Amount: ComponentType<AmountProps>;
   Figure: ComponentType<FigureProps>;
