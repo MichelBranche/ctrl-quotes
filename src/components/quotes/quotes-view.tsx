@@ -54,7 +54,7 @@ export function QuotesView({ list, filter, canWrite }: { list: QuoteList; filter
           options={[
             { value: "all", label: "Tutti", count: list.counts.all },
             { value: "draft", label: "Bozze", count: list.counts.draft },
-            { value: "pending", label: "In attesa", count: list.counts.pending },
+            { value: "pending", label: "Inviati", count: list.counts.pending },
             { value: "accepted", label: "Accettati", count: list.counts.accepted },
             { value: "rejected", label: "Rifiutati", count: list.counts.rejected },
             { value: "expired", label: "Scaduti", count: list.counts.expired },

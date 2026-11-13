@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureMigrated, getDb } from "@/db/client";
 import { processDueJobs } from "@/server/outbox";
+import { pruneRateLimits } from "@/server/rate-limit";
 
 export async function GET(request: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
@@ -11,5 +12,6 @@ export async function GET(request: Request): Promise<Response> {
   const result = await processDueJobs(getDb(), {
     "email.test": async () => undefined,
   });
-  return NextResponse.json(result);
+  const prunedRateLimits = await pruneRateLimits(getDb());
+  return NextResponse.json({ ...result, prunedRateLimits });
 }

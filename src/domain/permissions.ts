@@ -18,6 +18,7 @@ export const permissionMatrix = {
   "quotes.read": "member",
   "quotes.write": "member",
   "quotes.delete": "admin",
+  "quotes.send": "member",
   "templates.favorite": "member",
   "templates.default": "admin",
   "team.read": "member",
