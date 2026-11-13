@@ -40,8 +40,10 @@ export type ViewProps = Motion & {
   flowStart?: boolean;
   /** Web: a row of side-by-side blocks; on narrow screens the columns stack with room between them. */
   columns?: boolean;
-  /** Editor: block highlighted when selected. */
+  /** Editor: block highlighted when selected. The PDF also tags the element with it for the pagination pass. */
   blockId?: string;
+  /** PDF: tag read by the pagination pass, for elements without a block (rows of columns). */
+  printId?: string;
   /** Visual editor: the stored value this region prints. Only the edit kit reads it; web and PDF ignore it. */
   edit?: EditAnchor;
 };

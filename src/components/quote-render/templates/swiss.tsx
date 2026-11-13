@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { fonts, type Kit, type Style } from "../kit";
-import { euro, fitTitle, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { euro, fitTitle, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section, mayBreak } from "../model";
 import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
 import { anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
@@ -136,8 +136,16 @@ function Money({ k, g }: { k: Kit; g: MoneyGroup }) {
 function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first: boolean; col?: number }): ReactElement | null {
   const top = first ? null : rule(k, c.rule, 0.6);
   const narrow = col !== undefined && col <= 55;
+  // `keep` stays whole on one PDF page unless the pagination pass found it taller than a page.
   const frame = (children: ReactElement, gap: number, keep: boolean, blockId?: string) => (
-    <k.V blockId={blockId} a={blockId ? "rise" : undefined} keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
+    <k.V
+      blockId={blockId}
+      printId={blockId ? undefined : s.id}
+      a={blockId ? "rise" : undefined}
+      keep={(keep && !mayBreak(m.print, s.id)) || undefined}
+      breakBefore={m.print.fresh.has(s.id) || undefined}
+      style={{ marginTop: first ? 0 : gap }}
+    >
       {top}
       <k.V style={{ paddingTop: first ? 0 : 18 }}>{children}</k.V>
     </k.V>
@@ -287,7 +295,7 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
       );
     case "terms":
       return wrap(
-        <k.V wrap={false}>
+        <k.V>
           <SectionHead k={k} s={s} />
           <k.V style={{ flexDirection: col !== undefined ? "column" : "row" }} stack>
             {s.columns.map((column, index) => (
@@ -308,10 +316,11 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
           </k.V>
         </k.V>,
         14,
+        true,
       );
     case "contacts":
       return wrap(
-        <k.V wrap={false}>
+        <k.V>
           <SectionHead k={k} s={s} />
           {s.body ? <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.small, marginBottom: 8 }} /> : null}
           <k.V style={{ flexDirection: "row" }} stack>
@@ -341,6 +350,7 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
           </k.V>
         </k.V>,
         14,
+        true,
       );
     case "chart":
       return wrap(

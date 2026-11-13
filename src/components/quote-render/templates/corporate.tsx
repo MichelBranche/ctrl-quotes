@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { fonts, type Kit, type Style } from "../kit";
-import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
+import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section, mayBreak } from "../model";
 import { chartType, ChartBody, type ChartTheme } from "./charts";
 import { anchor, Brand, conditionAnchor, highlightGlyph, Icon, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
@@ -211,7 +211,13 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
   const inCol = col !== undefined;
   const narrow = inCol && col <= 55;
   const section = (children: ReactElement, opts: { extra?: string; gap?: number; head?: boolean; title?: string; keep?: boolean } = {}) => (
-    <k.V blockId={s.id} a="rise" keep={(!inCol && opts.keep) || undefined} style={{ marginTop: first || inCol ? 0 : (opts.gap ?? 18) }}>
+    <k.V
+      blockId={s.id}
+      a="rise"
+      keep={(!inCol && opts.keep && !mayBreak(m.print, s.id)) || undefined}
+      breakBefore={(!inCol && m.print.fresh.has(s.id)) || undefined}
+      style={{ marginTop: first || inCol ? 0 : (opts.gap ?? 18) }}
+    >
       {first || inCol || opts.head === false ? null : <k.V style={{ borderTopWidth: 0.5, borderTopColor: c.line, marginBottom: 12 }} />}
       {opts.head === false ? null : <SectionHead k={k} m={m} s={s} extra={opts.extra} title={opts.title} />}
       {children}
@@ -228,7 +234,7 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
   switch (s.kind) {
     case "row":
       return (
-        <k.V keep style={{ marginTop: first ? 0 : 18 }}>
+        <k.V printId={s.id} keep={!m.print.probe || undefined} style={{ marginTop: first ? 0 : 18 }}>
           {first ? null : <k.V style={{ borderTopWidth: 0.5, borderTopColor: c.line, marginBottom: 12 }} />}
           <RowColumns k={k} s={s} gap={20} render={(column, width) => <Block k={k} m={m} s={column} first col={width} />} />
         </k.V>
@@ -346,7 +352,7 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
       );
     case "terms":
       return section(
-        <k.V wrap={false} style={{ flexDirection: inCol ? "column" : "row" }} stack>
+        <k.V style={{ flexDirection: inCol ? "column" : "row" }} stack>
           {s.columns.map((column, index) => (
             <k.V
               key={column.key}
@@ -366,11 +372,11 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
             </k.V>
           ))}
         </k.V>,
-        { gap: 12 },
+        { gap: 12, keep: true },
       );
     case "contacts":
       return section(
-        <k.V wrap={false}>
+        <k.V>
           {s.body ? <Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.small, marginBottom: 8 }} /> : null}
           <k.V style={{ flexDirection: "row" }} stack>
             {[m.issuer, m.client].map((party, index) => (
@@ -396,7 +402,7 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
             </k.V>
           </k.V>
         </k.V>,
-        { gap: 12 },
+        { gap: 12, keep: true },
       );
     case "chart":
       return section(<ChartBody k={k} m={m} s={s} theme={corporateChart(m)} width={col} />, { keep: true });

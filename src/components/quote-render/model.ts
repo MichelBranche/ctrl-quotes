@@ -180,7 +180,22 @@ export type DocModel = {
   breakdown: Breakdown;
   oneTimeCents: number;
   monthlyLabel: string | null;
+  /** PDF pagination decisions (see src/server/pdf/fit.ts). Always empty on the web. */
+  print: PrintPlan;
 };
+
+/**
+ * How the PDF prints a few elements after the pagination pass: `stack` rows print their blocks one
+ * under the other, `tall` blocks may break across pages, `fresh` blocks start on a new page.
+ * `probe` lets every block break, to measure them.
+ */
+export type PrintPlan = { stack: ReadonlySet<string>; tall: ReadonlySet<string>; fresh: ReadonlySet<string>; probe?: boolean };
+export const emptyPlan: PrintPlan = { stack: new Set(), tall: new Set(), fresh: new Set() };
+
+/** Whether a block that normally stays whole on one PDF page may break across pages. */
+export function mayBreak(plan: PrintPlan, id: string): boolean {
+  return Boolean(plan.probe) || plan.tall.has(id);
+}
 
 export function mix(color: string, target: string, amount: number): string {
   const a = color.replace("#", "");
@@ -450,7 +465,7 @@ export function normalizeSnapshot(snapshot: QuoteSnapshot): QuoteSnapshot {
   return parsed.success ? { ...snapshot, template: asTemplateKey(snapshot.template), document: parsed.data } : { ...snapshot, template: asTemplateKey(snapshot.template) };
 }
 
-export function buildModel(source: QuoteSnapshot, resources: Resources, numbering: NumberingScheme): DocModel {
+export function buildModel(source: QuoteSnapshot, resources: Resources, numbering: NumberingScheme, print: PrintPlan = emptyPlan): DocModel {
   const snapshot = normalizeSnapshot(source);
   const key = snapshot.template;
   const accent = resolveAccent(snapshot, key);
@@ -482,7 +497,8 @@ export function buildModel(source: QuoteSnapshot, resources: Resources, numberin
   for (const entry of placed) {
     const previous = sections[sections.length - 1];
     const before = placed[placed.indexOf(entry) - 1];
-    if (entry.col && before?.col?.row === entry.col.row && previous) {
+    // A row the PDF prints stacked keeps its blocks, in order, at full width.
+    if (entry.col && before?.col?.row === entry.col.row && previous && !print.stack.has(`row:${entry.col.row}`)) {
       const columns = previous.kind === "row" && previous.id === `row:${entry.col.row}` ? previous.columns : [{ width: 100, span: before.col.span, section: previous }];
       columns.push({ width: 100, span: entry.col.span, section: entry.section });
       const widths = printedWidths(columns.map((column) => column.span));
@@ -528,6 +544,7 @@ export function buildModel(source: QuoteSnapshot, resources: Resources, numberin
     breakdown: computeBreakdown(snapshot),
     oneTimeCents: snapshot.totals.main.oneTime.netCents,
     monthlyLabel,
+    print,
   };
 }
 
