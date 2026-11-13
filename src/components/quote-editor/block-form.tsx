@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, BookOpen, ImagePlus, Plus, Search, Trash2 } from "lucide-react";
 import { TextAreaField } from "@/components/data/fields";
@@ -249,6 +249,7 @@ function HighlightsForm({ block, onChange }: { block: BlockOf<"highlights">; onC
 }
 
 function TimelineForm({ block, onChange }: { block: BlockOf<"timeline">; onChange: (block: QuoteBlock) => void }) {
+  const periodHint = useId();
   const update = (steps: TimelineStep[]) => onChange({ ...block, steps });
   const set = (id: string, patch: Partial<TimelineStep>) => update(block.steps.map((step) => (step.id === id ? { ...step, ...patch } : step)));
   const move = (index: number, delta: -1 | 1) => {
@@ -279,7 +280,12 @@ function TimelineForm({ block, onChange }: { block: BlockOf<"timeline">; onChang
                 </Button>
               </span>
             </div>
-            <TextField label="Periodo" value={step.label} maxLength={60} placeholder="Settimana 1" onChange={(event) => set(step.id, { label: event.target.value })} />
+            <TextField label="Periodo" value={step.label} maxLength={60} placeholder="Settimana 1" aria-describedby={periodHint} onChange={(event) => set(step.id, { label: event.target.value })} />
+            {index === 0 ? (
+              <p id={periodHint} className="field-note">
+                Usa sempre lo stesso formato: Settimana 1, Settimane 2-3 oppure 2 settimane. Così il grafico Timeline mette le fasi nel tempo giusto.
+              </p>
+            ) : null}
             <TextField label="Attività" value={step.title} maxLength={140} placeholder="Analisi e briefing" onChange={(event) => set(step.id, { title: event.target.value })} />
           </li>
         ))}

@@ -66,7 +66,7 @@ const Sheet = createContext({ index: 1, total: 1 });
 /** Data attributes the edit kit adds to anchored elements. Empty for the plain web kit. */
 export type AnchorAttrs = Record<`data-${string}`, string>;
 
-export function WebV({ style, children, a, i, hover, stack, scrollX, flowStart, blockId, anchor }: ViewProps & { anchor?: AnchorAttrs }) {
+export function WebV({ style, children, a, i, hover, stack, scrollX, flowStart, columns, blockId, anchor }: ViewProps & { anchor?: AnchorAttrs }) {
   return (
     <div
       className="k-v"
@@ -75,6 +75,7 @@ export function WebV({ style, children, a, i, hover, stack, scrollX, flowStart, 
       data-stack={stack ? "" : undefined}
       data-scroll-x={scrollX ? "" : undefined}
       data-flow-start={flowStart ? "" : undefined}
+      data-columns={columns ? "" : undefined}
       data-block-id={blockId}
       {...anchor}
     >

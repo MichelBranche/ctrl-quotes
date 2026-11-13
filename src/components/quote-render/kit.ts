@@ -38,6 +38,8 @@ export type ViewProps = Motion & {
   scrollX?: boolean;
   /** Web: on narrow screens children align to the start (for staggered PDF columns). */
   flowStart?: boolean;
+  /** Web: a row of side-by-side blocks; on narrow screens the columns stack with room between them. */
+  columns?: boolean;
   /** Editor: block highlighted when selected. */
   blockId?: string;
   /** Visual editor: the stored value this region prints. Only the edit kit reads it; web and PDF ignore it. */

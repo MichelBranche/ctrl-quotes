@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { EditAnchor, EditKind, FieldPath } from "@/domain/document-ops";
 import { fonts, type Kit, type Style } from "../kit";
-import type { Condition, DocModel, Row } from "../model";
+import type { Condition, DocModel, Row, Section } from "../model";
 
 /** Building blocks shared by the five templates. Pure functions of (kit, data): no hooks. */
 
@@ -314,4 +314,43 @@ export function Spacer({ k, h }: { k: Kit; h: number }): ReactNode {
 /** Horizontal timeline drawn from the steps: nodes on a rule, labels under or above. */
 export function timelineX(count: number, index: number): number {
   return count <= 1 ? 0 : index / (count - 1);
+}
+
+/**
+ * A row of blocks side by side, the same in every template: columns in reading order, widths in
+ * percent, the template's gutter, an optional hairline between columns. On phones (`stack`) the
+ * columns go one under the other, in the same order. The PDF never splits a row (`keep`).
+ */
+export function RowColumns({
+  k,
+  s,
+  gap,
+  divider,
+  render,
+}: {
+  k: Kit;
+  s: Extract<Section, { kind: "row" }>;
+  gap: number;
+  divider?: { color: string; width: number };
+  render: (section: Section, width: number) => ReactElement | null;
+}) {
+  const last = s.columns.length - 1;
+  return (
+    <k.V stack columns style={{ flexDirection: "row", alignItems: "stretch" }}>
+      {s.columns.map((column, index) => (
+        <k.V
+          key={column.section.id}
+          style={{
+            width: `${column.width}%`,
+            paddingLeft: index ? gap / 2 : 0,
+            paddingRight: index < last ? gap / 2 : 0,
+            borderLeftWidth: divider && index ? divider.width : 0,
+            borderLeftColor: divider?.color,
+          }}
+        >
+          {render(column.section, column.width)}
+        </k.V>
+      ))}
+    </k.V>
+  );
 }

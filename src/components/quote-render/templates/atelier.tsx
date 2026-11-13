@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section } from "../model";
 import { chartType, ChartBody, type ChartTheme } from "./charts";
-import { anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, servicesColumns, Watermark } from "./shared";
+import { anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
 /** Editorial Atelier: ivory paper, large serif, full-bleed architecture photo, terracotta figures, olive signature band. */
 
@@ -28,15 +28,16 @@ const t = {
 
 const hair = (k: Kit, color = c.rule) => <k.V style={{ borderTopWidth: 0.5, borderTopColor: color }} />;
 
-function SectionHead({ k, m, s, first, extra }: { k: Kit; m: DocModel; s: Section; first: boolean; extra?: string }) {
+/** `compact`: a column of a row, with a slightly smaller title and no studio name. */
+function SectionHead({ k, m, s, first, extra, compact }: { k: Kit; m: DocModel; s: Section; first: boolean; extra?: string; compact?: boolean }) {
   return (
     <k.V style={{ flexDirection: "row", alignItems: "baseline", paddingBottom: 9, borderBottomWidth: 0.5, borderBottomColor: c.rule }}>
       <k.T style={t.sectionNo}>{pad(s.no)}</k.T>
-      <k.T edit={"heading" in s ? anchor(s.id, "heading") : undefined} style={{ ...t.sectionTitle, flexGrow: 1, flexBasis: 0 }}>
+      <k.T edit={"heading" in s ? anchor(s.id, "heading") : undefined} style={{ ...t.sectionTitle, ...(compact ? { fontSize: 15 } : {}), flexGrow: 1, flexBasis: 0 }}>
         {"heading" in s ? s.heading : ""}
         {extra ? <k.T style={{ fontSize: 12.5, fontWeight: 400 }}>{`  ${extra}`}</k.T> : null}
       </k.T>
-      {first ? <k.T style={{ fontFamily: serif, fontStyle: "italic", fontSize: 12.5, color: c.ink }}>{m.issuer.display}</k.T> : null}
+      {first && !compact ? <k.T style={{ fontFamily: serif, fontStyle: "italic", fontSize: 12.5, color: c.ink }}>{m.issuer.display}</k.T> : null}
     </k.V>
   );
 }
@@ -199,26 +200,43 @@ function Track({ k, count, width }: { k: Kit; count: number; width: number }) {
   );
 }
 
-function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boolean }): ReactElement | null {
-  const section = (children: ReactElement | null, extra?: string, gap = 22, keep = false) => (
-    <k.V blockId={s.id} a="rise" keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
-      {first ? null : hair(k, c.rule)}
-      <k.V style={{ paddingTop: first ? 0 : 12 }}>
-        <SectionHead k={k} m={m} s={s} first={first} extra={extra} />
+/** `col`: width in percent when the section is a column of a row (the row draws the rule and the gap). */
+function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first: boolean; col?: number }): ReactElement | null {
+  const narrow = col !== undefined && col <= 55;
+  const section = (children: ReactElement | null, extra?: string, gap = 22, keep = false) =>
+    col !== undefined ? (
+      <k.V blockId={s.id} a="rise">
+        <SectionHead k={k} m={m} s={s} first={first} extra={extra} compact />
         {children}
       </k.V>
-    </k.V>
-  );
+    ) : (
+      <k.V blockId={s.id} a="rise" keep={keep || undefined} style={{ marginTop: first ? 0 : gap }}>
+        {first ? null : hair(k, c.rule)}
+        <k.V style={{ paddingTop: first ? 0 : 12 }}>
+          <SectionHead k={k} m={m} s={s} first={first} extra={extra} />
+          {children}
+        </k.V>
+      </k.V>
+    );
   const table = { head: { paddingVertical: 7, paddingHorizontal: 2, borderBottomWidth: 0.5, borderBottomColor: c.rule }, headText: { fontSize: 8.8, fontWeight: 700, color: c.ink }, nameCell: { fontSize: 9, fontWeight: 700, color: c.ink, lineHeight: 1.3 }, cell: { fontSize: 8.8, color: c.ink, lineHeight: 1.36 }, empty: { ...t.small, color: c.rule } };
   switch (s.kind) {
+    case "row":
+      return (
+        <k.V keep style={{ marginTop: first ? 0 : 22 }}>
+          {first ? null : hair(k, c.rule)}
+          <k.V style={{ paddingTop: first ? 0 : 12 }}>
+            <RowColumns k={k} s={s} gap={26} render={(column, width) => <Block k={k} m={m} s={column} first col={width} />} />
+          </k.V>
+        </k.V>
+      );
     case "intro":
       return section(<Intro k={k} m={m} s={s} />);
     case "text":
       return section(<Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={{ ...t.body, marginTop: 12 }} />);
     case "image":
       return s.src ? (
-        <k.V blockId={s.id} a="fade" style={{ marginTop: 22 }} wrap={false}>
-          <k.Img src={s.src} alt={s.alt} style={{ width: "100%", height: 220, objectFit: "cover" }} />
+        <k.V blockId={s.id} a="fade" style={{ marginTop: col !== undefined ? 0 : 22 }} wrap={false}>
+          <k.Img src={s.src} alt={s.alt} style={{ width: "100%", height: col !== undefined ? 170 : 220, objectFit: "cover" }} />
           {s.caption ? (
             <k.T edit={anchor(s.id, "caption")} style={{ fontFamily: serif, fontStyle: "italic", fontSize: 11, color: c.muted, marginTop: 6 }}>
               {s.caption}
@@ -228,9 +246,16 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       ) : null;
     case "highlights":
       return section(
-        <k.V stack style={{ flexDirection: "row", marginTop: 12 }}>
+        <k.V stack style={{ flexDirection: narrow ? "column" : "row", marginTop: 12 }}>
           {s.items.map((item, index) => (
-            <k.V key={item.id} style={{ flex: 1, paddingLeft: index ? 14 : 0, marginLeft: index ? 10 : 0, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.soft }}>
+            <k.V
+              key={item.id}
+              style={
+                narrow
+                  ? { paddingTop: index ? 8 : 0, marginTop: index ? 8 : 0, borderTopWidth: index ? 0.5 : 0, borderTopColor: c.soft }
+                  : { flex: 1, paddingLeft: index ? 14 : 0, marginLeft: index ? 10 : 0, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.soft }
+              }
+            >
               <k.T edit={anchor(s.id, `items.${item.id}.title`)} style={{ fontFamily: serif, fontSize: 15, fontWeight: 500, color: c.ink }}>
                 {item.title}
               </k.T>
@@ -294,9 +319,16 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
       );
     case "terms":
       return section(
-        <k.V wrap={false} style={{ flexDirection: "row", paddingTop: 12 }} stack>
+        <k.V wrap={false} style={{ flexDirection: col !== undefined ? "column" : "row", paddingTop: 12 }} stack>
           {s.columns.map((column, index) => (
-            <k.V key={column.key} style={{ flex: column.key === "general" ? 1.4 : 1, paddingLeft: index ? 14 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.rule }}>
+            <k.V
+              key={column.key}
+              style={
+                col !== undefined
+                  ? { marginTop: index ? 10 : 0 }
+                  : { flex: column.key === "general" ? 1.4 : 1, paddingLeft: index ? 14 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.5 : 0, borderLeftColor: c.rule }
+              }
+            >
               <k.T style={{ fontSize: 10.4, fontWeight: 700, color: c.ink, marginBottom: 3 }}>{column.title}</k.T>
               <k.T edit={conditionAnchor(s.id, column)} style={t.small}>
                 {column.body}
@@ -343,7 +375,7 @@ function Block({ k, m, s, first }: { k: Kit; m: DocModel; s: Section; first: boo
     case "chart":
       return section(
         <k.V style={{ paddingTop: 14 }}>
-          <ChartBody k={k} m={m} s={s} theme={atelierChart(m)} />
+          <ChartBody k={k} m={m} s={s} theme={atelierChart(m)} width={col} />
         </k.V>,
         undefined,
         22,

@@ -11,9 +11,27 @@ export type DragView = {
   region: { x: number; y: number; w: number; h: number };
   /** Document order if the block is released now. */
   order: string[];
+  /** Released now, the block goes side by side with this one instead of moving between rows. */
+  join?: { targetId: string; side: "before" | "after" };
 };
 
-type Item = { id: string; el: HTMLElement; top: number; bottom: number; page: number };
+type Item = { id: string; el: HTMLElement; top: number; bottom: number; left: number; right: number; page: number };
+
+/** Share of a block's width, on each side, where a drop means "side by side" instead of "above or below". */
+export const JOIN_EDGE = 0.22;
+
+/** Which edge of which block the pointer is on, if any (content coordinates). */
+export function joinTarget(items: Array<Pick<Item, "id" | "top" | "bottom" | "left" | "right">>, x: number, y: number, canJoin: (targetId: string) => boolean): DragView["join"] | null {
+  for (const item of items) {
+    if (y < item.top || y > item.bottom || x < item.left || x > item.right) continue;
+    const width = item.right - item.left;
+    if (width <= 0) return null;
+    const share = (x - item.left) / width;
+    const side = share < JOIN_EDGE ? "before" : share > 1 - JOIN_EDGE ? "after" : null;
+    return side && canJoin(item.id) ? { targetId: item.id, side } : null;
+  }
+  return null;
+}
 
 type Session = {
   id: string;
@@ -30,6 +48,7 @@ type Session = {
   gap: number;
   slot: number;
   k: number;
+  join: DragView["join"] | null;
 };
 
 export type Ghost = { left: number; top: number; width: number; clone: HTMLElement; background: string; color: string; zoom: number };
@@ -58,6 +77,8 @@ export function useBlockDrag({
   measure,
   onCommit,
   onSettled,
+  canJoin,
+  onJoin,
 }: {
   contentRef: React.RefObject<HTMLDivElement | null>;
   scrollRef: React.RefObject<HTMLDivElement | null>;
@@ -69,6 +90,10 @@ export function useBlockDrag({
   measure: () => void;
   onCommit: (order: string[]) => boolean;
   onSettled: (id: string) => void;
+  /** Whether the dragged block may go side by side with a target (allowed types, room in the row). */
+  canJoin?: (id: string, targetId: string) => boolean;
+  /** Puts the dragged block next to the target; false when refused. */
+  onJoin?: (id: string, targetId: string, side: "before" | "after") => boolean;
 }) {
   const rawX = useMotionValue(0);
   const rawY = useMotionValue(0);
@@ -82,9 +107,9 @@ export function useBlockDrag({
   const session = useRef<Session | null>(null);
   const pending = useRef<{ id: string; pointerId: number; x: number; y: number } | null>(null);
   const frame = useRef(0);
-  const latest = useRef({ zoom, blocks, boxes, measure, onCommit, onSettled });
+  const latest = useRef({ zoom, blocks, boxes, measure, onCommit, onSettled, canJoin, onJoin });
   useEffect(() => {
-    latest.current = { zoom, blocks, boxes, measure, onCommit, onSettled };
+    latest.current = { zoom, blocks, boxes, measure, onCommit, onSettled, canJoin, onJoin };
   });
 
   const shiftOf = (current: Session, index: number, k: number) => (k <= index && index < current.s ? current.slot : current.s <= index && index < k ? -current.slot : 0);
@@ -115,10 +140,24 @@ export function useBlockDrag({
   const target = (current: Session) => {
     const content = contentRef.current;
     if (!content) return;
-    const probe = current.lastY - content.getBoundingClientRect().top;
+    const rect = content.getBoundingClientRect();
+    const probe = current.lastY - rect.top;
+    const { canJoin: allowJoin } = latest.current;
+    const join = allowJoin ? joinTarget(current.others, current.lastX - rect.left, probe, (targetId) => allowJoin(current.id, targetId)) : null;
+    if (join) {
+      if (current.join?.targetId === join.targetId && current.join.side === join.side) return;
+      current.join = join;
+      current.k = -1;
+      current.others.forEach((item) => translate(item.el, 0, latest.current.zoom));
+      const item = current.others.find((entry) => entry.id === join.targetId) as Item;
+      const x = join.side === "before" ? item.left : item.right;
+      setView({ id: current.id, region: { x: x - 2, y: item.top, w: 4, h: item.bottom - item.top }, order: latest.current.blocks.map((block) => block.id), join });
+      return;
+    }
     let k = 0;
     for (const item of current.others) if ((item.top + item.bottom) / 2 < probe) k += 1;
-    if (k === current.k && view) return;
+    if (k === current.k && view && !current.join) return;
+    current.join = null;
     current.k = k;
     current.others.forEach((item, index) => translate(item.el, shiftOf(current, index, k), latest.current.zoom));
     setView({ id: current.id, region: regionOf(current, k), order: orderFor(current, k) });
@@ -184,6 +223,20 @@ export function useBlockDrag({
   const drop = () => {
     const current = session.current;
     if (!current) return;
+    if (current.join) {
+      const { targetId, side } = current.join;
+      session.current = null;
+      stopLoop();
+      for (const item of current.others) translate(item.el, 0, latest.current.zoom);
+      cleanup([current.source, ...current.others]);
+      current.source.el.style.opacity = "";
+      latest.current.onJoin?.(current.id, targetId, side);
+      setLifted(false);
+      rawX.set(0);
+      rawY.set(0);
+      finish(current.id);
+      return;
+    }
     const order = orderFor(current, current.k);
     const unchanged = order.join() === latest.current.blocks.map((block) => block.id).join();
     if (unchanged) {
@@ -266,7 +319,7 @@ export function useBlockDrag({
     for (const entry of currentBoxes) {
       const element = elements.get(entry.id);
       if (!element || types.get(entry.id) === "cover") continue;
-      items.push({ id: entry.id, el: element, top: entry.y, bottom: entry.y + entry.h, page: entry.page });
+      items.push({ id: entry.id, el: element, top: entry.y, bottom: entry.y + entry.h, left: entry.x, right: entry.x + entry.w, page: entry.page });
       if (entry.id === id) box = entry;
     }
     const s = items.findIndex((item) => item.id === id);
@@ -290,7 +343,7 @@ export function useBlockDrag({
     const background = pageStyle && pageStyle.backgroundColor !== "rgba(0, 0, 0, 0)" ? pageStyle.backgroundColor : "#ffffff";
 
     pausedRef.current = true;
-    session.current = { id, pointerId, startX, startY, lastX: startX, lastY: startY, origin, source, box, others, s, gap, slot: origin.height + gap, k: s };
+    session.current = { id, pointerId, startX, startY, lastX: startX, lastY: startY, origin, source, box, others, s, gap, slot: origin.height + gap, k: s, join: null };
     rawX.jump(0);
     rawY.jump(0);
     x.jump(0);

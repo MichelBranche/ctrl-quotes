@@ -3,7 +3,7 @@ import type { EditAnchor } from "@/domain/document-ops";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, mix, subtitleLines, type DocModel, type MoneyGroup, type Section } from "../model";
 import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
-import { anchor, Brand, conditionAnchor, highlightGlyph, Icon, LineTable, optionsColumns, pad, Paras, servicesColumns, Watermark } from "./shared";
+import { anchor, Brand, conditionAnchor, highlightGlyph, Icon, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
 /** Bold Impact: black and orange, giant display type, a parametric glowing arc, dark bands on the last page. */
 
@@ -215,16 +215,28 @@ function BreakdownBand({ k, m, b }: { k: Kit; m: DocModel; b: Breakdown }) {
 
 const termIcons: Record<string, string> = { payment: "payment", validity: "calendar", notes: "info", general: "document" };
 
-function Block({ k, m, s, first, last }: { k: Kit; m: DocModel; s: Item; first: boolean; last: boolean }): ReactElement | null {
-  const light = (children: ReactElement, opts: { extra?: string; gap?: number; title?: string; keep?: boolean } = {}) => (
-    <k.V blockId={s.id} a="rise" keep={opts.keep || undefined} style={{ paddingHorizontal: P, marginTop: first ? 0 : (opts.gap ?? 16) }}>
-      {first ? null : <k.V style={{ borderTopWidth: 0.6, borderTopColor: c.line, marginBottom: 13 }} />}
-      {"heading" in s ? <SectionHead k={k} m={m} no={s.no} title={opts.title ?? s.heading} dark={false} extra={opts.extra} edit={opts.title === undefined ? anchor(s.id, "heading") : undefined} /> : null}
-      {children}
-    </k.V>
-  );
+/** `col`: width in percent when the section is a column of a row (the row draws the rule, margins and gap). */
+function Block({ k, m, s, first, last, col }: { k: Kit; m: DocModel; s: Item; first: boolean; last: boolean; col?: number }): ReactElement | null {
+  const inCol = col !== undefined;
+  const narrow = inCol && col <= 55;
+  const head = (opts: { extra?: string; title?: string }) =>
+    "heading" in s ? <SectionHead k={k} m={m} no={s.no} title={opts.title ?? s.heading} dark={false} extra={opts.extra} edit={opts.title === undefined ? anchor(s.id, "heading") : undefined} /> : null;
+  const light = (children: ReactElement, opts: { extra?: string; gap?: number; title?: string; keep?: boolean } = {}) =>
+    inCol ? (
+      <k.V blockId={s.id} a="rise">
+        {head(opts)}
+        {children}
+      </k.V>
+    ) : (
+      <k.V blockId={s.id} a="rise" keep={opts.keep || undefined} style={{ paddingHorizontal: P, marginTop: first ? 0 : (opts.gap ?? 16) }}>
+        {first ? null : <k.V style={{ borderTopWidth: 0.6, borderTopColor: c.line, marginBottom: 13 }} />}
+        {head(opts)}
+        {children}
+      </k.V>
+    );
+  // In a column the dark band becomes a dark card.
   const dark = (children: ReactElement) => (
-    <k.V blockId={s.id} style={{ backgroundColor: c.ink, paddingHorizontal: P, paddingTop: 13, paddingBottom: 13, flexGrow: last ? 1 : 0 }}>
+    <k.V blockId={s.id} style={inCol ? { backgroundColor: c.ink, borderRadius: 7, paddingHorizontal: 16, paddingTop: 13, paddingBottom: 13 } : { backgroundColor: c.ink, paddingHorizontal: P, paddingTop: 13, paddingBottom: 13, flexGrow: last ? 1 : 0 }}>
       {"heading" in s ? <SectionHead k={k} m={m} no={s.no} title={s.heading} dark edit={anchor(s.id, "heading")} /> : null}
       {children}
     </k.V>
@@ -238,6 +250,13 @@ function Block({ k, m, s, first, last }: { k: Kit; m: DocModel; s: Item; first: 
     empty: { ...t.small, color: c.secondary },
   };
   switch (s.kind) {
+    case "row":
+      return (
+        <k.V keep style={{ paddingHorizontal: P, marginTop: first ? 0 : 16 }}>
+          {first ? null : <k.V style={{ borderTopWidth: 0.6, borderTopColor: c.line, marginBottom: 13 }} />}
+          <RowColumns k={k} s={s} gap={22} render={(column, width) => <Block k={k} m={m} s={column} first last={false} col={width} />} />
+        </k.V>
+      );
     case "intro":
       return light(
         <k.V stack style={{ flexDirection: "row" }}>
@@ -260,8 +279,8 @@ function Block({ k, m, s, first, last }: { k: Kit; m: DocModel; s: Item; first: 
       return light(<Paras k={k} text={s.body} edit={anchor(s.id, "body", "multiline")} style={t.body} />);
     case "image":
       return s.src ? (
-        <k.V blockId={s.id} a="fade" style={{ marginTop: 16, paddingHorizontal: P }} wrap={false}>
-          <k.Img src={s.src} alt={s.alt} style={{ width: "100%", height: 210, objectFit: "cover" }} />
+        <k.V blockId={s.id} a="fade" style={inCol ? {} : { marginTop: 16, paddingHorizontal: P }} wrap={false}>
+          <k.Img src={s.src} alt={s.alt} style={{ width: "100%", height: inCol ? 170 : 210, objectFit: "cover" }} />
           {s.caption ? (
             <k.T edit={anchor(s.id, "caption")} style={{ ...t.small, color: c.secondary, marginTop: 5 }}>
               {s.caption}
@@ -271,9 +290,14 @@ function Block({ k, m, s, first, last }: { k: Kit; m: DocModel; s: Item; first: 
       ) : null;
     case "highlights":
       return (
-        <k.V blockId={s.id} a="rise" wrap={false} stack style={{ flexDirection: "row", paddingHorizontal: P, marginTop: 20 }}>
+        <k.V blockId={s.id} a="rise" wrap={false} stack style={inCol ? { flexDirection: narrow ? "column" : "row" } : { flexDirection: "row", paddingHorizontal: P, marginTop: 20 }}>
           {s.items.map((item, index) => (
-            <k.V key={item.id} a="rise" i={index} style={{ flex: 1, paddingLeft: index ? 20 : 0, paddingRight: 10, borderLeftWidth: index ? 0.6 : 0, borderLeftColor: c.line }}>
+            <k.V
+              key={item.id}
+              a="rise"
+              i={index}
+              style={narrow ? { paddingTop: index ? 10 : 0, marginTop: index ? 10 : 0, borderTopWidth: index ? 0.6 : 0, borderTopColor: c.line } : { flex: 1, paddingLeft: index ? 20 : 0, paddingRight: 10, borderLeftWidth: index ? 0.6 : 0, borderLeftColor: c.line }}
+            >
               <Icon k={k} name={highlightGlyph.bold[item.icon] ?? "performance"} size={26} color={m.accent} width={1.5} />
               <k.T edit={anchor(s.id, `items.${item.id}.title`)} style={{ fontSize: 13.5, fontWeight: 800, color: c.ink, marginTop: 9, letterSpacing: -0.3 }}>
                 {item.title}
@@ -328,9 +352,16 @@ function Block({ k, m, s, first, last }: { k: Kit; m: DocModel; s: Item; first: 
     }
     case "terms":
       return dark(
-        <k.V wrap={false} style={{ flexDirection: "row" }} stack>
+        <k.V wrap={false} style={{ flexDirection: inCol ? "column" : "row" }} stack>
           {s.columns.map((column, index) => (
-            <k.V key={column.key} style={{ flex: column.key === "general" ? 1.4 : 1, flexDirection: "row", paddingLeft: index ? 14 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.6 : 0, borderLeftColor: "#5A5A5A" }}>
+            <k.V
+              key={column.key}
+              style={
+                inCol
+                  ? { flexDirection: "row", marginTop: index ? 10 : 0 }
+                  : { flex: column.key === "general" ? 1.4 : 1, flexDirection: "row", paddingLeft: index ? 14 : 0, marginLeft: index ? 8 : 0, borderLeftWidth: index ? 0.6 : 0, borderLeftColor: "#5A5A5A" }
+              }
+            >
               <Icon k={k} name={termIcons[column.key] ?? "document"} size={18} color={m.accent} width={1.6} />
               <k.V style={{ marginLeft: 11, flexGrow: 1, flexBasis: 0 }}>
                 <k.T style={{ fontSize: 10, fontWeight: 800, color: c.white, marginBottom: 3 }}>{column.title}</k.T>
@@ -372,7 +403,7 @@ function Block({ k, m, s, first, last }: { k: Kit; m: DocModel; s: Item; first: 
         </k.V>,
       );
     case "chart":
-      return light(<ChartBody k={k} m={m} s={s} theme={boldChart(m)} />, { keep: true });
+      return light(<ChartBody k={k} m={m} s={s} theme={boldChart(m)} width={col} />, { keep: true });
     default:
       return null;
   }

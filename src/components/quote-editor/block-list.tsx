@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -12,10 +12,40 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlignLeft, ArrowDown, ArrowUp, Calculator, CalendarRange, ChartBarBig, ChartGantt, ChartPie, WalletCards, Copy, Eye, EyeOff, Lock, LockOpen, FileSignature, GripVertical, Image as ImageIcon, Layers, LayoutPanelTop, ListChecks, Plus, Sparkles, Trash2, Type, UserRound } from "lucide-react";
+import { AlignLeft, ArrowDown, ArrowUp, Columns2, Columns3, Unlink, Calculator, CalendarRange, ChartBarBig, ChartGantt, ChartPie, WalletCards, Copy, Eye, EyeOff, Lock, LockOpen, FileSignature, GripVertical, Image as ImageIcon, Layers, LayoutPanelTop, ListChecks, Plus, Sparkles, Trash2, Type, UserRound } from "lucide-react";
 import { ActionMenu } from "@/components/data/menu";
 import { blockHint, blockLabel, blockTypes, chartBlockTypes, singletonBlocks, type BlockType, type QuoteBlock } from "@/domain/quote-document";
 import { cn } from "@/lib/cn";
+import { canColumn, layoutChoices, maxColumns, rowOf, spanLabel, unitsOf } from "@/domain/columns";
+import type { DocumentCommand } from "@/domain/document-ops";
+
+/** Where a block sits in its row: shown as a bracket on the left, with the width of the column. */
+type ColumnPlace = { row: string; count: number; position: "first" | "middle" | "last"; span: number; spans: number[] };
+
+function columnPlaces(blocks: QuoteBlock[]): Map<string, ColumnPlace> {
+  const places = new Map<string, ColumnPlace>();
+  for (const unit of unitsOf(blocks)) {
+    if (unit.kind !== "row") continue;
+    const spans = unit.blocks.map((block) => block.col?.span ?? 3);
+    unit.blocks.forEach((block, index) => {
+      places.set(block.id, { row: unit.row, count: unit.blocks.length, position: index === 0 ? "first" : index === unit.blocks.length - 1 ? "last" : "middle", span: spans[index] ?? 3, spans });
+    });
+  }
+  return places;
+}
+
+/** Why "Affianca al blocco sopra" is not possible, or null when it is. */
+function besideReason(blocks: QuoteBlock[], index: number): string | null {
+  const block = blocks[index];
+  const above = blocks[index - 1];
+  if (!block || !canColumn(block.type)) return "Questo blocco non va in colonna.";
+  if (!above) return "Non c'è un blocco sopra.";
+  if (block.col && above.col?.row === block.col.row) return "È già nella riga del blocco sopra.";
+  if (!canColumn(above.type)) return "Il blocco sopra non va in colonna.";
+  const row = rowOf(blocks, above.id);
+  if (row && row.blocks.length >= maxColumns) return `La riga sopra ha già ${maxColumns} colonne.`;
+  return null;
+}
 
 export const blockIcon: Record<BlockType, typeof Type> = {
   cover: LayoutPanelTop,
@@ -52,6 +82,7 @@ export function BlockList({
   onRemove,
   onLock,
   onAdd,
+  onCommand,
 }: {
   blocks: QuoteBlock[];
   selectedId: string | null;
@@ -63,6 +94,8 @@ export function BlockList({
   onRemove: (id: string) => void;
   onLock: (id: string, locked: boolean) => void;
   onAdd: (type: BlockType) => void;
+  /** Rows of columns: join, leave, split, widths, and moving a whole row. */
+  onCommand?: (command: DocumentCommand) => void;
 }) {
   const [adding, setAdding] = useState(false);
   const sensors = useSensors(
@@ -70,6 +103,8 @@ export function BlockList({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const present = new Set(blocks.map((block) => block.type));
+  const places = columnPlaces(blocks);
+  const units = unitsOf(blocks);
 
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -80,6 +115,7 @@ export function BlockList({
   }
 
   function move(id: string, delta: -1 | 1) {
+    if (onCommand) return onCommand({ kind: "moveUnit", blockId: id, delta });
     const from = blocks.findIndex((block) => block.id === id);
     const to = from + delta;
     if (from < 0 || to < 0 || to >= blocks.length) return;
@@ -132,14 +168,27 @@ export function BlockList({
       <DndContext id="block-list" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
           <ol className="block-list" aria-label="Blocchi del preventivo">
-            {blocks.map((block, index) => (
+            {blocks.map((block, index) => {
+              const place = places.get(block.id) ?? null;
+              const unit = units.findIndex((entry) => (entry.kind === "row" ? entry.blocks.some((member) => member.id === block.id) : entry.block.id === block.id));
+              return (
+              <Fragment key={block.id}>
+              {place?.position === "first" ? (
+                <RowHead place={place} readOnly={readOnly} onLayout={(spans) => onCommand?.({ kind: "setRowLayout", row: place.row, spans })} onSplit={() => onCommand?.({ kind: "splitRow", row: place.row })} />
+              ) : null}
               <SortableBlock
-                key={block.id}
                 block={block}
+                place={place}
+                beside={onCommand ? besideReason(blocks, index) ?? "" : null}
+                onBeside={() => {
+                  const above = blocks[index - 1];
+                  if (above) onCommand?.({ kind: "joinRow", blockId: block.id, targetId: above.id, side: "after" });
+                }}
+                onLeave={() => onCommand?.({ kind: "leaveRow", blockId: block.id })}
                 selected={block.id === selectedId}
                 readOnly={readOnly}
-                first={index === 0}
-                last={index === blocks.length - 1}
+                first={unit <= 0}
+                last={unit === units.length - 1}
                 onSelect={() => onSelect(block.id)}
                 onToggle={() => onToggle(block.id)}
                 onDuplicate={() => onDuplicate(block.id)}
@@ -147,7 +196,9 @@ export function BlockList({
                 onLock={() => onLock(block.id, !block.locked)}
                 onMove={(delta) => move(block.id, delta)}
               />
-            ))}
+              </Fragment>
+              );
+            })}
           </ol>
         </SortableContext>
       </DndContext>
@@ -156,8 +207,45 @@ export function BlockList({
   );
 }
 
+function RowHead({ place, readOnly, onLayout, onSplit }: { place: ColumnPlace; readOnly: boolean; onLayout: (spans: number[]) => void; onSplit: () => void }) {
+  const choices = layoutChoices(place.count);
+  return (
+    <li className="block-row-head">
+      <span className="block-row-title">
+        {place.count === 3 ? <Columns3 size={13} aria-hidden="true" /> : <Columns2 size={13} aria-hidden="true" />}
+        <span className="block-row-name">
+          Riga · {place.count}
+          <span className="block-row-long"> colonne</span>
+        </span>
+      </span>
+      {choices.length > 1 ? (
+        <span className="block-row-widths" role="group" aria-label="Larghezze">
+          {choices.map((choice) => {
+            const on = choice.spans.every((span, index) => place.spans[index] === span);
+            return (
+              <button key={choice.label} type="button" className={cn("block-row-width", on && "is-on")} aria-pressed={on} aria-label={`Larghezze ${choice.label}`} title={`Larghezze ${choice.label}`} disabled={readOnly} onClick={() => onLayout(choice.spans)}>
+                {choice.spans.map((span, index) => (
+                  <i key={index} style={{ flexGrow: span }} />
+                ))}
+              </button>
+            );
+          })}
+        </span>
+      ) : null}
+      <button type="button" className="block-row-split" onClick={onSplit} disabled={readOnly} aria-label="Separa la riga" title="Separa: i blocchi tornano uno sotto l'altro">
+        <Unlink size={13} aria-hidden="true" />
+        <span className="block-row-long">Separa</span>
+      </button>
+    </li>
+  );
+}
+
 function SortableBlock({
   block,
+  place,
+  beside,
+  onBeside,
+  onLeave,
   selected,
   readOnly,
   first,
@@ -170,6 +258,11 @@ function SortableBlock({
   onMove,
 }: {
   block: QuoteBlock;
+  place: ColumnPlace | null;
+  /** null: no rows here; "": possible; otherwise the reason it is not. */
+  beside: string | null;
+  onBeside: () => void;
+  onLeave: () => void;
   selected: boolean;
   readOnly: boolean;
   first: boolean;
@@ -190,7 +283,8 @@ function SortableBlock({
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("block-item", selected && "is-selected", !block.visible && "is-hidden", locked && "is-locked", isDragging && "is-dragging")}
+      className={cn("block-item", selected && "is-selected", !block.visible && "is-hidden", locked && "is-locked", isDragging && "is-dragging", place && "in-row")}
+      data-col={place?.position}
     >
       <button type="button" className="drag-handle" aria-label={`Sposta ${title}`} disabled={readOnly} {...attributes} {...listeners}>
         <GripVertical size={14} aria-hidden="true" />
@@ -198,6 +292,7 @@ function SortableBlock({
       <button type="button" className="block-select" onClick={onSelect} aria-current={selected ? "true" : undefined}>
         <Icon size={16} aria-hidden="true" />
         <span className="clamp-1">{title}</span>
+        {place ? <span className="block-col-span" title={`Colonna larga ${spanLabel(place.span)}`}>{spanLabel(place.span)}</span> : null}
       </button>
       <button
         type="button"
@@ -234,8 +329,16 @@ function SortableBlock({
         <ActionMenu
           label={`Azioni per ${title}`}
           items={[
-            { label: "Sposta su", icon: <ArrowUp size={16} aria-hidden="true" />, onSelect: () => onMove(-1), disabledReason: first ? "È già il primo blocco." : undefined },
-            { label: "Sposta giù", icon: <ArrowDown size={16} aria-hidden="true" />, onSelect: () => onMove(1), disabledReason: last ? "È già l'ultimo blocco." : undefined },
+            { label: place ? "Sposta su la riga" : "Sposta su", icon: <ArrowUp size={16} aria-hidden="true" />, onSelect: () => onMove(-1), disabledReason: first ? "È già il primo blocco." : undefined },
+            { label: place ? "Sposta giù la riga" : "Sposta giù", icon: <ArrowDown size={16} aria-hidden="true" />, onSelect: () => onMove(1), disabledReason: last ? "È già l'ultimo blocco." : undefined },
+            ...(beside === null
+              ? []
+              : place && place.position !== "first"
+                ? [{ label: "Togli dalla riga", icon: <Unlink size={16} aria-hidden="true" />, onSelect: onLeave }]
+                : [
+                    { label: "Affianca al blocco sopra", icon: <Columns2 size={16} aria-hidden="true" />, onSelect: onBeside, disabledReason: beside || undefined },
+                    ...(place ? [{ label: "Togli dalla riga", icon: <Unlink size={16} aria-hidden="true" />, onSelect: onLeave }] : []),
+                  ]),
             {
               label: "Duplica",
               icon: <Copy size={16} aria-hidden="true" />,

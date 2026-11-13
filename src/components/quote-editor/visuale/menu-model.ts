@@ -1,3 +1,4 @@
+import { canColumn, maxColumns, rowOf, unitIndex } from "@/domain/columns";
 import { applyCommand } from "@/domain/document-ops";
 import { singletonBlocks, type BlockType, type QuoteDocument } from "@/domain/quote-document";
 
@@ -38,18 +39,26 @@ export type BlockActions = {
   /** Text edits and inserting next to it: off while the content is locked. */
   edit: boolean;
   insertBefore: boolean;
+  /** Room to put another block next to this one (allowed type, row not full). */
+  beside: boolean;
 };
 
 /** Which block actions the model would accept right now, checked with the same rules as the commands. */
 export function blockActions(document: QuoteDocument, blockId: string, readOnly: boolean): BlockActions {
   const at = document.blocks.findIndex((block) => block.id === blockId);
   const block = document.blocks[at];
-  const none: BlockActions = { moveUp: false, moveDown: false, duplicate: false, remove: false, toggle: false, lock: false, edit: false, insertBefore: false };
+  const none: BlockActions = { moveUp: false, moveDown: false, duplicate: false, remove: false, toggle: false, lock: false, edit: false, insertBefore: false, beside: false };
   if (!block || readOnly) return none;
   const ok = (command: Parameters<typeof applyCommand>[1]) => applyCommand(document, command, { order: "template" }).ok;
+  const unit = unitIndex(document.blocks, blockId);
+  const moves = (delta: -1 | 1) => {
+    const result = applyCommand(document, { kind: "moveUnit", blockId, delta }, { order: "template" });
+    return result.ok && result.value !== document;
+  };
   return {
-    moveUp: at > 0 && ok({ kind: "moveBlock", blockId, toIndex: at - 1 }),
-    moveDown: at < document.blocks.length - 1 && ok({ kind: "moveBlock", blockId, toIndex: at + 1 }),
+    // A column moves with its whole row; a full width block hops over a whole row.
+    moveUp: unit.at > 0 && moves(-1),
+    moveDown: unit.at < unit.count - 1 && moves(1),
     duplicate: ok({ kind: "duplicateBlock", blockId }),
     remove: ok({ kind: "removeBlock", blockId }),
     toggle: true,
@@ -57,6 +66,7 @@ export function blockActions(document: QuoteDocument, blockId: string, readOnly:
     edit: !block.locked,
     // Nothing goes above the cover.
     insertBefore: block.type !== "cover",
+    beside: canColumn(block.type) && (rowOf(document.blocks, blockId)?.blocks.length ?? 1) < maxColumns,
   };
 }
 

@@ -348,6 +348,7 @@ export function QuoteEditor({
               onRemove={removeBlock}
               onLock={lockBlock}
               onAdd={addBlock}
+              onCommand={run}
             />
             <div className="editor-col">
               <section className="card editor-panel content-panel" aria-labelledby="content-title">

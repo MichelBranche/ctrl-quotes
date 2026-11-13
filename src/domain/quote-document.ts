@@ -138,6 +138,8 @@ const base = {
   visible: z.boolean().default(true),
   /** Content locked against edits (editor only: the PDF prints it as usual). Absent means unlocked. */
   locked: z.boolean().optional(),
+  /** Side by side placement: consecutive blocks with the same row form a row, widths in sixths. Absent means full width. */
+  col: z.object({ row: z.string().min(1).max(64), span: z.union([z.literal(2), z.literal(3), z.literal(4)]) }).optional(),
 };
 const heading = plain(limits.heading, "Titolo sezione").default("");
 const body = plain(limits.body, "Testo").default("");

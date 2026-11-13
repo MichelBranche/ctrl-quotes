@@ -1,3 +1,4 @@
+import { canColumn, evenLayout, maxColumns, normalizeColumns, rowOf, unitsOf, validLayout } from "@/domain/columns";
 import { createId } from "@/domain/ids";
 import {
   blockLabel,
@@ -104,6 +105,19 @@ export type DocumentCommand =
   | { kind: "toggleBlock"; blockId: string }
   /** Locks or unlocks the content of a block. A locked block can still move, hide and be copied. */
   | { kind: "lockBlock"; blockId: string; locked: boolean }
+  /** Puts a block in a row next to another one (a new row when the target is full width). */
+  | { kind: "joinRow"; blockId: string; targetId: string; side: "before" | "after" }
+  /** Adds a new block in a row next to another one, in one step. */
+  | { kind: "insertBeside"; block: QuoteBlock; targetId: string; side: "before" | "after" }
+  /** A new row of two or three new blocks, with the given widths, in one step. */
+  | { kind: "insertRow"; blocks: QuoteBlock[]; spans: number[]; index: number }
+  /** Takes a block out of its row: it goes full width right after the row. */
+  | { kind: "leaveRow"; blockId: string }
+  /** Every column of a row goes back to full width, in the same order. */
+  | { kind: "splitRow"; row: string }
+  | { kind: "setRowLayout"; row: string; spans: number[] }
+  /** Moves a block, or the whole row it belongs to, past the next unit above or below. */
+  | { kind: "moveUnit"; blockId: string; delta: -1 | 1 }
   | { kind: "setStyle"; style: DocumentStyle }
   | { kind: "setWithholding"; bp: number };
 
@@ -236,7 +250,15 @@ export function applyCommand(document: QuoteDocument, command: DocumentCommand, 
       if (!source) return missing;
       if (singletonBlocks.has(source.type)) return { ok: false, message: `Il blocco ${blockLabel[source.type]} può comparire una sola volta.` };
       const blocks = [...document.blocks];
-      blocks.splice(at + 1, 0, unlockedCopy(source, makeId));
+      const copy = unlockedCopy(source, makeId);
+      const row = rowOf(document.blocks, source.id);
+      // In a row with room the copy joins it, next to the original; in a full row it goes full width after it.
+      if (row && row.blocks.length >= maxColumns) {
+        delete copy.col;
+        blocks.splice(row.start + row.blocks.length, 0, copy);
+      } else {
+        blocks.splice(at + 1, 0, copy);
+      }
       next = withBlocks(document, blocks);
       break;
     }
@@ -268,6 +290,90 @@ export function applyCommand(document: QuoteDocument, command: DocumentCommand, 
       );
       break;
     }
+    case "joinRow":
+    case "insertBeside": {
+      const inserting = command.kind === "insertBeside";
+      const source = inserting ? command.block : document.blocks[index(command.blockId)];
+      const target = document.blocks[index(command.targetId)];
+      if (!source || !target) return missing;
+      if (inserting && index(source.id) >= 0) return { ok: false, message: "Due blocchi hanno lo stesso identificativo." };
+      if (source.id === target.id) return { ok: false, message: "Un blocco non si affianca a se stesso." };
+      if (!canColumn(source.type) || !canColumn(target.type)) return { ok: false, message: "Questo blocco resta a piena larghezza." };
+      const row = rowOf(document.blocks, target.id);
+      const members = (row?.blocks ?? [target]).filter((block) => block.id !== source.id);
+      if (members.length >= maxColumns) return { ok: false, message: `Al massimo ${maxColumns} colonne per riga.` };
+      const rowId = target.col?.row ?? makeId();
+      const at = members.findIndex((block) => block.id === target.id) + (command.side === "after" ? 1 : 0);
+      const ordered = [...members.slice(0, at), source, ...members.slice(at)];
+      const spans = evenLayout(ordered.length);
+      const placed = new Map(ordered.map((block, position) => [block.id, { ...block, col: { row: rowId, span: spans[position] ?? 3 } } as QuoteBlock]));
+      const rest = document.blocks.filter((block) => block.id !== source.id);
+      // The members sit together from the first one: the row is rebuilt in that spot.
+      const first = rest.findIndex((block) => block.id === members[0]?.id);
+      const blocks = rest.filter((block) => !placed.has(block.id));
+      blocks.splice(first, 0, ...ordered.map((block) => placed.get(block.id) as QuoteBlock));
+      next = withBlocks(document, blocks);
+      break;
+    }
+    case "insertRow": {
+      if (command.blocks.length !== command.spans.length || !validLayout(command.spans)) return { ok: false, message: "Larghezze non valide: le colonne scattano su 1/3, 1/2 e 2/3." };
+      if (command.blocks.some((block) => !canColumn(block.type))) return { ok: false, message: "Questo blocco resta a piena larghezza." };
+      if (command.blocks.some((block) => index(block.id) >= 0)) return { ok: false, message: "Due blocchi hanno lo stesso identificativo." };
+      const row = makeId();
+      const spans = command.spans;
+      const at = Math.max(0, Math.min(command.index, document.blocks.length));
+      const blocks = [...document.blocks];
+      blocks.splice(at, 0, ...command.blocks.map((block, position) => ({ ...block, col: { row, span: spans[position] as 2 | 3 | 4 } }) as QuoteBlock));
+      next = withBlocks(document, blocks);
+      break;
+    }
+    case "leaveRow": {
+      const row = rowOf(document.blocks, command.blockId);
+      const block = document.blocks[index(command.blockId)];
+      if (!block) return missing;
+      if (!row) return { ok: true, value: document };
+      const loose = { ...block };
+      delete loose.col;
+      const blocks = document.blocks.filter((entry) => entry.id !== block.id);
+      const lastId = row.blocks.filter((entry) => entry.id !== block.id).at(-1)?.id;
+      blocks.splice(blocks.findIndex((entry) => entry.id === lastId) + 1, 0, loose);
+      next = withBlocks(document, blocks);
+      break;
+    }
+    case "splitRow": {
+      if (!document.blocks.some((block) => block.col?.row === command.row)) return { ok: false, message: "La riga non esiste più." };
+      next = withBlocks(
+        document,
+        document.blocks.map((block) => {
+          if (block.col?.row !== command.row) return block;
+          const loose = { ...block };
+          delete loose.col;
+          return loose;
+        }),
+      );
+      break;
+    }
+    case "setRowLayout": {
+      const members = document.blocks.filter((block) => block.col?.row === command.row);
+      if (members.length < 2) return { ok: false, message: "La riga non esiste più." };
+      if (members.length !== command.spans.length || !validLayout(command.spans)) return { ok: false, message: "Larghezze non valide: le colonne scattano su 1/3, 1/2 e 2/3." };
+      const spans = command.spans;
+      let position = 0;
+      next = withBlocks(
+        document,
+        document.blocks.map((block) => (block.col?.row === command.row ? { ...block, col: { row: command.row, span: spans[position++] as 2 | 3 | 4 } } : block)),
+      );
+      break;
+    }
+    case "moveUnit": {
+      const units = unitsOf(document.blocks);
+      const at = units.findIndex((unit) => (unit.kind === "row" ? unit.blocks.some((block) => block.id === command.blockId) : unit.block.id === command.blockId));
+      if (at < 0) return missing;
+      const to = at + command.delta;
+      if (to < 0 || to >= units.length) return { ok: true, value: document };
+      next = withBlocks(document, move(units, at, to).flatMap((unit) => (unit.kind === "row" ? unit.blocks : [unit.block])));
+      break;
+    }
     case "setStyle":
       next = { ...document, style: command.style };
       break;
@@ -281,6 +387,8 @@ export function applyCommand(document: QuoteDocument, command: DocumentCommand, 
     }
   }
 
+  const normalized = normalizeColumns(next.blocks);
+  if (normalized !== next.blocks) next = withBlocks(next, normalized);
   const problem = documentProblem(next, options);
   // A rule that was already broken before the command (old drafts) never blocks unrelated edits.
   if (problem && problem !== documentProblem(document, options)) return { ok: false, message: problem };
