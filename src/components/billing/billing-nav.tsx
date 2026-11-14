@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
-import { BillingLink } from "@/components/billing/billing-transition";
+import { SectionLink } from "@/components/motion/section-transition";
 import { billingHref, type BillingViewId } from "@/components/billing/billing-view";
 
 const items: Array<{ id: BillingViewId; label: string }> = [
@@ -28,7 +28,7 @@ export function BillingNav({ planLabel }: { planLabel: string }) {
         {items.map((item) => {
           const active = pathname === billingHref[item.id];
           return (
-            <BillingLink key={item.id} href={billingHref[item.id]} aria-current={active ? "page" : undefined} scroll={false}>
+            <SectionLink key={item.id} href={billingHref[item.id]} aria-current={active ? "page" : undefined} scroll={false}>
               {active ? (
                 <motion.span
                   layoutId="bl-pill"
@@ -37,7 +37,7 @@ export function BillingNav({ planLabel }: { planLabel: string }) {
                 />
               ) : null}
               <span className="bl-pill-label">{item.label}</span>
-            </BillingLink>
+            </SectionLink>
           );
         })}
       </nav>

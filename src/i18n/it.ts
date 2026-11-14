@@ -65,8 +65,7 @@ export const messages = {
     help: "Aiuto",
     primaryNav: "Principale",
     secondaryNav: "Secondaria",
-    planTitle: "Piano Pro",
-    planBody: "Preventivi illimitati, template premium e molto altro.",
+    planBody: "Scopri i piani e scegli quello giusto per il tuo lavoro.",
     managePlan: "Gestisci piano",
     managePlanHint: "La fatturazione arriva in una fase successiva. Il pulsante non avvia un pagamento.",
     billingHint: "La fatturazione non è ancora disponibile.",
@@ -126,7 +125,7 @@ export const messages = {
   },
   settings: {
     title: "Impostazioni",
-    subtitle: "Configura il workspace, il Brand Kit e le preferenze dei preventivi.",
+    subtitle: "Gestisci il tuo workspace, il team e tutte le preferenze di CTRL® Quotes.",
     profile: "Profilo workspace",
     brand: "Brand Kit",
     numbering: "Numerazione",

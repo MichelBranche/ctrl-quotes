@@ -9,7 +9,7 @@ const groups = [
   {
     title: "Generale",
     links: [
-      { href: "/app/settings", label: messages.settings.profile, icon: Settings },
+      { href: "/app/settings/profile", label: messages.settings.profile, icon: Settings },
       { href: "/app/settings/brand", label: messages.settings.brand, icon: Palette },
       { href: "/app/settings/fiscal", label: "Fiscale e IVA", icon: Percent },
       { href: "/app/settings/numbering", label: messages.settings.numbering, icon: Hash },
@@ -28,7 +28,8 @@ const groups = [
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   // Abbonamento has its own full-width layout with in-page pills (see billing/layout.tsx).
-  if (pathname.startsWith("/app/settings/billing")) return <>{children}</>;
+  // The settings home (card grid) is full width too.
+  if (pathname === "/app/settings" || pathname.startsWith("/app/settings/billing")) return <>{children}</>;
   return (
     <div className="settings-layout">
       <nav className="card settings-nav" aria-label={messages.settings.nav}>
