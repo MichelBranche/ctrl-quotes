@@ -32,6 +32,7 @@ export function TermsForm({ terms, validityDays, canEdit }: { terms: string | nu
       }}
     >
       <SettingsFrame
+        section="terms"
         title="Condizioni e note"
         subtitle="Testo proposto in fondo a ogni nuovo preventivo e validità predefinita."
         canEdit={canEdit}

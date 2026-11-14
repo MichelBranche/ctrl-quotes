@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Mail, ShieldCheck, Trash2 } from "lucide-react";
 import { useAction } from "@/components/data/use-action";
+import { SettingsFrame } from "@/components/settings/settings-frame";
 import { Button } from "@/components/ui/button";
 import { ClientAvatar } from "@/components/ui/data-display";
 import { Dialog } from "@/components/ui/overlays";
@@ -30,24 +31,21 @@ export function TeamView({ members, myRole }: { members: Member[]; myRole: Role 
   const { pending, error, run } = useAction();
 
   return (
-    <div className="card settings-card">
-      <header className="settings-head">
-        <div>
-          <h1>Team e ruoli</h1>
-          <p className="muted">Chi può accedere al workspace e con quali permessi. Il tuo ruolo: {roleLabel(myRole)}.</p>
-        </div>
+    <SettingsFrame
+      section="team"
+      plain
+      title="Team e ruoli"
+      subtitle={`Chi può accedere al workspace e con quali permessi. Il tuo ruolo: ${roleLabel(myRole)}.`}
+      error={error}
+      actions={
         <div className="save-area">
           <Button disabled title="Gli inviti via email arrivano con l'invio dei preventivi.">
             <Mail size={16} aria-hidden="true" /> Invita membro
           </Button>
         </div>
-      </header>
-      <p className="field-hint">Gli inviti via email arrivano insieme all&apos;invio dei preventivi. Per ora puoi gestire ruoli e accessi dei membri già presenti.</p>
-      {error ? (
-        <p className="alert" role="alert">
-          {error}
-        </p>
-      ) : null}
+      }
+    >
+      <p className="field-hint ss-note">Gli inviti via email arrivano insieme all&apos;invio dei preventivi. Per ora puoi gestire ruoli e accessi dei membri già presenti.</p>
       <ul className="member-list">
         {members.map((member) => (
           <li key={member.userId} className="card inset member-row">
@@ -138,6 +136,6 @@ export function TeamView({ members, myRole }: { members: Member[]; myRole: Role 
           </Button>
         </div>
       </Dialog>
-    </div>
+    </SettingsFrame>
   );
 }

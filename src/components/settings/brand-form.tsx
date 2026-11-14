@@ -98,6 +98,8 @@ export function BrandKitForm({
       }}
     >
       <SettingsFrame
+        section="brand"
+        plain
         title="Brand Kit"
         subtitle="Logo, colori, tipografia e dati aziendali usati nei preventivi."
         canEdit={canEdit}

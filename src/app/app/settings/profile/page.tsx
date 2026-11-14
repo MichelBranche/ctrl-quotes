@@ -2,9 +2,8 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { ProfileForm } from "@/components/settings/profile-form";
-import { PageHeader, Skeleton } from "@/components/ui/status";
+import { Skeleton } from "@/components/ui/status";
 import { hasRole } from "@/domain/roles";
-import { messages } from "@/i18n/it";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/session";
 import { listWorkspaces } from "@/server/workspaces";
@@ -27,13 +26,6 @@ async function SettingsContent() {
   const workspace = workspaces.find((item) => item.id === requested) ?? workspaces[0];
   if (!workspace) return null;
   return (
-    <>
-      <PageHeader title={messages.settings.profile} subtitle="Nome, descrizione e preferenze generali." />
-      <ProfileForm
-        workspaceId={workspace.id}
-        workspaceName={workspace.name}
-        canEdit={hasRole(workspace.role, "admin")}
-      />
-    </>
+    <ProfileForm workspaceId={workspace.id} workspaceName={workspace.name} canEdit={hasRole(workspace.role, "admin")} />
   );
 }

@@ -41,6 +41,7 @@ export function FiscalForm({ taxProfile, settings, canEdit }: { taxProfile: TaxP
       }}
     >
       <SettingsFrame
+        section="fiscal"
         title="Fiscale e IVA"
         subtitle="Regime fiscale e valori proposti quando crei voci di catalogo e preventivi."
         canEdit={canEdit}

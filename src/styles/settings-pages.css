@@ -1,0 +1,84 @@
+/* Impostazioni sub-pages (Profilo, Brand Kit, Fiscale, Numerazione, Condizioni, Team): same language as the
+   settings home (settings-home.css). Hero tone matches the home tile of the page. */
+
+.ss-page {
+  --ss-bleed: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: calc(-1 * var(--ss-bleed));
+  padding: var(--ss-bleed);
+  overflow: hidden; /* cards slide in from 160px away without a scrollbar */
+}
+@media (max-width: 1023px) { .ss-page { --ss-bleed: 16px; } }
+
+.ss-crumbs { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: var(--cq-font-size-sm); color: var(--cq-muted); }
+.ss-crumbs [aria-current] { color: var(--cq-ink-soft); font-weight: 600; }
+.ss-back {
+  display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 12px 0 8px; border-radius: 999px;
+  background: var(--cq-surface); color: var(--cq-ink); font-weight: 600; text-decoration: none; box-shadow: var(--cq-shadow-sm);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+.ss-back:hover { box-shadow: 0 8px 18px rgba(15, 15, 20, 0.1); transform: translateY(-1px); }
+.ss-back-icon { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.ss-back:hover .ss-back-icon { transform: translateX(-3px); }
+.ss-back:focus-visible { outline: 3px solid var(--cq-focus-glow); outline-offset: 2px; }
+.ss-head h1 { margin: 0; font-size: clamp(30px, 2.6vw, 40px); font-weight: 650; letter-spacing: -0.035em; line-height: 1.1; }
+.ss-head > p { margin: 8px 0 0; max-width: 720px; color: var(--cq-ink-soft); font-size: var(--cq-font-size-lg); }
+
+.ss-grid { display: flex; flex-direction: column; gap: 16px; }
+.ss-grid.is-leaving { pointer-events: none; }
+
+/* Hero */
+.ss-hero {
+  position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+  min-height: 168px; padding: 26px 30px; border-radius: 24px; border: 1px solid color-mix(in srgb, var(--cq-ink) 6%, transparent);
+  box-shadow: var(--cq-shadow-sm);
+}
+.ss-hero-art { position: absolute; z-index: -1; right: 0; bottom: 0; top: 0; width: min(46%, 560px); pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 40%); mask-image: linear-gradient(90deg, transparent 0, #000 40%); }
+.ss-hero-art img { width: 100%; height: 100%; object-fit: cover; object-position: right center; transform-origin: right center; transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+.ss-hero:hover .ss-hero-art img { transform: scale(1.05); }
+.ss-hero-art.is-blocchi { width: auto; aspect-ratio: 2000 / 672; max-width: 70%; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 25%); mask-image: linear-gradient(90deg, transparent 0, #000 25%); }
+.ss-hero-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: var(--cq-surface); color: var(--cq-ink); box-shadow: var(--cq-shadow-sm); transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.ss-hero:hover .ss-hero-icon { transform: rotate(-8deg) scale(1.06); }
+.ss-hero-line { margin: 0; max-width: 460px; font-size: clamp(18px, 1.5vw, 22px); font-weight: 600; letter-spacing: -0.02em; line-height: 1.3; }
+.ss-hero-actions { margin-top: auto; padding-top: 6px; }
+
+.ss-hero.is-grey { background: linear-gradient(160deg, var(--cq-surface) 0%, color-mix(in srgb, var(--cq-plan-starter) 45%, var(--cq-surface)) 100%); }
+.ss-hero.is-violet { background: linear-gradient(160deg, var(--cq-surface) 20%, color-mix(in srgb, var(--brand) 12%, var(--cq-surface)) 100%); }
+.ss-hero.is-violet .ss-hero-icon { color: var(--brand); }
+.ss-hero.is-lime { background: linear-gradient(170deg, var(--cq-surface) 35%, color-mix(in srgb, var(--cq-plan-business) 26%, var(--cq-surface)) 100%); }
+.ss-hero.is-lime .ss-hero-art { -webkit-mask-image: radial-gradient(80% 90% at 70% 100%, #000 40%, transparent 80%); mask-image: radial-gradient(80% 90% at 70% 100%, #000 40%, transparent 80%); }
+.ss-hero.is-brand { background: var(--brand); color: var(--cq-surface); border-color: transparent; }
+.ss-hero.is-brand .ss-hero-icon { color: var(--brand); }
+.ss-hero.is-brand .ss-hero-art img { mix-blend-mode: luminosity; }
+.ss-hero.is-dark { background: var(--cq-plan-hero); color: var(--cq-surface); border-color: transparent; }
+.ss-hero.is-brand .btn-primary, .ss-hero.is-dark .btn-primary, .ss-hero.is-brand .btn-primary:disabled, .ss-hero.is-dark .btn-primary:disabled { background: var(--cq-surface); color: var(--cq-ink); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
+.ss-hero.is-brand .save-status, .ss-hero.is-dark .save-status { color: color-mix(in srgb, var(--cq-surface) 85%, transparent); }
+.ss-hero .btn { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, opacity 0.2s ease; }
+.ss-hero .btn:hover:not(:disabled) { transform: translateY(-2px); }
+.ss-hero .btn:active:not(:disabled) { transform: scale(0.97); }
+
+/* Content */
+.ss-body { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ss-card, .ss-body.is-plain .card.inset {
+  padding: 24px; border-radius: 22px; background: var(--cq-surface);
+  border: 1px solid color-mix(in srgb, var(--cq-ink) 6%, transparent); box-shadow: var(--cq-shadow-sm); transition: box-shadow 0.35s ease;
+}
+.ss-card:hover, .ss-body.is-plain .card.inset:hover { box-shadow: 0 16px 36px rgba(15, 15, 20, 0.08); }
+.ss-body .member-row { padding: 14px 18px; }
+.ss-body .member-list { gap: 10px; }
+.ss-note { margin: 0; }
+.ss-body .alert { margin: 0; }
+
+@media (max-width: 720px) {
+  .ss-hero { padding: 22px; min-height: 200px; }
+  .ss-hero-art, .ss-hero-art.is-blocchi { width: 70%; max-width: none; aspect-ratio: auto; opacity: 0.5; }
+  .ss-card, .ss-body.is-plain .card.inset { padding: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ss-back, .ss-back-icon, .ss-hero-art img, .ss-hero-icon, .ss-hero .btn, .ss-card, .ss-body.is-plain .card.inset { transition: none; }
+  .ss-back:hover, .ss-back:hover .ss-back-icon, .ss-hero:hover .ss-hero-art img, .ss-hero:hover .ss-hero-icon, .ss-hero .btn:hover:not(:disabled) { transform: none; }
+}
+.ss-hero.is-brand .btn-primary:disabled, .ss-hero.is-dark .btn-primary:disabled { opacity: 0.72; }
