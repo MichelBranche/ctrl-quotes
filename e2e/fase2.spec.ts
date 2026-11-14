@@ -24,7 +24,7 @@ async function shot(page: Page, name: string, testInfo: TestInfo) {
 }
 
 async function noOverflow(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const overflow = await page.evaluate(() => Math.max(...[document.documentElement, document.querySelector(".main-col > .page")].map((el) => (el ? el.scrollWidth - el.clientWidth : 0))));
   expect(overflow).toBeLessThanOrEqual(1);
 }
 

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { FORM_EDITOR_ENABLED } from "../src/components/quote-editor/form-editor-flag";
 import AxeBuilder from "@axe-core/playwright";
 
 const shotsDir = process.env.QA_SHOTS_DIR ?? "qa/screenshots/struttura";
@@ -93,14 +94,19 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
   const preview = page.locator(".preview-panel .qd");
 
   if (mobile) {
-    // Small screens keep Modulo: lock and quick delete work there too.
-    await expect(page.locator(".editor-grid")).toBeVisible();
-    await lockInModulo(page, testInfo, false, true);
-    await addInModulo(page, preview, testInfo, true);
+    if (FORM_EDITOR_ENABLED) {
+      // Small screens keep Modulo: lock and quick delete work there too.
+      await expect(page.locator(".editor-grid")).toBeVisible();
+      await lockInModulo(page, testInfo, false, true);
+      await addInModulo(page, preview, testInfo, true);
+    } else {
+      // Modulo paused: the builder is always Visuale, on small screens too.
+      await expect(page.getByTestId("editor-visuale")).toBeVisible();
+    }
     return;
   }
 
-  await page.getByRole("group", { name: "Modalità dell'editor" }).getByRole("button", { name: "Visuale" }).click();
+  if (FORM_EDITOR_ENABLED) await page.getByRole("group", { name: "Modalità dell'editor" }).getByRole("button", { name: "Visuale" }).click();
   const visuale = page.getByTestId("editor-visuale");
   await expect(visuale).toBeVisible();
   await page.waitForLoadState("networkidle");
@@ -232,11 +238,13 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
   expect(pdf.status()).toBe(200);
   expect(pdf.headers()["content-type"]).toContain("pdf");
 
-  // Modulo respects the same lock, and adds blocks that show in the preview.
-  await page.getByRole("group", { name: "Modalità dell'editor" }).getByRole("button", { name: "Modulo" }).click();
-  await expect(page.locator(".editor-grid")).toBeVisible();
-  await lockInModulo(page, testInfo, true);
-  await addInModulo(page, preview, testInfo);
+  // Modulo respects the same lock, and adds blocks that show in the preview (Modulo paused for now).
+  if (FORM_EDITOR_ENABLED) {
+    await page.getByRole("group", { name: "Modalità dell'editor" }).getByRole("button", { name: "Modulo" }).click();
+    await expect(page.locator(".editor-grid")).toBeVisible();
+    await lockInModulo(page, testInfo, true);
+    await addInModulo(page, preview, testInfo);
+  }
 });
 
 function escape(text: string) {

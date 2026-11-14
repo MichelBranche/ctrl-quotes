@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { FORM_EDITOR_ENABLED } from "../src/components/quote-editor/form-editor-flag";
 import AxeBuilder from "@axe-core/playwright";
 
 const shotsDir = process.env.QA_SHOTS_DIR ?? "qa/screenshots/pannello";
@@ -66,6 +67,12 @@ test("pannello e menu contestuale: azioni sui blocchi, inserisci qui, tastiera, 
   const mobile = testInfo.project.name.includes("mobile");
   await newQuote(page, mobile ? "Pannello mobile" : "Pannello visuale", mobile ? "M" : "D");
 
+  if (mobile && !FORM_EDITOR_ENABLED) {
+    // Modulo paused: Visuale on small screens too, without the mode toggle.
+    await expect(page.getByTestId("editor-visuale")).toBeVisible();
+    await expect(page.getByRole("group", { name: "Modalità dell'editor" })).toHaveCount(0);
+    return;
+  }
   if (mobile) {
     // Small screens keep Modulo: no Visuale toggle and the browser's own right click menu.
     await expect(page.locator(".editor-grid")).toBeVisible();
@@ -75,7 +82,7 @@ test("pannello e menu contestuale: azioni sui blocchi, inserisci qui, tastiera, 
     return;
   }
 
-  await page.getByRole("group", { name: "Modalità dell'editor" }).getByRole("button", { name: "Visuale" }).click();
+  if (FORM_EDITOR_ENABLED) await page.getByRole("group", { name: "Modalità dell'editor" }).getByRole("button", { name: "Visuale" }).click();
   const visuale = page.getByTestId("editor-visuale");
   await expect(visuale).toBeVisible();
   await page.waitForLoadState("networkidle");

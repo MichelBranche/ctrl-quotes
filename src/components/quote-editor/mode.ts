@@ -2,6 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { FORM_EDITOR_ENABLED } from "./form-editor-flag";
 
 export type EditorMode = "modulo" | "visuale";
 
@@ -49,6 +50,8 @@ export function useEditorMode(enabled: boolean) {
     }
     window.dispatchEvent(new Event(changeEvent));
   }, []);
+  // Modulo paused (see form-editor-flag.ts): always Visuale, no toggle, stored "modulo" ignored.
+  if (!FORM_EDITOR_ENABLED) return { mode: "visuale" as EditorMode, choose, enabled: false, capable };
   const mode: EditorMode = enabled && capable && stored === "visuale" ? "visuale" : "modulo";
   return { mode, choose, enabled, capable };
 }

@@ -6,6 +6,9 @@
   --brand: #7c3aed;
   --cq-tpl-dark: #16161a;
   --cq-tpl-cream: #f6e8d8;
+  --cq-tpl-navy: #10213d;
+  --cq-tpl-swiss: #ff4d2e;
+  --cq-tpl-amber: #ff7316;
   --cq-ink: #1a1a1e;
   --cq-ink-soft: #3a3a40;
   --cq-muted: #6e6e73;
@@ -91,6 +94,7 @@
   --cq-line-tight: 1.2;
   --cq-z-base: 1;
   --cq-z-sticky: 20;
+  --cq-z-topbar: 30;
   --cq-z-dropdown: 40;
   --cq-z-overlay: 50;
   --cq-z-modal: 60;
