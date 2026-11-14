@@ -9,6 +9,11 @@
   --cq-tpl-navy: #10213d;
   --cq-tpl-swiss: #ff4d2e;
   --cq-tpl-amber: #ff7316;
+  /* Subscription plans (Abbonamento): Business lime is a fixed plan colour, not the brand. */
+  --cq-plan-hero: #1e1e1e;
+  --cq-plan-starter: #e0e2e6;
+  --cq-plan-business: #c4fa46;
+  --cq-plan-business-ink: #141a05;
   --cq-ink: #1a1a1e;
   --cq-ink-soft: #3a3a40;
   --cq-muted: #6e6e73;

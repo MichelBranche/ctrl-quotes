@@ -27,6 +27,8 @@ const groups = [
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  // Abbonamento has its own full-width layout with in-page pills (see billing/layout.tsx).
+  if (pathname.startsWith("/app/settings/billing")) return <>{children}</>;
   return (
     <div className="settings-layout">
       <nav className="card settings-nav" aria-label={messages.settings.nav}>
