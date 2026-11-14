@@ -180,3 +180,30 @@ button.star-border, a.star-border { cursor: pointer; }
 
 /* Auth primary CTA: anthracite pill, white text, brand star on the border */
 .auth-cta { width: 100%; height: 48px; padding: 0 24px; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; transition: background var(--cq-motion-hover); }
+
+/* Google sign-in + Turnstile */
+.google-block { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+.google-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 48px;
+  border-radius: 999px;
+  border: 1px solid var(--cq-border-strong);
+  background: var(--cq-surface);
+  color: var(--cq-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background var(--cq-motion-hover), border-color var(--cq-motion-hover);
+}
+.google-btn:hover:not(:disabled) { background: var(--cq-surface-sunken); }
+.google-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.google-btn:disabled { cursor: progress; opacity: 0.7; }
+.google-note { margin: -4px 0 0; font-size: 12px; color: var(--cq-muted); text-align: center; }
+.google-block .divider { margin: 2px 0 0; color: var(--cq-muted); }
+.turnstile-box { width: 100%; min-height: 65px; }
+.turnstile-box iframe { width: 100% !important; }

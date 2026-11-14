@@ -3,7 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { LoginForm, RegisterForm } from "@/components/auth/auth-forms";
+import { LoginForm, RegisterForm, type AuthUi } from "@/components/auth/auth-forms";
 import { messages } from "@/i18n/it";
 
 type Tab = "login" | "register";
@@ -14,7 +14,7 @@ const tabs: { key: Tab; label: string; href: string; title: string }[] = [
 ];
 
 /** Accedi / Registrati on one card. Switching updates the URL (/login, /register) without a reload. */
-export function AuthTabs({ initial, googleEnabled, notice }: { initial: Tab; googleEnabled: boolean; notice?: ReactNode }) {
+export function AuthTabs({ initial, ui, notice }: { initial: Tab; ui: AuthUi; notice?: ReactNode }) {
   const pathname = usePathname();
   const reduce = useReducedMotion();
   const tab: Tab = pathname === "/register" ? "register" : pathname === "/login" ? "login" : initial;
@@ -65,10 +65,10 @@ export function AuthTabs({ initial, googleEnabled, notice }: { initial: Tab; goo
             {tab === "login" ? (
               <>
                 {notice}
-                <LoginForm googleEnabled={googleEnabled} />
+                <LoginForm ui={ui} />
               </>
             ) : (
-              <RegisterForm googleEnabled={googleEnabled} />
+              <RegisterForm ui={ui} />
             )}
           </motion.div>
         </AnimatePresence>

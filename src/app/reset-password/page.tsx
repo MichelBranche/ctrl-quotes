@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { AuthScreen } from "@/components/auth/auth-screen";
 import { ResetForm } from "@/components/auth/auth-forms";
 import { messages } from "@/i18n/it";
+import { authUiConfig } from "@/server/auth-providers";
 
 export const metadata = { title: "Nuova password" };
 
@@ -17,7 +18,7 @@ async function ResetContent({ searchParams }: { searchParams: Promise<{ token?: 
   const params = await searchParams;
   return (
     <AuthScreen>
-      {params.token ? <ResetForm token={params.token} /> : <p>{messages.auth.verifyFailedBody}</p>}
+      {params.token ? <ResetForm token={params.token} turnstileSiteKey={authUiConfig().turnstileSiteKey} /> : <p>{messages.auth.verifyFailedBody}</p>}
     </AuthScreen>
   );
 }

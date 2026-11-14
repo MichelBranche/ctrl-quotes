@@ -1,24 +1,23 @@
 import { Suspense } from "react";
 import { AuthScreen } from "@/components/auth/auth-screen";
 import { AuthTabs } from "@/components/auth/auth-tabs";
+import { oauthErrorMessage } from "@/domain/oauth-errors";
 import { messages } from "@/i18n/it";
+import { authUiConfig } from "@/server/auth-providers";
 
 export const metadata = { title: "Accedi" };
 
-export default function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ reset?: string }>;
-}) {
-  const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+type Search = Promise<{ reset?: string; error?: string }>;
+
+export default function LoginPage({ searchParams }: { searchParams: Search }) {
   return (
     <AuthScreen>
       <AuthTabs
         initial="login"
-        googleEnabled={googleEnabled}
+        ui={authUiConfig()}
         notice={
           <Suspense fallback={null}>
-            <ResetNotice searchParams={searchParams} />
+            <LoginNotice searchParams={searchParams} />
           </Suspense>
         }
       />
@@ -26,8 +25,16 @@ export default function LoginPage({
   );
 }
 
-async function ResetNotice({ searchParams }: { searchParams: Promise<{ reset?: string }> }) {
+async function LoginNotice({ searchParams }: { searchParams: Search }) {
   const params = await searchParams;
+  const oauthError = oauthErrorMessage(typeof params.error === "string" ? params.error : null);
+  if (oauthError) {
+    return (
+      <p className="alert" role="alert">
+        {oauthError}
+      </p>
+    );
+  }
   if (params.reset !== "1") return null;
   return <p className="alert alert-success">{messages.auth.resetDone}</p>;
 }
