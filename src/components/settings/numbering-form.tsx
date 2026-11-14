@@ -41,6 +41,7 @@ export function NumberingForm({
       }}
     >
       <SettingsFrame
+        section="numbering"
         title="Numerazione preventivi"
         subtitle="Formato del codice assegnato a ogni preventivo pubblicato."
         canEdit={canEdit}

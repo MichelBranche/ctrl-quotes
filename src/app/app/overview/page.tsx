@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import Link from "next/link";
 import { ArrowRight, Check, ChevronRight, Clock3, Layers, LayoutGrid, Palette, Plus, Send } from "lucide-react";
+import { OverviewMotion, OvCard, OvHead, OvRow, ovDirs } from "@/components/overview/overview-motion";
 import { RecentQuotes } from "@/components/overview/recent-quotes";
 import { TemplateWaves } from "@/components/overview/template-waves";
 import { IllustratedEmpty } from "@/components/ui/illustrated-empty";
@@ -41,14 +42,14 @@ async function OverviewContent() {
   const doneCount = steps.filter((step) => step.done).length;
 
   return (
-    <div className="ov">
-      <header className="ov-head">
+    <OverviewMotion>
+      <OvHead className="ov-head">
         <h1>{`${greetingFor(new Date())}, ${firstName}.`}</h1>
         <p>Il tuo workspace per creare, gestire e inviare preventivi professionali.</p>
-      </header>
+      </OvHead>
 
-      <div className="ov-row-top">
-        <section className="ov-hero brand-fill" aria-labelledby="ov-hero-title">
+      <OvRow className="ov-row-top">
+        <OvCard dir={ovDirs.hero} className="ov-hero brand-fill" aria-labelledby="ov-hero-title">
           <div className="ov-hero-copy">
             <h2 id="ov-hero-title">Crea un nuovo preventivo</h2>
             <p>Scegli un template, personalizza i contenuti e invialo al tuo cliente in pochi minuti.</p>
@@ -60,9 +61,9 @@ async function OverviewContent() {
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="ov-hero-art" src="/brand/hero.webp" alt="" width={300} height={240} />
-        </section>
+        </OvCard>
 
-        <section className="card ov-setup" aria-labelledby="ov-setup-title">
+        <OvCard dir={ovDirs.setup} className="card ov-setup" aria-labelledby="ov-setup-title">
           <div className="ov-setup-head">
             <div>
               <h2 id="ov-setup-title">Configurazione iniziale</h2>
@@ -102,23 +103,24 @@ async function OverviewContent() {
           >
             <span style={{ width: `${Math.max(6, (doneCount / steps.length) * 100)}%` }} />
           </div>
-        </section>
-      </div>
+        </OvCard>
+      </OvRow>
 
-      <div className="ov-kpis">
-        <Kpi icon={<Layers size={20} aria-hidden="true" />} label="Valore preventivi" value={formatEuro(stats.totalValueCents)} note={`${stats.quoteCount} preventivi in totale`} />
-        <Kpi icon={<Clock3 size={20} aria-hidden="true" />} label="Inviati" value={String(stats.sentCount)} note="Preventivi inviati al cliente" />
+      <OvRow className="ov-kpis">
+        <Kpi icon={<Layers size={20} aria-hidden="true" />} dir={ovDirs.kpi1} label="Valore preventivi" value={formatEuro(stats.totalValueCents)} note={`${stats.quoteCount} preventivi in totale`} />
+        <Kpi icon={<Clock3 size={20} aria-hidden="true" />} dir={ovDirs.kpi2} label="Inviati" value={String(stats.sentCount)} note="Preventivi inviati al cliente" />
         <Kpi
           icon={<Check size={20} aria-hidden="true" />}
+          dir={ovDirs.kpi3}
           label="Accettati"
           value={String(stats.acceptedCount)}
           note={stats.acceptanceRate === null ? "Tasso di accettazione" : `Tasso di accettazione ${stats.acceptanceRate}%`}
           accent
         />
-      </div>
+      </OvRow>
 
-      <div className="ov-row-bottom">
-        <section className="card ov-quotes" aria-labelledby="ov-quotes-title">
+      <OvRow className="ov-row-bottom">
+        <OvCard dir={ovDirs.quotes} lift={false} className="card ov-quotes" aria-labelledby="ov-quotes-title">
           {rows.length > 0 ? (
             <RecentQuotes rows={rows} />
           ) : (
@@ -144,9 +146,9 @@ async function OverviewContent() {
               />
             </>
           )}
-        </section>
+        </OvCard>
 
-        <section className="ov-templates brand-fill" aria-labelledby="ov-templates-title">
+        <OvCard dir={ovDirs.templates} className="ov-templates brand-fill" aria-labelledby="ov-templates-title">
           <TemplateWaves />
           <div className="ov-section-head">
             <h2 id="ov-templates-title">
@@ -181,15 +183,15 @@ async function OverviewContent() {
               <img src="/brand/mountain.webp" alt="" />
             </div>
           </div>
-        </section>
-      </div>
-    </div>
+        </OvCard>
+      </OvRow>
+    </OverviewMotion>
   );
 }
 
-function Kpi({ icon, label, value, note, accent = false }: { icon: React.ReactNode; label: string; value: string; note: string; accent?: boolean }) {
+function Kpi({ dir, icon, label, value, note, accent = false }: { dir: { x: number; y: number }; icon: React.ReactNode; label: string; value: string; note: string; accent?: boolean }) {
   return (
-    <section className={cn("card ov-kpi", accent && "is-accent")}>
+    <OvCard dir={dir} className={cn("card ov-kpi", accent && "is-accent")}>
       <span className="ov-kpi-ico">{icon}</span>
       <div>
         <h2>{label}</h2>
@@ -205,6 +207,6 @@ function Kpi({ icon, label, value, note, accent = false }: { icon: React.ReactNo
           <i />
         </span>
       ) : null}
-    </section>
+    </OvCard>
   );
 }

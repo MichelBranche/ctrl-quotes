@@ -2,8 +2,8 @@
 
 import type { ReactNode } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { ArrowRight, CreditCard, Layers, Palette, Percent, Plus, Users } from "lucide-react";
-import { SectionLink, SectionTransitionProvider, useSectionTransition } from "@/components/motion/section-transition";
+import { ArrowRight, CreditCard, FileText, Hash, Layers, Palette, Percent, Plus, Users } from "lucide-react";
+import { SectionLink, useSectionTransition } from "@/components/motion/section-transition";
 import { cn } from "@/lib/cn";
 import { messages } from "@/i18n/it";
 
@@ -18,8 +18,8 @@ const FROM_BOTTOM: Dir = { x: 0, y: 150 };
 const FROM_LEFT: Dir = { x: -160, y: 0 };
 const FROM_RIGHT: Dir = { x: 160, y: 0 };
 
-/** Hero from above; row 1 left, below, right; row 2 left and right. */
-const dirs = { hero: FROM_TOP, profile: FROM_LEFT, brand: FROM_BOTTOM, fiscal: FROM_RIGHT, team: FROM_LEFT, billing: FROM_RIGHT } as const;
+/** Hero from above; row 1 left, below, right; row 2 left and right; row 3 (compact) below and right. */
+const dirs = { hero: FROM_TOP, profile: FROM_LEFT, brand: FROM_BOTTOM, fiscal: FROM_RIGHT, team: FROM_LEFT, billing: FROM_RIGHT, numbering: FROM_BOTTOM, terms: FROM_RIGHT } as const;
 
 const ease = [0.16, 1, 0.3, 1] as const;
 const spring = { type: "spring", stiffness: 260, damping: 28, mass: 0.9 } as const;
@@ -42,15 +42,8 @@ function useHomeMotion() {
   return { reduced, leaving, grid, item, lift, press };
 }
 
+/** Rendered inside the SectionTransitionProvider of app/app/settings/layout.tsx. */
 export function SettingsHome() {
-  return (
-    <SectionTransitionProvider>
-      <Home />
-    </SectionTransitionProvider>
-  );
-}
-
-function Home() {
   const m = useHomeMotion();
   const { visit, leaving } = useSectionTransition();
   return (
@@ -75,6 +68,8 @@ function Home() {
         <Card href="/app/settings/billing" dir={dirs.billing} tone="violet" icon={<CreditCard size={26} />} title="Fatturazione" body="Piano, metodi di pagamento e storico fatture." className="st-billing">
           <Bars />
         </Card>
+        <Row href="/app/settings/numbering" dir={dirs.numbering} icon={<Hash size={20} />} title="Numerazione" body="Formato e contatore dei codici preventivo." className="st-numbering" />
+        <Row href="/app/settings/terms" dir={dirs.terms} icon={<FileText size={20} />} title="Condizioni e note" body="Testo e validità predefiniti delle proposte." className="st-terms" />
       </motion.div>
     </div>
   );
@@ -147,6 +142,27 @@ function Card({
         </span>
       </SectionLink>
       {children}
+    </motion.div>
+  );
+}
+
+/** Compact third-row link (settings without a tile in the mockup): icon, title, one line, circle arrow. */
+function Row({ href, dir, icon, title, body, className }: { href: string; dir: Dir; icon: ReactNode; title: string; body: string; className: string }) {
+  const m = useHomeMotion();
+  return (
+    <motion.div className={cn("st-card st-row", className)} variants={m.item} custom={dir} whileHover={m.lift} whileTap={m.press ? { scale: 0.985 } : undefined}>
+      <SectionLink href={href} className="st-row-link">
+        <span className="st-row-icon" aria-hidden="true">
+          {icon}
+        </span>
+        <span className="st-row-copy">
+          <span className="st-row-title">{title}</span>
+          <span className="st-row-body">{body}</span>
+        </span>
+        <span className="st-circle" aria-hidden="true">
+          <ArrowRight size={18} />
+        </span>
+      </SectionLink>
     </motion.div>
   );
 }
