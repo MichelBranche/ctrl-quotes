@@ -21,7 +21,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
         {state.error ? <p className="alert" role="alert">{state.error}</p> : null}
         <TextField label={messages.auth.email} name="email" type="email" autoComplete="email" required placeholder={messages.auth.emailPlaceholder} icon="mail" />
         <PasswordField label={messages.auth.password} name="password" autoComplete="current-password" required minLength={8} />
-        <div style={{ textAlign: "right" }}>
+        <div className="auth-forgot">
           <Link href="/forgot-password">{messages.auth.forgot}</Link>
         </div>
         <Button type="submit" pill loading={pending}>
@@ -29,9 +29,6 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
         </Button>
       </form>
       <GoogleBlock enabled={googleEnabled} />
-      <p>
-        {messages.auth.noAccount} <Link href="/register">{messages.auth.registerLink}</Link>
-      </p>
     </>
   );
 }
@@ -59,9 +56,6 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
         </Button>
       </form>
       <GoogleBlock enabled={googleEnabled} />
-      <p>
-        {messages.auth.hasAccount} <Link href="/login">{messages.auth.loginLink}</Link>
-      </p>
     </>
   );
 }
