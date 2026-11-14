@@ -105,8 +105,9 @@ export function formatPlanPrice(cents: number): string {
   return `€ ${(cents / 100).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** Label for the workspace's current plan. Only "free" exists today: it is shown as a trial. */
-export function currentPlanLabel(plan: string): string {
+/** Label for the workspace's current plan. A plan unlocked by a redeem code wins; "free" is shown as a trial. */
+export function currentPlanLabel(plan: string, override: PlanId | null = null): string {
+  if (override) return plans[override].name;
   return plan === "free" ? "Piano di prova" : "Piano attivo";
 }
 

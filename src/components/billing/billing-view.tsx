@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { BillingLink, useBillingTransition } from "@/components/billing/billing-transition";
 import { PlanHeroEffect } from "@/components/billing/effects/billing-effects";
+import { RedeemButton } from "@/components/billing/redeem-dialog";
 import { compareRows, formatPlanPrice, planIds, plans, type PlanIcon, type PlanId } from "@/domain/plans";
 
 export type BillingViewId = "plans" | "compare" | PlanId;
@@ -220,7 +221,12 @@ function PlansView() {
         title="Scegli il piano perfetto per le tue esigenze"
         body="Tutti i piani includono aggiornamenti, assistenza e la massima sicurezza per i tuoi dati."
         dir={dirs.plans.hero}
-        action={<ActionLink href={billingHref.compare}>Confronta i piani</ActionLink>}
+        action={
+          <>
+            <ActionLink href={billingHref.compare}>Confronta i piani</ActionLink>
+            <RedeemButton />
+          </>
+        }
       />
       {planIds.map((id) => (
         <PlanCard key={id} plan={id} href={billingHref[id]} className={`bl-slot-${id}`} dir={dirs.plans[id]}>
