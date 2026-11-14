@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
+import { BillingLink } from "@/components/billing/billing-transition";
 import { billingHref, type BillingViewId } from "@/components/billing/billing-view";
 
 const items: Array<{ id: BillingViewId; label: string }> = [
@@ -18,12 +18,17 @@ export function BillingNav({ planLabel }: { planLabel: string }) {
   const pathname = usePathname();
   const reduced = useReducedMotion() ?? false;
   return (
-    <div className="bl-top">
+    <motion.div
+      className="bl-top"
+      initial={reduced ? false : { opacity: 0, y: -18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={reduced ? { duration: 0.2 } : { duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
       <nav className="bl-pills" aria-label="Sezioni dell'abbonamento">
         {items.map((item) => {
           const active = pathname === billingHref[item.id];
           return (
-            <Link key={item.id} href={billingHref[item.id]} aria-current={active ? "page" : undefined} scroll={false}>
+            <BillingLink key={item.id} href={billingHref[item.id]} aria-current={active ? "page" : undefined} scroll={false}>
               {active ? (
                 <motion.span
                   layoutId="bl-pill"
@@ -32,13 +37,13 @@ export function BillingNav({ planLabel }: { planLabel: string }) {
                 />
               ) : null}
               <span className="bl-pill-label">{item.label}</span>
-            </Link>
+            </BillingLink>
           );
         })}
       </nav>
       <p className="bl-current">
         Piano attuale: <strong>{planLabel}</strong>
       </p>
-    </div>
+    </motion.div>
   );
 }

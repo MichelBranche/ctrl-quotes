@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useWavesEnv, tint } from "@/components/waves/use-waves-env";
 import type { PlanId } from "@/domain/plans";
@@ -14,10 +15,18 @@ const LineWaves = dynamic(() => import("@/components/auth/line-waves"), { ssr: f
 const MoltenMetal = dynamic(() => import("@/components/billing/effects/molten-metal"), { ssr: false, loading: () => null });
 const Iridescence = dynamic(() => import("@/components/billing/effects/iridescence"), { ssr: false, loading: () => null });
 
+const ENTRANCE_MS = 750;
+
 /** Fills the dark hero on /starter, /pro and /business (no 3D artwork there). Fallback: the CSS gradient of .bl-hero.is-<plan>. */
 export function PlanHeroEffect({ plan }: { plan: PlanId }) {
   const env = useWavesEnv();
-  if (!env.ok) return null;
+  // WebGL setup waits until the cards have flown in, so it never competes with the entrance animation.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setReady(true), ENTRANCE_MS);
+    return () => window.clearTimeout(id);
+  }, []);
+  if (!env.ok || !ready) return null;
   return (
     <div className={`bl-hero-fx is-${plan}`} aria-hidden="true">
       {plan === "pro" ? (
