@@ -197,7 +197,8 @@ test("catalogo: categorie, servizio, pacchetto, duplica ed elimina", async ({ pa
   await shot(page, "catalogo-pacchetto", testInfo);
   if (mobile) await noOverflow(page);
 
-  await page.getByRole("button", { name: "Duplica" }).click();
+  await page.getByRole("button", { name: `Azioni per Pacchetto Web ${suffix}` }).click();
+  await page.getByRole("menuitem", { name: /Duplica/ }).click();
   await expect(page.getByRole("heading", { level: 2, name: `Pacchetto Web ${suffix} (copia)` })).toBeVisible();
   await page.getByRole("button", { name: `Azioni per Pacchetto Web ${suffix} (copia)` }).click();
   await page.getByRole("menuitem", { name: /Elimina/ }).click();
@@ -209,6 +210,25 @@ test("catalogo: categorie, servizio, pacchetto, duplica ed elimina", async ({ pa
   await page.getByRole("button", { name: `Azioni per Design UX/UI ${suffix}` }).click();
   await expect(page.getByRole("menuitem", { name: /Elimina/ })).toHaveAttribute("aria-disabled", "true");
   await page.keyboard.press("Escape");
+
+  // Row actions: Modifica and Elimina on each row (hover / focus, always on touch), no horizontal scrollbar.
+  await page.goto(`/app/catalog?q=${encodeURIComponent(`Hosting ${suffix}`)}`);
+  const row = page.locator(".ct-row").first();
+  if (!mobile) await row.hover(); // on touch the buttons are always visible
+  await expect(row.getByRole("button", { name: `Modifica Hosting ${suffix}` })).toBeVisible();
+  expect(await page.locator(".ct-list .catalog-table").evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  await row.getByRole("button", { name: `Modifica Hosting ${suffix}` }).click();
+  const edit = page.getByRole("dialog", { name: "Modifica elemento" });
+  await expect(edit.getByLabel("Nome")).toHaveValue(`Hosting ${suffix}`);
+  await page.keyboard.press("Escape");
+  await expect(edit).toHaveCount(0);
+  if (mobile) await page.getByRole("link", { name: "Torna al catalogo" }).click();
+  else await row.hover();
+  await row.getByRole("button", { name: `Elimina Hosting ${suffix}` }).click();
+  const confirmRow = page.getByRole("dialog", { name: "Eliminare l'elemento?" });
+  await expect(confirmRow).toBeVisible();
+  await confirmRow.getByRole("button", { name: /Annulla|Chiudi/ }).click();
+  await expect(confirmRow).toHaveCount(0);
 
   await page.goto("/app/catalog?type=pacchetto");
   await expect(page.getByRole("link", { name: new RegExp(`Pacchetto Web ${suffix}`) })).toBeVisible();

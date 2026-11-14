@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { FROM_BOTTOM, FROM_LEFT, FROM_RIGHT, FROM_TOP, cardEase as ease, useCardMotion } from "@/components/motion/card-motion";
-import { ArrowLeft, ArrowRight, Boxes, ChevronDown, LayoutGrid, Package, Plus, Settings2, Sparkles, Tags, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Boxes, ChevronDown, LayoutGrid, Package, Pencil, Plus, Settings2, Sparkles, Tags, Trash2, X } from "lucide-react";
 import { useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { CatalogEmptyWaves } from "@/components/catalog-data/catalog-empty-waves";
 import { CatalogDetailPanel } from "@/components/catalog-data/catalog-detail";
@@ -189,9 +189,9 @@ export function CatalogView({
                 {list.items.map((item) => {
                   const current = item.id === selectedId;
                   return (
-                    <li key={item.id}>
+                    <li key={item.id} className="ct-row">
                       <Link
-                        href={href({ id: current ? null : item.id })}
+                        href={href({ id: current ? null : item.id, azione: null })}
                         className="catalog-row"
                         aria-current={current ? "true" : undefined}
                         scroll={false}
@@ -216,6 +216,28 @@ export function CatalogView({
                           {item.priceMode === "gross" ? <span className="muted small block">IVA inclusa</span> : null}
                         </span>
                       </Link>
+                      <span className="ct-row-actions">
+                        <button
+                          type="button"
+                          className="ct-row-btn"
+                          aria-label={`Modifica ${item.name}`}
+                          title={permissions.write ? "Modifica" : "Il tuo ruolo permette solo la consultazione."}
+                          disabled={!permissions.write}
+                          onClick={() => router.replace(href({ id: item.id, azione: "modifica" }), { scroll: false })}
+                        >
+                          <Pencil size={16} aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="ct-row-btn is-danger"
+                          aria-label={`Elimina ${item.name}`}
+                          title={permissions.remove ? "Elimina" : "Solo amministratori e proprietario possono eliminare."}
+                          disabled={!permissions.remove}
+                          onClick={() => router.replace(href({ id: item.id, azione: "elimina" }), { scroll: false })}
+                        >
+                          <Trash2 size={16} aria-hidden="true" />
+                        </button>
+                      </span>
                     </li>
                   );
                 })}
@@ -242,10 +264,12 @@ export function CatalogView({
             >
               {detail ? (
                 <>
-                  <Link href={href({ id: null })} className="ct-close" scroll={false} aria-label="Chiudi il dettaglio">
-                    <X size={16} aria-hidden="true" />
-                  </Link>
                   <CatalogDetailPanel
+                    closeSlot={
+                      <Link href={href({ id: null, azione: null })} className="ct-close" scroll={false} aria-label="Chiudi il dettaglio" title="Chiudi">
+                        <X size={16} aria-hidden="true" />
+                      </Link>
+                    }
                     key={detail.id}
                     item={detail}
                     taxProfile={taxProfile}

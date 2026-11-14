@@ -101,11 +101,12 @@
 
 /* Table card: hugs its rows, scrolls inside when the page is long. */
 .ct-list { align-self: start; max-height: 100%; min-height: 0; padding: 10px 14px 12px; overflow: hidden; }
-.ct-list .catalog-table { min-height: 0; overflow: auto; }
+.ct-list .catalog-table { min-height: 0; overflow-x: hidden; overflow-y: auto; }
 .ct-list .catalog-head { padding: 10px 12px 12px; }
 .ct-list .catalog-head > :last-child { text-align: right; }
 .ct-list .catalog-row { padding: 12px; margin-top: 4px; transition: background-color var(--cq-motion-hover) var(--cq-ease-out), transform var(--cq-motion-hover) var(--cq-ease-out); }
-.ct-list .catalog-row:hover { background: var(--cq-accent-wash); transform: translateX(3px); }
+/* No translate on hover: a shifted 100%-wide row widened the scroll area and showed a horizontal scrollbar. */
+.ct-list .catalog-row:hover, .ct-row:hover .catalog-row, .ct-row:focus-within .catalog-row { background: var(--cq-accent-wash); }
 .ct-list .catalog-row[aria-current="true"] { background: var(--cq-accent-soft); }
 .ct-list .type-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--cq-accent-wash); border-color: var(--cq-accent-soft); color: var(--cq-accent); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
 .ct-list .catalog-row:hover .type-icon { transform: scale(1.06) rotate(-4deg); }
@@ -120,10 +121,10 @@
 /* Detail card: illustration when nothing is selected, the existing detail when an item is open. */
 .ct-detail { position: relative; display: flex; flex-direction: column; min-height: 0; padding: 10px; gap: 8px; overflow: hidden; }
 .ct-detail-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.ct-detail.has-detail .ct-detail-body { overflow: auto; }
+.ct-detail.has-detail .ct-detail-body { overflow-x: hidden; overflow-y: auto; }
 .ct-detail .detail-card { border: 0; box-shadow: none; background: transparent; }
 .ct-close {
-  position: absolute; top: 14px; right: 58px; z-index: 2; display: inline-grid; place-items: center; width: 34px; height: 34px;
+  flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px;
   border-radius: var(--cq-radius-pill); color: var(--cq-muted); transition: background-color var(--cq-motion-hover) var(--cq-ease-out), color var(--cq-motion-hover) var(--cq-ease-out);
 }
 .ct-close:hover { background: var(--cq-accent-wash); color: var(--cq-accent); }
@@ -178,3 +179,31 @@
 .ct-list .type-icon { background: var(--cq-surface-sunken); border-color: var(--cq-border); color: var(--cq-ink-soft); }
 .ct-list .catalog-row:hover .type-icon, .ct-list .catalog-row[aria-current="true"] .type-icon { background: var(--cq-accent-wash); border-color: var(--cq-accent-soft); color: var(--cq-accent); }
 .ct-list .pagination .icon-btn { border: 1px solid var(--cq-border-strong); background: var(--cq-surface); }
+
+/* Row actions: on hover / keyboard focus Modifica and Elimina slide in where the price is; always visible on touch. */
+.ct-row { position: relative; }
+.ct-row .catalog-price { transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+.ct-row-actions {
+  position: absolute; top: 50%; right: 12px; display: flex; gap: 6px; margin-top: 2px;
+  opacity: 0; pointer-events: none; transform: translate(8px, -50%);
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ct-row:hover .ct-row-actions, .ct-row:focus-within .ct-row-actions { opacity: 1; pointer-events: auto; transform: translate(0, -50%); }
+.ct-row:hover .catalog-price, .ct-row:focus-within .catalog-price { opacity: 0; transform: translateX(-8px); }
+.ct-row-btn {
+  display: inline-grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--cq-border); border-radius: var(--cq-radius-pill);
+  background: var(--cq-surface); color: var(--cq-ink-soft); cursor: pointer; box-shadow: var(--cq-shadow-xs);
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.ct-row-btn:hover:not(:disabled) { background: var(--cq-accent-wash); border-color: var(--cq-accent-soft); color: var(--cq-accent); transform: translateY(-1px); }
+.ct-row-btn.is-danger:hover:not(:disabled) { background: var(--cq-danger-bg); border-color: var(--cq-danger); color: var(--cq-danger); }
+.ct-row-btn:focus-visible { outline: 3px solid var(--cq-focus-glow); outline-offset: 2px; }
+.ct-row-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+@media (hover: none), (max-width: 1023px) {
+  .ct-row .catalog-row { padding-right: 100px; }
+  .ct-row-actions { opacity: 1; pointer-events: auto; transform: translate(0, -50%); }
+  .ct-row:hover .catalog-price, .ct-row:focus-within .catalog-price { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ct-row-actions, .ct-row .catalog-price { transition: opacity 0.01s; } }
+.ct-detail .detail-header { gap: 10px; }
+.ct-edit-btn { flex: none; }

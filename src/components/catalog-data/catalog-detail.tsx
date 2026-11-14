@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Copy, Pencil, Trash2 } from "lucide-react";
 import { CatalogItemDialog } from "@/components/catalog-data/item-form";
 import { TypeIcon, type CatalogDefaults, type CatalogPermissions } from "@/components/catalog-data/catalog-view";
@@ -32,7 +32,9 @@ export function CatalogDetailPanel({
   categories,
   componentOptions,
   defaults,
+  closeSlot,
 }: {
+  closeSlot?: ReactNode;
   item: CatalogItemDetail;
   taxProfile: TaxProfile;
   permissions: CatalogPermissions;
@@ -40,11 +42,27 @@ export function CatalogDetailPanel({
   componentOptions: CatalogItemRow[];
   defaults: CatalogDefaults;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingLocal, setEditing] = useState(false);
+  const [confirmLocal, setConfirmDelete] = useState(false);
   const { pending, error, run } = useAction();
   const router = useRouter();
   const href = useHref();
+  // Row actions in the table open this item with ?azione=modifica|elimina: same dialogs as the buttons here.
+  const intent = useSearchParams().get("azione");
+  const editing = editingLocal || (intent === "modifica" && permissions.write);
+  const confirmDelete = confirmLocal || intent === "elimina";
+  const clearIntent = () => {
+    if (intent) router.replace(href({ azione: null }), { scroll: false });
+  };
+  const closeEdit = () => {
+    setEditing(false);
+    clearIntent();
+  };
+  const closeConfirm = () => {
+    setConfirmDelete(false);
+    clearIntent();
+  };
+  const duplicate = () => run(() => duplicateCatalogItemAction(item.id), (value) => router.push(href({ id: value.id, azione: null }), { scroll: false }));
   const price = previewLine(item, taxProfile);
   const components =
     item.type === "pacchetto" && item.components.length > 0 ? previewComponents(item.components, taxProfile) : null;
@@ -68,9 +86,18 @@ export function CatalogDetailPanel({
             {item.categoryName ? ` · ${item.categoryName}` : ""}
           </p>
         </div>
+        <Button className="ct-edit-btn" onClick={() => setEditing(true)} disabled={!permissions.write} title={permissions.write ? "Modifica elemento" : "Il tuo ruolo permette solo la consultazione."}>
+          <Pencil size={16} aria-hidden="true" /> Modifica
+        </Button>
         <ActionMenu
           label={`Azioni per ${item.name}`}
           items={[
+            {
+              label: "Duplica",
+              icon: <Copy size={16} aria-hidden="true" />,
+              onSelect: duplicate,
+              disabledReason: permissions.write ? undefined : "Il tuo ruolo permette solo la consultazione.",
+            },
             {
               label: "Elimina",
               icon: <Trash2 size={16} aria-hidden="true" />,
@@ -80,6 +107,7 @@ export function CatalogDetailPanel({
             },
           ]}
         />
+        {closeSlot}
       </header>
 
       <section className="stack-tight">
@@ -177,35 +205,22 @@ export function CatalogDetailPanel({
           {error}
         </p>
       ) : null}
-      <div className="detail-actions">
-        <Button
-          variant="secondary"
-          loading={pending}
-          disabled={!permissions.write}
-          onClick={() => run(() => duplicateCatalogItemAction(item.id), (value) => router.push(href({ id: value.id }), { scroll: false }))}
-        >
-          <Copy size={16} aria-hidden="true" /> Duplica
-        </Button>
-        <Button onClick={() => setEditing(true)} disabled={!permissions.write}>
-          <Pencil size={16} aria-hidden="true" /> Modifica
-        </Button>
-      </div>
-
       <CatalogItemDialog
         open={editing}
-        onClose={() => setEditing(false)}
+        onClose={closeEdit}
         item={item}
         categories={categories}
         componentOptions={componentOptions}
         taxProfile={taxProfile}
         defaults={defaults}
       />
-      <Dialog open={confirmDelete} title="Eliminare l'elemento?" onClose={() => setConfirmDelete(false)}>
-        <p>{item.name} non sarà più disponibile per i nuovi preventivi.</p>
+      <Dialog open={confirmDelete} title="Eliminare l'elemento?" onClose={closeConfirm}>
+        <p>{deleteReason ?? `${item.name} non sarà più disponibile per i nuovi preventivi.`}</p>
         <div className="dialog-actions">
-          <Button variant="secondary" onClick={() => setConfirmDelete(false)} autoFocus>
-            Annulla
+          <Button variant="secondary" onClick={closeConfirm} autoFocus>
+            {deleteReason ? "Chiudi" : "Annulla"}
           </Button>
+          {deleteReason ? null : (
           <Button
             className="btn-danger"
             loading={pending}
@@ -214,13 +229,14 @@ export function CatalogDetailPanel({
                 () => deleteCatalogItemAction(item.id),
                 () => {
                   setConfirmDelete(false);
-                  router.replace(href({ id: null }), { scroll: false });
+                  router.replace(href({ id: null, azione: null }), { scroll: false });
                 },
               )
             }
           >
             Elimina
           </Button>
+          )}
         </div>
       </Dialog>
     </article>
