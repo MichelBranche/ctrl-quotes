@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
-import { clientContacts, clientNotes, clients, user } from "@/db/schema";
+import { clientContacts, clientNotes, clients, quotes, user } from "@/db/schema";
 import {
   clientInputSchema,
   contactInputSchema,
@@ -52,7 +52,13 @@ export type ClientNote = {
 
 export type ClientDetail = ClientRow & { contacts: ClientContact[]; notes: ClientNote[] };
 
+export const clientSorts = ["name", "-name", "updated", "-updated"] as const;
+export type ClientSort = (typeof clientSorts)[number];
+
+export type ClientListItem = ClientRow & { quoteCount: number };
+
 export type ClientListQuery = {
+  sort?: ClientSort;
   q?: string;
   filter?: ClientFilter;
   kind?: ClientKind | "all";
@@ -61,7 +67,7 @@ export type ClientListQuery = {
 };
 
 export type ClientList = {
-  items: ClientRow[];
+  items: ClientListItem[];
   total: number;
   page: number;
   pageSize: number;
@@ -139,12 +145,24 @@ export async function listClients(
   const kind = query.kind && query.kind !== "all" ? eq(clients.kind, query.kind) : undefined;
   const where = and(...base, filterCondition(filter), search, kind);
 
+  const sort = query.sort ?? "name";
+  const order =
+    sort === "-name"
+      ? [desc(sql`lower(${clients.name})`), asc(clients.id)]
+      : sort === "updated"
+        ? [desc(clients.updatedAt), asc(clients.id)]
+        : sort === "-updated"
+          ? [asc(clients.updatedAt), asc(clients.id)]
+          : [asc(sql`lower(${clients.name})`), asc(clients.id)];
+  // Quotes per client, counted inside the same workspace only.
+  const quoteCount = sql<number>`(select count(*) from "quotes" as "q" where "q"."workspace_id" = "clients"."workspace_id" and "q"."client_id" = "clients"."id" and "q"."deleted_at" is null)`;
+
   const [items, totalRows, countRows, workspaceRows] = await Promise.all([
     db
-      .select(clientColumns)
+      .select({ ...clientColumns, quoteCount })
       .from(clients)
       .where(where)
-      .orderBy(asc(sql`lower(${clients.name})`), asc(clients.id))
+      .orderBy(...order)
       .limit(pageSize)
       .offset((page - 1) * pageSize),
     db.select({ value: count() }).from(clients).where(where),
@@ -165,7 +183,7 @@ export async function listClients(
   counts.all = counts.active + counts.prospect;
 
   return ok({
-    items: items.map(asRow),
+    items: items.map(({ quoteCount: quoteTotal, ...row }) => ({ ...asRow(row), quoteCount: Number(quoteTotal) || 0 })),
     total: totalRows[0]?.value ?? 0,
     page,
     pageSize,
@@ -288,6 +306,25 @@ export async function setClientArchived(
     entityId: clientId,
   });
   return ok({ id: clientId });
+}
+
+/** Archives or restores several clients at once. Ids outside the actor's workspace are ignored. */
+export async function setClientsArchived(
+  db: AppDatabase,
+  actor: Actor,
+  clientIds: string[],
+  archived: boolean,
+): Promise<Result<{ count: number }>> {
+  const access = await authorize(db, actor, "clients.write");
+  if (!access.ok) return access;
+  const ids = [...new Set(clientIds.filter((value) => typeof value === "string" && value.length > 0 && value.length <= 64))].slice(0, 100);
+  if (ids.length === 0) return invalid("Seleziona almeno un cliente.");
+  let count = 0;
+  for (const id of ids) {
+    const result = await setClientArchived(db, actor, id, archived);
+    if (result.ok) count += 1;
+  }
+  return ok({ count });
 }
 
 /** Soft delete. Quotes in later phases keep their own snapshot of the client. */
@@ -446,4 +483,115 @@ export async function clientDedupKeys(db: AppDatabase, workspaceId: string) {
     .select({ id: clients.id, name: clients.name, email: clients.email, vatNumber: clients.vatNumber })
     .from(clients)
     .where(and(eq(clients.workspaceId, workspaceId), isNull(clients.deletedAt)));
+}
+
+export type ClientStats = {
+  /** Clients not archived and not deleted. */
+  total: number;
+  active: number;
+  prospect: number;
+  archived: number;
+  createdThisMonth: number;
+  createdLastMonth: number;
+  /**
+   * Running total of clients that exist today, by creation month (oldest first, `months` points).
+   * Only creation dates are stored, so status history is not available.
+   */
+  growth: number[];
+};
+
+function monthKey(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit" }).formatToParts(date);
+  return `${parts.find((part) => part.type === "year")?.value}-${parts.find((part) => part.type === "month")?.value}`;
+}
+
+function lastMonths(now: Date, months: number): string[] {
+  const [year, month] = monthKey(now).split("-").map(Number) as [number, number];
+  const keys: string[] = [];
+  for (let back = months - 1; back >= 0; back -= 1) {
+    const index = year * 12 + (month - 1) - back;
+    keys.push(`${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`);
+  }
+  return keys;
+}
+
+/** Address book KPIs for the current workspace, from real rows only. */
+export async function clientStats(db: AppDatabase, actor: Actor, now = new Date(), months = 8): Promise<Result<ClientStats>> {
+  const access = await authorize(db, actor, "clients.read");
+  if (!access.ok) return access;
+  const rows = await db
+    .select({ status: clients.status, createdAt: clients.createdAt })
+    .from(clients)
+    .where(and(eq(clients.workspaceId, actor.workspaceId), isNull(clients.deletedAt)));
+  const keys = lastMonths(now, months);
+  const perMonth = new Map<string, number>(keys.map((key) => [key, 0]));
+  let before = 0;
+  const stats = { total: 0, active: 0, prospect: 0, archived: 0, createdThisMonth: 0, createdLastMonth: 0 };
+  for (const row of rows) {
+    if (row.status === "archived") stats.archived += 1;
+    else {
+      stats.total += 1;
+      if (row.status === "prospect") stats.prospect += 1;
+      else stats.active += 1;
+    }
+    const key = monthKey(row.createdAt);
+    if (perMonth.has(key)) perMonth.set(key, (perMonth.get(key) ?? 0) + 1);
+    else if (key < keys[0]!) before += 1;
+    if (key === keys[keys.length - 1]) stats.createdThisMonth += 1;
+    if (key === keys[keys.length - 2]) stats.createdLastMonth += 1;
+  }
+  let running = before;
+  const growth = keys.map((key) => (running += perMonth.get(key) ?? 0));
+  return ok({ ...stats, growth });
+}
+
+export type ClientEvent = {
+  at: Date;
+  kind: "client_created" | "note_added" | "quote_created" | "quote_sent" | "quote_viewed" | "quote_accepted" | "quote_rejected";
+  label: string;
+  quoteId?: string;
+};
+
+/** Real history of a client: creation, notes and the stored milestones of its quotes. Newest first. */
+export async function clientTimeline(db: AppDatabase, actor: Actor, clientId: string): Promise<Result<ClientEvent[]>> {
+  const access = await authorize(db, actor, "clients.read");
+  if (!access.ok) return access;
+  const client = await findClient(db, actor.workspaceId, clientId);
+  if (!client) return notFound("Cliente non trovato.");
+  const [noteRows, quoteRows] = await Promise.all([
+    db
+      .select({ createdAt: clientNotes.createdAt })
+      .from(clientNotes)
+      .where(and(eq(clientNotes.workspaceId, actor.workspaceId), eq(clientNotes.clientId, clientId))),
+    db
+      .select({
+        id: quotes.id,
+        number: quotes.number,
+        title: quotes.title,
+        status: quotes.status,
+        createdAt: quotes.createdAt,
+        sentAt: quotes.sentAt,
+        firstViewedAt: quotes.firstViewedAt,
+        decidedAt: quotes.decidedAt,
+      })
+      .from(quotes)
+      .where(and(eq(quotes.workspaceId, actor.workspaceId), eq(quotes.clientId, clientId), isNull(quotes.deletedAt))),
+  ]);
+  const events: ClientEvent[] = [{ at: client.createdAt, kind: "client_created", label: "Cliente aggiunto alla rubrica" }];
+  for (const note of noteRows) events.push({ at: note.createdAt, kind: "note_added", label: "Nota interna aggiunta" });
+  for (const quote of quoteRows) {
+    const name = quote.number ? `${quote.number} · ${quote.title}` : quote.title;
+    events.push({ at: quote.createdAt, kind: "quote_created", label: `Preventivo creato: ${name}`, quoteId: quote.id });
+    if (quote.sentAt) events.push({ at: quote.sentAt, kind: "quote_sent", label: `Preventivo inviato: ${name}`, quoteId: quote.id });
+    if (quote.firstViewedAt) events.push({ at: quote.firstViewedAt, kind: "quote_viewed", label: `Preventivo aperto dal cliente: ${name}`, quoteId: quote.id });
+    if (quote.decidedAt && (quote.status === "accepted" || quote.status === "rejected")) {
+      events.push({
+        at: quote.decidedAt,
+        kind: quote.status === "accepted" ? "quote_accepted" : "quote_rejected",
+        label: `${quote.status === "accepted" ? "Preventivo accettato" : "Preventivo rifiutato"}: ${name}`,
+        quoteId: quote.id,
+      });
+    }
+  }
+  return ok(events.sort((a, b) => b.at.getTime() - a.at.getTime()));
 }

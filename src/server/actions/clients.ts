@@ -11,6 +11,7 @@ import {
   deleteNote,
   saveContact,
   setClientArchived,
+  setClientsArchived,
   updateClient,
 } from "@/server/clients";
 import { toAction, type ActionResult } from "@/server/actions/result";
@@ -38,6 +39,14 @@ export async function archiveClientAction(clientId: unknown, archived: unknown):
   const result = await setClientArchived(db, actor, id(clientId), archived === true);
   if (result.ok) refresh();
   return toAction(result, archived === true ? "Cliente archiviato." : "Cliente ripristinato.");
+}
+
+export async function archiveClientsAction(clientIds: unknown, archived: unknown): Promise<ActionResult<{ count: number }>> {
+  const { db, actor } = await requireContext();
+  const ids = Array.isArray(clientIds) ? clientIds.map(id) : [];
+  const result = await setClientsArchived(db, actor, ids, archived === true);
+  if (result.ok) refresh();
+  return toAction(result, archived === true ? "Clienti archiviati." : "Clienti ripristinati.");
 }
 
 export async function deleteClientAction(clientId: unknown): Promise<ActionResult<{ id: string }>> {

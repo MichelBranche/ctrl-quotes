@@ -6,21 +6,21 @@ import { useWavesEnv } from "@/components/waves/use-waves-env";
 const LineWaves = dynamic(() => import("@/components/auth/line-waves"), { ssr: false, loading: () => null });
 
 /**
- * White line waves on the saturated brand card "I tuoi template". Fewer lines than the login, and
+ * White line waves on saturated brand cards ("I tuoi template", client card header). Fewer lines than the login, and
  * LineWaves itself stops drawing while the card is off screen (IntersectionObserver) or the tab is hidden.
  * Without WebGL2 or with reduced motion nothing renders and the card keeps its CSS brand gradient.
  */
-export function TemplateWaves() {
+export function TemplateWaves({ className = "ov-templates-waves", lines = 40 }: { className?: string; lines?: number } = {}) {
   const env = useWavesEnv();
   if (!env.ok) return null;
   return (
-    <div className="ov-templates-waves" aria-hidden="true">
+    <div className={className} aria-hidden="true">
       <LineWaves
         color1={env.brand}
         color2="#ffffff"
         color3="#ffffff"
         speed={0.3}
-        lineCount={env.mobile ? 24 : 40}
+        lineCount={env.mobile ? Math.min(24, lines) : lines}
         lineWidth={1.3}
         highlight={1}
         warpIntensity={1}
