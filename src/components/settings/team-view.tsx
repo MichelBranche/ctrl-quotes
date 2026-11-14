@@ -45,6 +45,8 @@ export function TeamView({ members, myRole }: { members: Member[]; myRole: Role 
         </div>
       }
     >
+      <div className="ss-cols is-team">
+      <div className="stack-tight">
       <p className="field-hint ss-note">Gli inviti via email arrivano insieme all&apos;invio dei preventivi. Per ora puoi gestire ruoli e accessi dei membri già presenti.</p>
       <ul className="member-list">
         {members.map((member) => (
@@ -87,6 +89,7 @@ export function TeamView({ members, myRole }: { members: Member[]; myRole: Role 
           </li>
         ))}
       </ul>
+      </div>
 
       <section className="card inset">
         <h2 className="section-heading">
@@ -117,6 +120,7 @@ export function TeamView({ members, myRole }: { members: Member[]; myRole: Role 
         </div>
         <p className="field-hint">I permessi sono verificati sul server a ogni operazione, non solo nell&apos;interfaccia.</p>
       </section>
+      </div>
 
       <Dialog open={removing !== null} title="Rimuovere il membro?" onClose={() => setRemoving(null)}>
         <p>{removing?.name} non potrà più accedere a questo workspace. I dati che ha creato restano.</p>

@@ -216,6 +216,36 @@ export function BrandKitForm({
                 />
               </div>
             </section>
+
+            <section className="card inset">
+              <SectionTitle icon={<Building2 size={16} aria-hidden="true" />}>Dati aziendali</SectionTitle>
+              <p className="field-hint">Compaiono nell&apos;intestazione dei preventivi. Inserisci solo dati reali della tua attività.</p>
+              <div className="form-grid">
+                <div className="grid-2">
+                  <TextField label="Nome azienda" value={values.companyName} disabled={!canEdit} maxLength={120} placeholder={workspaceName} onChange={(event) => set("companyName", event.target.value)} />
+                  <TextField label="Partita IVA" value={values.vatNumber} disabled={!canEdit} maxLength={20} onChange={(event) => set("vatNumber", event.target.value)} />
+                </div>
+                <div className="grid-2">
+                  <TextField label="Codice fiscale" value={values.taxCode} disabled={!canEdit} maxLength={20} onChange={(event) => set("taxCode", event.target.value)} />
+                  <TextField label="Indirizzo" value={values.address} disabled={!canEdit} maxLength={200} onChange={(event) => set("address", event.target.value)} />
+                </div>
+                <div className="grid-3">
+                  <TextField label="Email" type="email" value={values.email} disabled={!canEdit} onChange={(event) => set("email", event.target.value)} />
+                  <TextField label="Telefono" type="tel" value={values.phone} disabled={!canEdit} onChange={(event) => set("phone", event.target.value)} />
+                  <TextField label="Sito web" value={values.website} disabled={!canEdit} onChange={(event) => set("website", event.target.value)} />
+                </div>
+              </div>
+            </section>
+
+            <section className="card inset">
+              <Switch
+                label="Applica automaticamente"
+                hint="Usa questo Brand Kit per tutti i nuovi preventivi."
+                checked={values.applyAutomatically}
+                disabled={!canEdit}
+                onChange={(value) => set("applyAutomatically", value)}
+              />
+            </section>
           </div>
 
           <section className="card inset brand-preview" aria-label="Anteprima">
@@ -243,35 +273,6 @@ export function BrandKitForm({
           </section>
         </div>
 
-        <section className="card inset">
-          <SectionTitle icon={<Building2 size={16} aria-hidden="true" />}>Dati aziendali</SectionTitle>
-          <p className="field-hint">Compaiono nell&apos;intestazione dei preventivi. Inserisci solo dati reali della tua attività.</p>
-          <div className="form-grid">
-            <div className="grid-2">
-              <TextField label="Nome azienda" value={values.companyName} disabled={!canEdit} maxLength={120} placeholder={workspaceName} onChange={(event) => set("companyName", event.target.value)} />
-              <TextField label="Partita IVA" value={values.vatNumber} disabled={!canEdit} maxLength={20} onChange={(event) => set("vatNumber", event.target.value)} />
-            </div>
-            <div className="grid-2">
-              <TextField label="Codice fiscale" value={values.taxCode} disabled={!canEdit} maxLength={20} onChange={(event) => set("taxCode", event.target.value)} />
-              <TextField label="Indirizzo" value={values.address} disabled={!canEdit} maxLength={200} onChange={(event) => set("address", event.target.value)} />
-            </div>
-            <div className="grid-3">
-              <TextField label="Email" type="email" value={values.email} disabled={!canEdit} onChange={(event) => set("email", event.target.value)} />
-              <TextField label="Telefono" type="tel" value={values.phone} disabled={!canEdit} onChange={(event) => set("phone", event.target.value)} />
-              <TextField label="Sito web" value={values.website} disabled={!canEdit} onChange={(event) => set("website", event.target.value)} />
-            </div>
-          </div>
-        </section>
-
-        <section className="card inset">
-          <Switch
-            label="Applica automaticamente"
-            hint="Usa questo Brand Kit per tutti i nuovi preventivi."
-            checked={values.applyAutomatically}
-            disabled={!canEdit}
-            onChange={(value) => set("applyAutomatically", value)}
-          />
-        </section>
       </SettingsFrame>
     </form>
   );

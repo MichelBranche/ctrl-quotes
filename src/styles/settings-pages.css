@@ -8,8 +8,9 @@
   gap: 18px;
   margin: calc(-1 * var(--ss-bleed));
   padding: var(--ss-bleed);
-  overflow: hidden; /* cards slide in from 160px away without a scrollbar */
 }
+/* Clip only while the cards slide in from 160px away (useMoving): at rest shadows are never cut. */
+.ss-grid.is-moving { overflow: clip; }
 @media (max-width: 1023px) { .ss-page { --ss-bleed: 16px; } }
 
 .ss-crumbs { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: var(--cq-font-size-sm); color: var(--cq-muted); }
@@ -82,3 +83,77 @@
   .ss-back:hover, .ss-back:hover .ss-back-icon, .ss-hero:hover .ss-hero-art img, .ss-hero:hover .ss-hero-icon, .ss-hero .btn:hover:not(:disabled) { transform: none; }
 }
 .ss-hero.is-brand .btn-primary:disabled, .ss-hero.is-dark .btn-primary:disabled { opacity: 0.72; }
+
+/* v2: compact hero in one row (icon, line, action) so the content fits in one screen at 1440x900. */
+@media (min-width: 900px) {
+  .ss-hero { flex-direction: row; align-items: center; gap: 18px; min-height: 104px; padding: 20px 26px; }
+  .ss-hero-line { flex: 1; max-width: 520px; font-size: clamp(17px, 1.3vw, 20px); }
+  .ss-hero-actions { margin: 0 0 0 auto; padding: 0; position: relative; z-index: 1; }
+  .ss-hero-art { width: min(40%, 520px); }
+  .ss-hero-art.is-blocchi { max-width: 55%; }
+  /* The action sits over the artwork: keep it legible. */
+  .ss-hero.is-grey .ss-hero-art, .ss-hero.is-violet .ss-hero-art, .ss-hero.is-lime .ss-hero-art { opacity: 0.75; }
+  .ss-hero .save-status { padding: 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--cq-surface) 78%, transparent); }
+  .ss-hero.is-brand .save-status, .ss-hero.is-dark .save-status { background: color-mix(in srgb, black 25%, transparent); }
+}
+.ss-page { gap: 14px; }
+.ss-crumbs { margin-bottom: 8px; }
+.ss-head > p { margin-top: 4px; }
+
+/* Content fills the width: side-by-side cards instead of one narrow column in a half-empty card. */
+.ss-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.ss-cols.is-1-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+.ss-cols.is-team { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); align-items: start; }
+.ss-cols > .card.inset { display: flex; flex-direction: column; gap: 14px; }
+.ss-cols .section-heading { margin: 0; }
+.ss-cols .form-grid { max-width: none; }
+.ss-cols .field-hint { margin: 0; }
+.ss-cols textarea { min-height: 200px; }
+.ss-number-card { justify-content: flex-start; }
+.ss-number-card .number-preview { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 160px; border-radius: 18px;
+  background: linear-gradient(160deg, var(--cq-surface) 0%, color-mix(in srgb, var(--brand) 9%, var(--cq-surface)) 100%); border: 1px dashed color-mix(in srgb, var(--brand) 28%, transparent); }
+.ss-number-card .number-preview strong { font-size: clamp(28px, 2.6vw, 40px); letter-spacing: -0.02em; color: var(--brand); font-variant-numeric: tabular-nums; }
+.ss-uses { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.ss-uses li { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--cq-surface-sunken); color: var(--cq-ink-soft); transition: transform 0.25s ease; }
+.ss-uses li:hover { transform: translateX(3px); }
+.ss-uses svg { color: var(--brand); flex: none; }
+.ss-cols.is-team .ss-note { margin-bottom: 4px; }
+
+/* Brand Kit: settings left (compact), A4 miniature of the whole sheet right, sticky, always fully visible. */
+.ss-body .brand-grid { grid-template-columns: minmax(0, 1fr) auto; gap: 16px; }
+/* Left: five compact cards in a 2-column grid (logo | colori, tipografia | applica, dati aziendali full width). */
+.ss-body .brand-grid > .stack-tight { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "logo colors" "type apply" "company company"; gap: 14px; align-items: stretch; }
+.ss-body .brand-grid > .stack-tight > :nth-child(1) { grid-area: logo; }
+.ss-body .brand-grid > .stack-tight > :nth-child(2) { grid-area: colors; }
+.ss-body .brand-grid > .stack-tight > :nth-child(3) { grid-area: type; }
+.ss-body .brand-grid > .stack-tight > :nth-child(4) { grid-area: company; }
+.ss-body .brand-grid > .stack-tight > :nth-child(5) { grid-area: apply; display: flex; align-items: center; }
+.ss-body .brand-grid .logo-row { gap: 10px; }
+.ss-body .brand-grid .logo-box { min-height: 72px; }
+.ss-body .brand-grid .swatch { height: 44px; }
+.ss-body .brand-grid .form-grid { gap: 10px; }
+.ss-body .brand-grid .card.inset { padding: 18px 20px; }
+.ss-body .brand-preview { position: sticky; top: 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ss-body .brand-preview > :first-child { align-self: stretch; }
+.ss-body .brand-preview-frame { display: flex; flex-direction: column; align-items: center; width: 100%; }
+.ss-body .brand-preview { width: clamp(240px, calc((100dvh - 470px) * 0.707 + 40px), 440px); }
+.ss-body .brand-preview .tpl-thumb { width: 100%; }
+.ss-body .brand-sample { width: 100%; margin-top: 10px; padding: 8px 12px; }
+.ss-body .brand-preview .field-hint { margin: 0; }
+.ss-body .brand-sample strong { font-size: 16px; }
+
+@media (max-width: 1100px) {
+  .ss-cols, .ss-cols.is-1-2, .ss-cols.is-team { grid-template-columns: minmax(0, 1fr); }
+  .ss-body .brand-grid { grid-template-columns: minmax(0, 1fr); }
+  .ss-body .brand-grid > .stack-tight { grid-template-columns: minmax(0, 1fr); grid-template-areas: "logo" "colors" "type" "apply" "company"; }
+  .ss-body .brand-preview { width: auto; }
+  .ss-body .brand-preview { position: static; }
+  .ss-body .brand-preview .tpl-thumb { width: min(100%, 360px); }
+}
+@media (prefers-reduced-motion: reduce) { .ss-uses li { transition: none; } .ss-uses li:hover { transform: none; } }
+/* Dati aziendali: seven fields on two rows. */
+@media (min-width: 1101px) {
+  .ss-body .brand-grid .stack-tight > :nth-child(4) .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 12px; }
+  .ss-body .brand-grid .stack-tight > :nth-child(4) .form-grid > .grid-2,
+  .ss-body .brand-grid .stack-tight > :nth-child(4) .form-grid > .grid-3 { display: contents; }
+}

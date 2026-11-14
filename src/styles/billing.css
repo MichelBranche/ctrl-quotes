@@ -10,10 +10,11 @@
   --bl-bleed: 20px; /* = horizontal padding of .main-col > .page */
   margin: calc(-1 * var(--bl-bleed));
   padding: var(--bl-bleed);
-  overflow: hidden;
 }
 @media (max-width: 1023px) { .bl-page { --bl-bleed: 16px; } }
 .bl-grid.is-leaving { pointer-events: none; }
+/* Clip only while the cards slide (useMoving): at rest shadows are never cut. */
+.bl-grid.is-moving { overflow: clip; }
 
 .bl-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .bl-pills {

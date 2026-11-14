@@ -22,7 +22,7 @@ const SectionTransitionContext = createContext<Ctx>({ visit: 0, leaving: false, 
 
 /**
  * `interceptLinks`: also tear down before any plain click on an in-app link anywhere on the page (sidebar, topbar,
- * plain next/link): used by Overview, whose exits lead everywhere. The click is prevented in the capture phase, so
+ * plain next/link): used once, by the app shell, so every page of /app leaves the same way. The click is prevented in the capture phase, so
  * next/link skips its own navigation (it honours defaultPrevented) while other handlers (e.g. closing the mobile
  * menu) still run.
  */
@@ -50,6 +50,7 @@ export function SectionTransitionProvider({ children, interceptLinks = false }: 
         return;
       }
       if (timer.current !== undefined) return; // already leaving
+      router.prefetch(href); // fetch the next view while the current one tears down
       setLeavingFrom(pathname);
       timer.current = window.setTimeout(() => {
         timer.current = undefined;
@@ -64,7 +65,7 @@ export function SectionTransitionProvider({ children, interceptLinks = false }: 
     const onClick = (event: globalThis.MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const anchor = (event.target as Element | null)?.closest?.("a[href]");
-      if (!(anchor instanceof HTMLAnchorElement) || anchor.closest("dialog")) return;
+      if (!(anchor instanceof HTMLAnchorElement) || anchor.closest("dialog") || anchor.getAttribute("aria-disabled") === "true") return;
       if ((anchor.target && anchor.target !== "_self") || anchor.hasAttribute("download") || anchor.origin !== window.location.origin) return;
       const href = `${anchor.pathname}${anchor.search}${anchor.hash}`;
       if (!anchor.pathname.startsWith("/app") || anchor.pathname === pathname) return;
@@ -80,6 +81,17 @@ export function SectionTransitionProvider({ children, interceptLinks = false }: 
 
 export function useSectionTransition(): Ctx {
   return useContext(SectionTransitionContext);
+}
+
+/**
+ * True while a view's cards are sliding (building up after a visit, or tearing down). Containers clip overflow only
+ * then (cards start 160px away), and keep it visible at rest so card shadows are never cut.
+ * Call `settle` from the grid's onAnimationComplete("show").
+ */
+export function useMoving(): { moving: boolean; settle: (definition: unknown) => void } {
+  const { visit, leaving } = useSectionTransition();
+  const [settled, setSettled] = useState(-1);
+  return { moving: leaving || settled !== visit, settle: (definition) => definition === "show" && setSettled(visit) };
 }
 
 function isPlainClick(event: MouseEvent<HTMLAnchorElement>): boolean {

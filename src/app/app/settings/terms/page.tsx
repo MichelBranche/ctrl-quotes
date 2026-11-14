@@ -1,13 +1,12 @@
 import { Suspense } from "react";
 import { TermsForm } from "@/components/settings/terms-form";
-import { Skeleton } from "@/components/ui/status";
 import { loadSettings } from "@/app/app/settings/load";
 
 export const metadata = { title: "Condizioni" };
 
 export default function TermsSettingsPage() {
   return (
-    <Suspense fallback={<Skeleton width="40%" />}>
+    <Suspense fallback={<div className="pt-wait" aria-busy="true" />}>
       <TermsContent />
     </Suspense>
   );

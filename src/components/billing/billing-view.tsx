@@ -6,7 +6,7 @@ import { ArrowRight, ArrowUpRight, Check, ChartNoAxesColumn, Headset, Layers, La
 import { Dialog } from "@/components/ui/overlays";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { SectionLink, useSectionTransition } from "@/components/motion/section-transition";
+import { SectionLink, useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { PlanHeroEffect } from "@/components/billing/effects/billing-effects";
 import { RedeemButton } from "@/components/billing/redeem-dialog";
 import { compareRows, formatPlanPrice, planIds, plans, type PlanIcon, type PlanId } from "@/domain/plans";
@@ -93,6 +93,7 @@ export function BillingView({ view }: { view: BillingViewId }) {
   const [payments, setPayments] = useState(false);
   const m = useBillingMotion();
   const { visit, leaving } = useSectionTransition();
+  const { moving, settle } = useMoving();
   const activate = () => setPayments(true);
 
   return (
@@ -100,10 +101,11 @@ export function BillingView({ view }: { view: BillingViewId }) {
       {/* Keyed on the visit: the cards build up again on every arrival, also when Next reveals a route it kept hidden. */}
       <motion.div
         key={`${view}-${visit}`}
-        className={cn("bl-grid", `bl-grid-${view}`, leaving && "is-leaving")}
+        className={cn("bl-grid", `bl-grid-${view}`, leaving && "is-leaving", moving && "is-moving")}
         variants={m.grid}
         initial="hidden"
         animate={leaving ? "exit" : "show"}
+        onAnimationComplete={settle}
       >
         {view === "plans" ? <PlansView /> : view === "compare" ? <CompareView /> : <PlanView id={view} onActivate={activate} />}
       </motion.div>

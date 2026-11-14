@@ -2,7 +2,7 @@
 
 import type { ComponentProps, ReactNode } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { SectionTransitionProvider, useSectionTransition } from "@/components/motion/section-transition";
+import { useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { cn } from "@/lib/cn";
 
 /*
@@ -42,20 +42,14 @@ function useOvMotion() {
   return { reduced, leaving, grid, item, lift };
 }
 
+/** Provider: the app shell's (section-transition.tsx). */
 export function OverviewMotion({ children }: { children: ReactNode }) {
-  return (
-    <SectionTransitionProvider interceptLinks>
-      <OverviewGrid>{children}</OverviewGrid>
-    </SectionTransitionProvider>
-  );
-}
-
-function OverviewGrid({ children }: { children: ReactNode }) {
   const m = useOvMotion();
   const { visit, leaving } = useSectionTransition();
+  const { moving, settle } = useMoving();
   return (
-    <div className="ov-stage">
-      <motion.div key={visit} className={cn("ov", leaving && "is-leaving")} variants={m.grid} initial="hidden" animate={leaving ? "exit" : "show"}>
+    <div className={cn("ov-stage", moving && "is-moving")}>
+      <motion.div key={visit} className={cn("ov", leaving && "is-leaving")} variants={m.grid} initial="hidden" animate={leaving ? "exit" : "show"} onAnimationComplete={settle}>
         {children}
       </motion.div>
     </div>

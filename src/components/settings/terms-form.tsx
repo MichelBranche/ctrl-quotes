@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CalendarClock, FileText } from "lucide-react";
 import { SettingsFrame } from "@/components/settings/settings-frame";
 import { TextAreaField } from "@/components/data/fields";
 import { useAction } from "@/components/data/use-action";
@@ -33,6 +34,7 @@ export function TermsForm({ terms, validityDays, canEdit }: { terms: string | nu
     >
       <SettingsFrame
         section="terms"
+        plain
         title="Condizioni e note"
         subtitle="Testo proposto in fondo a ogni nuovo preventivo e validità predefinita."
         canEdit={canEdit}
@@ -41,7 +43,11 @@ export function TermsForm({ terms, validityDays, canEdit }: { terms: string | nu
         saved={saved}
         error={error}
       >
-        <div className="form-grid narrow">
+        <div className="ss-cols is-1-2">
+          <section className="card inset form-grid">
+            <h2 className="section-heading">
+              <CalendarClock size={16} aria-hidden="true" /> Validità
+            </h2>
           <TextField
             label="Validità predefinita (giorni)"
             inputMode="numeric"
@@ -53,6 +59,12 @@ export function TermsForm({ terms, validityDays, canEdit }: { terms: string | nu
               setSaved(false);
             }}
           />
+            <p className="field-hint">Ogni nuovo preventivo scade dopo questi giorni dalla data di emissione. Puoi cambiarla nel singolo preventivo.</p>
+          </section>
+          <section className="card inset form-grid">
+            <h2 className="section-heading">
+              <FileText size={16} aria-hidden="true" /> Testo predefinito
+            </h2>
           <TextAreaField
             label="Condizioni predefinite"
             hint="Per esempio tempi di pagamento, cosa è escluso, validità dell'offerta. Puoi modificarle in ogni preventivo."
@@ -66,6 +78,7 @@ export function TermsForm({ terms, validityDays, canEdit }: { terms: string | nu
             }}
           />
           <p className="field-hint">{values.defaultTerms.length} / 4000 caratteri</p>
+          </section>
         </div>
       </SettingsFrame>
     </form>
