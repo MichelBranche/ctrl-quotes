@@ -57,7 +57,7 @@
   gap: 14px;
   min-height: 560px;
 }
-.bl-grid-compare { grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(0, 0.7fr); grid-template-rows: minmax(300px, 1.15fr) minmax(200px, 0.85fr); }
+.bl-grid-compare { grid-template-columns: minmax(0, 0.8fr) minmax(0, 0.7fr) minmax(0, 0.7fr); grid-template-rows: minmax(300px, 1.15fr) minmax(200px, 0.85fr); }
 .bl-grid-starter, .bl-grid-pro, .bl-grid-business { grid-template-columns: minmax(0, 1fr) minmax(0, 0.78fr) minmax(0, 0.58fr); }
 .bl-grid > .bl-hero { grid-column: 1; grid-row: 1 / span 2; }
 .bl-grid-plans > .bl-slot-starter,
@@ -203,10 +203,12 @@
   background: color-mix(in srgb, var(--cq-plan-starter) 55%, var(--cq-surface));
   border: 1px solid color-mix(in srgb, var(--cq-ink) 5%, transparent);
 }
-.bl-corner-link { position: absolute; inset: 0 0 auto auto; width: 64px; height: 64px; color: var(--cq-ink); border-radius: 0 24px 0 16px; }
+/* Kept clear of the header cells: a bigger hit area used to swallow clicks on "Business". */
+.bl-corner-link { position: absolute; top: 10px; right: 10px; z-index: 1; width: 44px; height: 44px; color: var(--cq-ink); border-radius: 14px; }
+.bl-corner-link .bl-corner { top: 11px; right: 11px; }
 .bl-corner-link:focus-visible { outline: 3px solid var(--cq-focus-glow); outline-offset: -3px; }
 .bl-compare table { width: 100%; height: 100%; border-collapse: collapse; font-size: var(--cq-font-size-sm); }
-.bl-compare thead th { vertical-align: bottom; padding: 26px 10px 12px; text-align: center; font-weight: 600; }
+.bl-compare thead th { vertical-align: bottom; padding: 30px 10px 12px; text-align: center; font-weight: 600; }
 .bl-compare thead th.bl-compare-feature { text-align: left; padding-left: 0; }
 .bl-compare thead a { display: grid; gap: 4px; justify-items: center; color: var(--cq-ink); text-decoration: none; }
 .bl-compare thead a:hover .bl-compare-name { text-decoration: underline; }
@@ -216,7 +218,9 @@
 .bl-compare tbody th, .bl-compare tbody td { padding: 9px 10px; border-top: 1px solid color-mix(in srgb, var(--cq-ink) 8%, transparent); }
 .bl-compare tbody th { padding-left: 0; text-align: left; font-weight: 500; }
 .bl-compare tbody td { text-align: center; }
-.bl-compare-row { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* Icon | label, with "In arrivo" flowing after the label (or under it, aligned with the text) on narrow screens. */
+.bl-compare-row { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; column-gap: 12px; }
+.bl-compare-label { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; }
 .bl-compare-row svg { color: var(--cq-ink-soft); }
 .bl-compare .is-pro { background: color-mix(in srgb, var(--brand) 12%, transparent); }
 .bl-compare thead th.is-pro { border-radius: 14px 14px 0 0; }
@@ -244,3 +248,39 @@
   .bl-art img, .bl-corner, .bl-btn-arrow, .bl-plan { transition: none; }
   .bl-plan:hover .bl-art img { transform: none; }
 }
+
+/* Animated backgrounds (src/components/billing/effects). Without WebGL2 or with reduced motion they don't render and
+   the static backgrounds above stay. */
+.bl-hero-fx { position: absolute; inset: 0; z-index: -2; isolation: isolate; pointer-events: none; animation: bl-fx-in 1.2s ease-out both; }
+/* Business: chrome Iridescence tinted with the Business lime (multiply), so the folds read as neon lime. */
+.bl-hero-fx.is-business::before { content: ""; position: absolute; inset: 0; z-index: 1; background: var(--cq-plan-business); mix-blend-mode: multiply; }
+.bl-hero-fx > * { position: absolute; inset: 0; }
+/* Dark veil from the text side so the copy stays readable on the effect. */
+.bl-hero-fx::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    radial-gradient(42% 36% at 74% 76%, color-mix(in srgb, var(--cq-plan-hero) 92%, transparent) 0%, color-mix(in srgb, var(--cq-plan-hero) 60%, transparent) 55%, transparent 100%),
+    linear-gradient(180deg, color-mix(in srgb, var(--cq-plan-hero) 72%, transparent) 0%, color-mix(in srgb, var(--cq-plan-hero) 30%, transparent) 50%, transparent 75%),
+    linear-gradient(90deg, color-mix(in srgb, var(--cq-plan-hero) 40%, transparent) 0%, transparent 60%);
+}
+/* The 3D blocks render keep their dark backdrop: lighten lets the effect through it while the blocks stay on top. */
+.bl-hero:has(.bl-hero-fx) .bl-art { mix-blend-mode: lighten; }
+
+/* "Scegli il piano": one backdrop for the whole window, under every element (the shell goes transparent around its
+   cards). Scoped to html[data-bl-backdrop], set and removed by PlansBackdrop, so other pages never see these rules. */
+.bl-backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none; animation: bl-fx-in 1.2s ease-out both; }
+.bl-backdrop > * { position: absolute; inset: 0; }
+html[data-bl-backdrop] body,
+html[data-bl-backdrop] .shell { background: transparent; }
+html[data-bl-backdrop] { background: var(--cq-canvas); }
+html[data-bl-backdrop] .sidebar {
+  background: color-mix(in srgb, var(--cq-surface) 82%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+@keyframes bl-fx-in { from { opacity: 0; } to { opacity: 1; } }
+.iridescence-container, .gradient-blinds-container { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.iridescence-canvas, .gradient-blinds-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }

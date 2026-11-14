@@ -7,6 +7,7 @@ import { ArrowRight, ArrowUpRight, Check, ChartNoAxesColumn, Headset, Layers, La
 import { Dialog } from "@/components/ui/overlays";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { PlanHeroEffect, PlansBackdrop } from "@/components/billing/effects/billing-effects";
 import { compareRows, formatPlanPrice, planIds, plans, type PlanIcon, type PlanId } from "@/domain/plans";
 
 export type BillingViewId = "plans" | "compare" | PlanId;
@@ -64,6 +65,7 @@ export function BillingView({ view }: { view: BillingViewId }) {
       <motion.div key={view} className={cn("bl-grid", `bl-grid-${view}`)} variants={m.grid} initial="hidden" animate="show">
         {view === "plans" ? <PlansView /> : view === "compare" ? <CompareView /> : <PlanView id={view} onActivate={activate} />}
       </motion.div>
+      {view === "plans" ? <PlansBackdrop /> : null}
       <Dialog open={payments} title="Pagamenti in arrivo" onClose={() => setPayments(false)}>
         <p>
           L&apos;attivazione dei piani arriva con i pagamenti online. Per ora nessun addebito e nessuna modifica al tuo workspace: resti sul Piano di
@@ -81,10 +83,11 @@ export function BillingView({ view }: { view: BillingViewId }) {
 
 /* Building blocks */
 
-function Hero({ eyebrow, title, body, action }: { eyebrow: string; title: string; body: string; action?: ReactNode }) {
+function Hero({ eyebrow, title, body, action, effect }: { eyebrow: string; title: string; body: string; action?: ReactNode; effect?: ReactNode }) {
   const m = useBillingMotion();
   return (
     <motion.section className="bl-card bl-hero" variants={m.item}>
+      {effect}
       <Art name="hero-blocchi" />
       <div className="bl-hero-copy">
         <p className="bl-eyebrow">{eyebrow}</p>
@@ -228,8 +231,10 @@ function CompareView() {
                 <th scope="row">
                   <span className="bl-compare-row">
                     {icons[row.icon]}
-                    {row.label}
-                    {row.soon ? <Soon /> : null}
+                    <span className="bl-compare-label">
+                      {row.label}
+                      {row.soon ? <Soon /> : null}
+                    </span>
                   </span>
                 </th>
                 {planIds.map((id) => (
@@ -268,7 +273,7 @@ function PlanView({ id, onActivate }: { id: PlanId; onActivate: () => void }) {
   const m = useBillingMotion();
   return (
     <>
-      <Hero eyebrow={plan.eyebrow} title={plan.title} body={plan.body} action={<ActionButton onClick={onActivate}>{plan.cta}</ActionButton>} />
+      <Hero eyebrow={plan.eyebrow} title={plan.title} body={plan.body} effect={<PlanHeroEffect plan={id} />} action={<ActionButton onClick={onActivate}>{plan.cta}</ActionButton>} />
       <PlanCard plan={id} href={billingHref.compare} className="bl-price-card">
         <span className="bl-plan-name">{plan.name}</span>
         <Price cents={plan.priceCents} />
