@@ -59,13 +59,11 @@
 .auth-mark-tile {
   width: 48px;
   height: 48px;
-  border-radius: 14px;
-  background: white;
   display: grid;
   place-items: center;
-  box-shadow: 0 8px 24px rgb(15 15 20 / 0.18);
+  filter: drop-shadow(0 8px 18px rgb(15 15 20 / 0.25));
 }
-.auth-mark-tile img { width: 30px; height: auto; display: block; }
+.auth-mark-tile img { width: 100%; height: auto; display: block; }
 .auth-mark-word { font-size: 22px; font-weight: 800; letter-spacing: -0.04em; }
 .auth-brand-line {
   margin: 0;
@@ -132,8 +130,7 @@
   .auth-split { grid-template-columns: 1fr; min-height: 0; border-radius: 24px; }
   .auth-brand { height: 180px; padding: 22px; gap: 12px; justify-content: space-between; }
   .auth-brand-line { font-size: 20px; }
-  .auth-mark-tile { width: 40px; height: 40px; border-radius: 12px; }
-  .auth-mark-tile img { width: 25px; }
+  .auth-mark-tile { width: 40px; height: 40px; }
   .auth-mark-word { font-size: 18px; }
   .auth-card { padding: 24px 20px 24px; }
   .auth-card h1 { font-size: 24px; }

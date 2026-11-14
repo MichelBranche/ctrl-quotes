@@ -47,7 +47,7 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="logo-full" src="/brand/logo.png" alt="" width={126} height={28} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="logo-icon" src="/brand/icon-compact.png" alt="" width={34} height={35} />
+            <img className="logo-icon" src="/brand/icon-compact.png" alt="" width={34} height={34} />
           </Link>
           <button
             type="button"

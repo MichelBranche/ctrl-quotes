@@ -13,7 +13,7 @@ export function AuthScreen({ children }: { children: ReactNode }) {
           <Link href="/login" className="auth-mark" aria-label={messages.brand}>
             <span className="auth-mark-tile">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/icon-compact.png" alt="" width={34} height={35} />
+              <img src="/brand/icon-compact.png" alt="" width={48} height={48} />
             </span>
             <span className="auth-mark-word">CTRL® Quotes</span>
           </Link>
