@@ -107,6 +107,9 @@ export type QuoteEditorData = {
     ownerId: string | null;
     createdAt: Date;
     updatedAt: Date;
+    /** Phase 4: the version the client currently sees, null before the first send. */
+    sentVersionId: string | null;
+    sentAt: Date | null;
   };
   revision: number;
   draftUpdatedAt: Date;
@@ -117,6 +120,7 @@ export type QuoteEditorData = {
   snapshot: QuoteSnapshot;
   canDelete: boolean;
   canEdit: boolean;
+  canSend: boolean;
 };
 
 const PAGE_MAX = 50;
@@ -477,7 +481,7 @@ export async function listClientQuotes(db: AppDatabase, actor: Actor, clientId: 
   return ok(rows.map(toRow));
 }
 
-async function findQuote(db: AppDatabase, workspaceId: string, quoteId: string) {
+export async function findQuote(db: AppDatabase, workspaceId: string, quoteId: string) {
   const rows = await db
     .select()
     .from(quotes)
@@ -485,7 +489,7 @@ async function findQuote(db: AppDatabase, workspaceId: string, quoteId: string) 
   return rows[0] ?? null;
 }
 
-async function findDraft(db: AppDatabase, workspaceId: string, quoteId: string) {
+export async function findDraft(db: AppDatabase, workspaceId: string, quoteId: string) {
   const rows = await db
     .select()
     .from(quoteDrafts)
@@ -646,6 +650,8 @@ export async function getQuoteEditor(db: AppDatabase, actor: Actor, quoteId: str
       ownerId: quote.ownerId,
       createdAt: quote.createdAt,
       updatedAt: quote.updatedAt,
+      sentVersionId: quote.sentVersionId,
+      sentAt: quote.sentAt,
     },
     revision: draft?.revision ?? 1,
     draftUpdatedAt: draft?.updatedAt ?? quote.updatedAt,
@@ -655,6 +661,7 @@ export async function getQuoteEditor(db: AppDatabase, actor: Actor, quoteId: str
     versions,
     snapshot,
     canEdit: can(role, "quotes.write") && isEditable(status),
+    canSend: can(role, "quotes.send") && status !== "accepted",
     canDelete: can(role, "quotes.delete") || (quote.ownerId === actor.userId && status === "draft" && versions.length === 0),
   });
 }
@@ -967,6 +974,11 @@ export async function uploadQuoteImage(
 
 /** Bytes of the images referenced by a snapshot, scoped to the workspace. Used by the PDF renderer. */
 export async function loadSnapshotImages(db: AppDatabase, actor: Actor, snapshot: QuoteSnapshot): Promise<Map<string, { mime: string; data: Buffer }>> {
+  return loadSnapshotImagesFor(db, actor.workspaceId, snapshot);
+}
+
+/** Same as loadSnapshotImages for background jobs, which run without a signed-in user. */
+export async function loadSnapshotImagesFor(db: AppDatabase, workspaceId: string, snapshot: QuoteSnapshot): Promise<Map<string, { mime: string; data: Buffer }>> {
   const ids = snapshot.images.map((image) => image.id);
   const map = new Map<string, { mime: string; data: Buffer }>();
   if (ids.length === 0) return map;
@@ -974,7 +986,7 @@ export async function loadSnapshotImages(db: AppDatabase, actor: Actor, snapshot
     .select({ id: assets.id, mime: assets.mime, data: assetBlobs.data })
     .from(assets)
     .innerJoin(assetBlobs, and(eq(assetBlobs.workspaceId, assets.workspaceId), eq(assetBlobs.assetId, assets.id)))
-    .where(and(eq(assets.workspaceId, actor.workspaceId), inArray(assets.id, ids)));
+    .where(and(eq(assets.workspaceId, workspaceId), inArray(assets.id, ids)));
   for (const row of rows) map.set(row.id, { mime: row.mime, data: Buffer.from(row.data) });
   return map;
 }
