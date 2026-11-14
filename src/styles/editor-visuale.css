@@ -14,7 +14,7 @@
 /* Layout */
 .ve {
   --ve-accent: var(--cq-accent-bright);
-  display: grid; grid-template-columns: 240px minmax(0, 1fr); height: var(--ve-height, calc(100dvh - 220px));
+  display: grid; grid-template-columns: 240px minmax(0, 1fr); height: var(--ve-height, calc(var(--cq-page-h, 100dvh) - 150px));
   border: 1px solid var(--cq-border); border-radius: var(--cq-radius-card); overflow: hidden; background: var(--cq-surface);
 }
 .ve-outline { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--cq-border); background: var(--cq-surface); }

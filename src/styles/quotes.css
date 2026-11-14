@@ -233,7 +233,7 @@
 .mini-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .mini-item-actions { display: inline-flex; gap: 2px; }
 @media (prefers-reduced-motion: reduce) { .style-option { transition: none; } .style-option:hover:not(:disabled) { transform: none; } }
-.preview-panel { position: sticky; top: 12px; max-height: calc(100dvh - 24px); }
+.preview-panel { position: sticky; top: 12px; max-height: calc(var(--cq-page-h, 100dvh) - 24px); }
 .preview-total { display: inline-flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
 .preview-scroll { overflow: auto; padding: 6px 10px 18px; margin: 0 -6px; border-radius: 12px; background: var(--cq-surface-sunken); min-height: 0; }
 .preview-scroll .qd-stage { padding-top: 6px; }

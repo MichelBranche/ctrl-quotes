@@ -6,12 +6,6 @@
 .ov-head h1 { margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.045em; line-height: 1.1; color: var(--cq-ink); }
 .ov-head p { margin: 4px 0 0; font-size: 13px; color: var(--cq-muted); }
 
-@media (min-width: 1024px) {
-  /* The topbar sits on the greeting row, like the mockup. */
-  .main-col:has(.ov-head) .topbar { position: absolute; top: 0; right: 4px; z-index: 2; padding: 0; min-height: 64px; }
-  .main-col:has(.ov-head) .page { padding-top: 0; }
-  .ov-head { padding-right: 440px; }
-}
 
 .ov .card { padding: 0; }
 
@@ -149,13 +143,34 @@
 .tpl-white i { position: absolute; top: 40px; left: 14px; width: 34px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--brand) 45%, white); }
 .tpl-white img { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 58%; object-fit: cover; }
 
+/* LineWaves background (white lines on saturated brand); the brand-fill gradient stays as fallback. */
+.ov-templates > .ov-section-head, .ov-templates > .ov-templates-lead { position: relative; z-index: 1; }
+.ov-templates > .ov-fan { z-index: 1; }
+.ov-templates-waves { position: absolute; inset: 0; z-index: 0; pointer-events: none; animation: ov-fade-in 1s ease-out both; }
+.ov-templates .ov-section-head h2,
+.ov-templates-lead { text-shadow: 0 1px 12px color-mix(in srgb, var(--brand) 70%, black); }
+@keyframes ov-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Extra previews (Swiss Minimal, Corporate Executive): hidden on normal screens. */
+.tpl-wide { display: none; }
+.tpl-minimal { background: white; color: var(--cq-ink); }
+.tpl-minimal b { position: absolute; right: 14px; top: 52px; font-size: 30px; font-weight: 800; letter-spacing: -0.05em; color: var(--cq-tpl-swiss); }
+.tpl-minimal i { position: absolute; left: 14px; right: 14px; top: 46px; height: 1px; background: color-mix(in srgb, var(--cq-ink) 25%, transparent); }
+.tpl-corporate { background: var(--cq-tpl-navy); color: white; }
+.tpl-corporate i { position: absolute; left: 14px; bottom: 16px; width: 56px; height: 6px; border-radius: 3px; background: var(--cq-tpl-amber); }
+
+@media (min-width: 1680px) {
+  /* Ultrawide: five previews, balanced fan. */
+  .ov-fan .tpl-wide { display: block; }
+  .ov-fan .tpl-minimal { left: calc(12% - 84px); right: auto; bottom: -10px; rotate: -12deg; }
+  .ov-fan .tpl-dark { left: calc(31% - 84px); right: auto; bottom: 2px; rotate: -6deg; }
+  .ov-fan .tpl-cream { right: calc(31% - 84px); left: auto; bottom: 2px; rotate: 6deg; }
+  .ov-fan .tpl-corporate { right: calc(12% - 84px); left: auto; bottom: -10px; rotate: 12deg; }
+  .ov-fan .tpl-dark, .ov-fan .tpl-cream { z-index: 1; }
+}
+
 @media (max-width: 1279px) {
   .ov-row-top, .ov-row-bottom { grid-template-columns: 1fr; }
-  .ov-head { padding-right: 0; }
-}
-@media (max-width: 1279px) and (min-width: 1024px) {
-  .main-col:has(.ov-head) .topbar { position: static; padding: 4px 4px 0; }
-  .main-col:has(.ov-head) .page { padding-top: 8px; }
 }
 
 @media (max-width: 720px) {

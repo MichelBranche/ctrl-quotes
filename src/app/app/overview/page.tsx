@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import Link from "next/link";
 import { ArrowRight, Check, ChevronRight, Clock3, Layers, LayoutGrid, Palette, Plus, Send } from "lucide-react";
 import { RecentQuotes } from "@/components/overview/recent-quotes";
+import { TemplateWaves } from "@/components/overview/template-waves";
 import { IllustratedEmpty } from "@/components/ui/illustrated-empty";
 import { Skeleton } from "@/components/ui/status";
 import { formatEuro } from "@/domain/money";
@@ -146,6 +147,7 @@ async function OverviewContent() {
         </section>
 
         <section className="ov-templates brand-fill" aria-labelledby="ov-templates-title">
+          <TemplateWaves />
           <div className="ov-section-head">
             <h2 id="ov-templates-title">
               <LayoutGrid size={18} aria-hidden="true" /> I tuoi template
@@ -156,6 +158,16 @@ async function OverviewContent() {
           </div>
           <p className="ov-templates-lead">Scopri i template professionali e personalizzabili per ogni tipo di progetto.</p>
           <div className="ov-fan" aria-hidden="true">
+            {/* Swiss Minimal and Corporate Executive: only on ultrawide screens (see overview.css). */}
+            <div className="tpl tpl-minimal tpl-wide">
+              <strong>Preventivo</strong>
+              <b>01</b>
+              <i />
+            </div>
+            <div className="tpl tpl-corporate tpl-wide">
+              <strong>Preventivo</strong>
+              <i />
+            </div>
             <div className="tpl tpl-dark">
               <strong>Preventivo</strong>
             </div>

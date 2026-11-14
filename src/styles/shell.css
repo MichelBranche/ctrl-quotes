@@ -5,16 +5,28 @@
   background-image: var(--brand-gradient);
 }
 
+/*
+ * Layout: the viewport never scrolls. The topbar is its own row of .main-col and <main class="page">
+ * is the only scroll container under it, so page content (and every sticky toolbar or panel, which
+ * sticks to the top of .page) always starts below the topbar and can never slide under it.
+ * --cq-topbar-h is the topbar row height; --cq-page-h is the visible height of .page, for
+ * anything that wants to fill the screen below the topbar.
+ */
 .shell {
-  gap: 16px;
-  padding: 16px;
+  --cq-shell-pad: 16px;
+  --cq-topbar-h: 68px;
+  --cq-page-h: calc(100dvh - var(--cq-shell-pad) - var(--cq-topbar-h));
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  gap: 0;
+  padding: var(--cq-shell-pad) 0 0 var(--cq-shell-pad);
   background: var(--cq-canvas);
 }
 
 .sidebar {
-  position: sticky;
-  top: 16px;
-  height: calc(100dvh - 32px);
+  align-self: flex-start;
+  height: calc(100dvh - 2 * var(--cq-shell-pad));
   width: var(--cq-sidebar-width);
   gap: 0;
   padding: 20px 14px 16px;
@@ -132,9 +144,9 @@
 .drawer-panel .nav-list { margin: 8px 0; }
 .drawer-panel .sb-foot { margin-top: 16px; }
 
-/* Topbar */
-.main-col { position: relative; }
-.topbar { gap: 12px; padding: 4px 4px 0; min-height: 64px; }
+/* Topbar row + scrolling page */
+.main-col { position: relative; display: grid; grid-template-rows: var(--cq-topbar-h) minmax(0, 1fr); min-height: 0; height: 100%; }
+.topbar { position: relative; z-index: var(--cq-z-topbar); gap: 12px; height: var(--cq-topbar-h); min-height: 0; padding: 0 20px 4px; align-items: center; }
 .tb-search {
   display: flex;
   align-items: center;
@@ -168,7 +180,16 @@
 .menu-label { margin: 8px 10px 2px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cq-muted); }
 .popover form button[aria-current="true"] { font-weight: 700; }
 
-.page { padding: 8px 4px 24px; }
+.page { padding: 8px 20px 24px; }
+.shell > .page,
+.main-col > .page {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 8px 20px calc(24px + var(--cq-shell-pad));
+}
 
 /* Shared surfaces pick up the new look */
 .card { border-radius: var(--cq-radius-card); border-color: color-mix(in srgb, var(--cq-ink) 6%, transparent); box-shadow: var(--cq-shadow-md); }
@@ -176,11 +197,12 @@
 .btn { font-weight: 650; }
 
 @media (max-width: 1023px) {
-  .shell { padding: 0; gap: 0; }
-  .topbar { padding: 12px 16px 0; }
+  .shell { --cq-shell-pad: 0px; --cq-topbar-h: 64px; }
+  .topbar { padding: 8px 16px 4px; }
   .tb-search { width: auto; flex: 1; min-width: 0; }
   .tb-icon.menu-btn { display: grid; margin-right: 0; }
   .page { padding: 12px 16px 28px; }
+  .shell > .page, .main-col > .page { scrollbar-gutter: auto; padding: 12px 16px 28px; }
 }
 
 @media (max-width: 420px) {

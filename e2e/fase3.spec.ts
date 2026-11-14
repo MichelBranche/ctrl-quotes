@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { FORM_EDITOR_ENABLED } from "../src/components/quote-editor/form-editor-flag";
 import AxeBuilder from "@axe-core/playwright";
 
 const shotsDir = process.env.QA_SHOTS_DIR ?? "qa/screenshots/fase3";
@@ -28,7 +29,7 @@ async function shot(page: Page, name: string, testInfo: TestInfo, fullPage = tru
 }
 
 async function noOverflow(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const overflow = await page.evaluate(() => Math.max(...[document.documentElement, document.querySelector(".main-col > .page")].map((el) => (el ? el.scrollWidth - el.clientWidth : 0))));
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
@@ -127,62 +128,72 @@ test("preventivi: wizard, editor, versione, PDF e storico cliente", async ({ pag
   const number = (await page.locator(".editor-crumbs span").textContent())?.trim() ?? "";
   expect(number).not.toBe("Senza numero");
 
-  // Editor: add a free line and wait for autosave.
-  if (mobile) await page.getByRole("button", { name: "Struttura", exact: true }).click();
-  await page.locator(".block-select", { hasText: "Servizi inclusi" }).click();
-  await expect(page.getByRole("heading", { level: 2, name: /Servizi/ })).toBeVisible();
-  await page.getByRole("button", { name: "Voce libera" }).click();
-  await page.getByLabel("Nome", { exact: true }).last().fill("Manutenzione annuale");
-  await page.getByLabel("Prezzo unitario").last().fill("300");
-  await page.getByLabel("Prezzo unitario").last().blur();
-  await expect(page.getByText(/Salvato alle/)).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator(".preview-total strong")).toContainText("3.294,00");
+  // Editor: Visuale only while the Modulo view is paused (FORM_EDITOR_ENABLED=false). The Modulo
+  // steps stay below for the future mobile version.
+  const total = FORM_EDITOR_ENABLED ? "3.294,00" : "2.928,00";
+  if (FORM_EDITOR_ENABLED) {
+    // Editor: add a free line and wait for autosave.
+    if (mobile) await page.getByRole("button", { name: "Struttura", exact: true }).click();
+    await page.locator(".block-select", { hasText: "Servizi inclusi" }).click();
+    await expect(page.getByRole("heading", { level: 2, name: /Servizi/ })).toBeVisible();
+    await page.getByRole("button", { name: "Voce libera" }).click();
+    await page.getByLabel("Nome", { exact: true }).last().fill("Manutenzione annuale");
+    await page.getByLabel("Prezzo unitario").last().fill("300");
+    await page.getByLabel("Prezzo unitario").last().blur();
+    await expect(page.getByText(/Salvato alle/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator(".preview-total strong")).toContainText("3.294,00");
 
-  // Undo and redo: buttons and keyboard, then back to the saved state.
-  const historyGroup = page.getByRole("group", { name: "Cronologia delle modifiche" });
-  const undoButton = historyGroup.getByRole("button", { name: "Annulla" });
-  const redoButton = historyGroup.getByRole("button", { name: "Ripeti" });
-  await expect(undoButton).toBeEnabled();
-  await expect(redoButton).toBeDisabled();
-  const lineName = page.getByLabel("Nome", { exact: true }).last();
-  await lineName.fill("Voce da annullare");
-  if (!mobile) await expect(page.locator(".preview-panel .qd")).toContainText("Voce da annullare");
-  await page.keyboard.press("ControlOrMeta+z");
-  await expect(lineName).toHaveValue("Manutenzione annuale");
-  await expect(redoButton).toBeEnabled();
-  await redoButton.click();
-  await expect(lineName).toHaveValue("Voce da annullare");
-  await expect(redoButton).toBeDisabled();
-  await undoButton.click();
-  await expect(lineName).toHaveValue("Manutenzione annuale");
-  await page.keyboard.press("ControlOrMeta+Shift+z");
-  await expect(lineName).toHaveValue("Voce da annullare");
-  await page.keyboard.press("ControlOrMeta+z");
-  await expect(lineName).toHaveValue("Manutenzione annuale");
-  await expect(page.getByText(/Salvato alle/)).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator(".preview-total strong")).toContainText("3.294,00");
-  if (!mobile) {
-    await redoButton.hover();
-    await shot(page, "editor-cronologia", testInfo, false);
-  }
-  if (mobile) {
-    await page.getByRole("button", { name: "Anteprima", exact: true }).click();
-    await expect(page.locator(".preview-panel .qd")).toBeVisible();
-    await shot(page, "editor-anteprima", testInfo, false);
-    await page.getByRole("button", { name: "Contenuto", exact: true }).click();
-  }
-  await shot(page, "editor", testInfo, !mobile);
-  if (mobile) await noOverflow(page);
-  expect(await seriousA11y(page, [".qd"])).toEqual([]);
+    // Undo and redo: buttons and keyboard, then back to the saved state.
+    const historyGroup = page.getByRole("group", { name: "Cronologia delle modifiche" });
+    const undoButton = historyGroup.getByRole("button", { name: "Annulla" });
+    const redoButton = historyGroup.getByRole("button", { name: "Ripeti" });
+    await expect(undoButton).toBeEnabled();
+    await expect(redoButton).toBeDisabled();
+    const lineName = page.getByLabel("Nome", { exact: true }).last();
+    await lineName.fill("Voce da annullare");
+    if (!mobile) await expect(page.locator(".preview-panel .qd")).toContainText("Voce da annullare");
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(lineName).toHaveValue("Manutenzione annuale");
+    await expect(redoButton).toBeEnabled();
+    await redoButton.click();
+    await expect(lineName).toHaveValue("Voce da annullare");
+    await expect(redoButton).toBeDisabled();
+    await undoButton.click();
+    await expect(lineName).toHaveValue("Manutenzione annuale");
+    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await expect(lineName).toHaveValue("Voce da annullare");
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(lineName).toHaveValue("Manutenzione annuale");
+    await expect(page.getByText(/Salvato alle/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator(".preview-total strong")).toContainText("3.294,00");
+    if (!mobile) {
+      await redoButton.hover();
+      await shot(page, "editor-cronologia", testInfo, false);
+    }
+    if (mobile) {
+      await page.getByRole("button", { name: "Anteprima", exact: true }).click();
+      await expect(page.locator(".preview-panel .qd")).toBeVisible();
+      await shot(page, "editor-anteprima", testInfo, false);
+      await page.getByRole("button", { name: "Contenuto", exact: true }).click();
+    }
+    await shot(page, "editor", testInfo, !mobile);
+    if (mobile) await noOverflow(page);
+    expect(await seriousA11y(page, [".qd"])).toEqual([]);
 
-  // Autosave persisted.
-  await page.reload();
-  await expect(page.locator(".preview-total strong")).toContainText("3.294,00");
+    // Autosave persisted.
+    await page.reload();
+    await expect(page.locator(".preview-total strong")).toContainText("3.294,00");
+  } else {
+    await expect(page.getByTestId("editor-visuale")).toBeVisible();
+    await expect(page.getByRole("group", { name: "Modalità dell'editor" })).toHaveCount(0);
+    await expect(page.locator(".editor-grid")).toHaveCount(0);
+    await shot(page, "editor", testInfo, !mobile);
+  }
 
   // Freeze a version.
   await page.getByRole("button", { name: "Salva versione" }).click();
   await expect(page.getByRole("tab", { name: /Versioni \(1\)/ })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByText(/Versione 1/).first()).toBeVisible();
+  await expect(page.getByRole("tabpanel", { name: /Versioni/ }).getByRole("listitem").filter({ hasText: "v1" })).toBeVisible();
   await shot(page, "editor-versioni", testInfo);
 
   // Version PDF: vector, A4, served privately.
@@ -200,7 +211,7 @@ test("preventivi: wizard, editor, versione, PDF e storico cliente", async ({ pag
   // Full preview of version 1.
   await page.goto(`/app/quotes/${quoteId}/preview?v=1`);
   await expect(page.locator(".qd")).toBeVisible();
-  await expect(page.getByText("3.294,00").first()).toBeVisible();
+  await expect(page.getByText(total).first()).toBeVisible();
   await shot(page, "anteprima-versione", testInfo);
   if (mobile) await noOverflow(page);
 

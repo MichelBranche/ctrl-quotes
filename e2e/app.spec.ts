@@ -24,7 +24,7 @@ for (const entry of pages) {
     if (mobile) {
       await page.setViewportSize({ width: 320, height: 700 });
       const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        () => Math.max(...[document.documentElement, document.querySelector(".main-col > .page")].map((el) => (el ? el.scrollWidth - el.clientWidth : 0))),
       );
       expect(overflow).toBeLessThanOrEqual(1);
       await page.setViewportSize({ width: 375, height: 812 });

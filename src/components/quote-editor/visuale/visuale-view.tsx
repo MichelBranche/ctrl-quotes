@@ -200,12 +200,14 @@ export function VisualeView({
   const { geometry, measure, pausedRef } = useGeometry(contentRef, order, renderKey);
   const boxOf = useMemo(() => new Map(geometry.blocks.map((box) => [box.id, box])), [geometry.blocks]);
 
-  // The view fills the window below the editor header; the sheet scrolls inside it.
+  // The view fills the screen below the editor header; the sheet scrolls inside it. The app scrolls
+  // inside <main class="page"> (under the topbar), so the offset includes that scroller's position.
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return;
     const size = () => {
-      const top = root.getBoundingClientRect().top + window.scrollY;
+      const scroller = root.closest<HTMLElement>(".page");
+      const top = root.getBoundingClientRect().top + (scroller ? scroller.scrollTop : window.scrollY);
       root.style.setProperty("--ve-height", `${Math.max(520, window.innerHeight - top - 16)}px`);
     };
     size();

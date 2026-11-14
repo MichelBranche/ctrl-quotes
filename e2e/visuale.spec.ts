@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { FORM_EDITOR_ENABLED } from "../src/components/quote-editor/form-editor-flag";
 import AxeBuilder from "@axe-core/playwright";
 
 const shotsDir = process.env.QA_SHOTS_DIR ?? "qa/screenshots/visuale";
@@ -80,6 +81,14 @@ test("editor visuale: scrivere sul foglio, prezzi, inserire e spostare blocchi",
   const mobile = testInfo.project.name.includes("mobile");
   const quoteUrl = await newQuote(page, mobile ? "Restyling mobile" : "Restyling visuale", mobile ? "M" : "D");
 
+  if (mobile && !FORM_EDITOR_ENABLED) {
+    // Modulo paused: Visuale on small screens too, even if "modulo" was the stored choice.
+    await page.evaluate(() => localStorage.setItem("cq.editor.mode", "modulo"));
+    await page.reload();
+    await expect(page.getByTestId("editor-visuale")).toBeVisible();
+    await expect(page.getByRole("group", { name: "Modalità dell'editor" })).toHaveCount(0);
+    return;
+  }
   if (mobile) {
     // Small screens keep the form editor: no toggle, even if Visuale was chosen on a computer.
     await page.evaluate(() => localStorage.setItem("cq.editor.mode", "visuale"));
@@ -93,14 +102,19 @@ test("editor visuale: scrivere sul foglio, prezzi, inserire e spostare blocchi",
 
   // First time: Modulo. Visuale is one click away and is remembered.
   const modes = page.getByRole("group", { name: "Modalità dell'editor" });
-  await expect(modes.getByRole("button", { name: "Modulo" })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".editor-grid")).toBeVisible();
-  await modes.getByRole("button", { name: "Visuale" }).click();
+  if (FORM_EDITOR_ENABLED) {
+    await expect(modes.getByRole("button", { name: "Modulo" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".editor-grid")).toBeVisible();
+    await modes.getByRole("button", { name: "Visuale" }).click();
+  } else {
+    // Modulo paused: Visuale from the first open, no toggle.
+    await expect(modes).toHaveCount(0);
+  }
   const visuale = page.getByTestId("editor-visuale");
   await expect(visuale).toBeVisible();
   await page.reload();
   await expect(visuale).toBeVisible();
-  await expect(modes.getByRole("button", { name: "Visuale" })).toHaveAttribute("aria-pressed", "true");
+  if (FORM_EDITOR_ENABLED) await expect(modes.getByRole("button", { name: "Visuale" })).toHaveAttribute("aria-pressed", "true");
   const sheet = visuale.locator(".qd-sheets");
   await expect(sheet).toContainText("Restyling visuale");
   await expect(visuale.locator(".ve-total")).toContainText("2.928,00");
@@ -191,7 +205,8 @@ test("editor visuale: scrivere sul foglio, prezzi, inserire e spostare blocchi",
   await expect(visuale).toBeVisible();
   await expect.poll(position).toBe(textIndex - 1);
 
-  // Back to Modulo, remembered too.
+  // Back to Modulo, remembered too (only while the Modulo view is enabled).
+  if (!FORM_EDITOR_ENABLED) return;
   await modes.getByRole("button", { name: "Modulo" }).click();
   await expect(page.locator(".editor-grid")).toBeVisible();
   await expect(visuale).toHaveCount(0);
