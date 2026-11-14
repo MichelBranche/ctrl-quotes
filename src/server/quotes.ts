@@ -684,7 +684,7 @@ export async function saveDraft(db: AppDatabase, actor: Actor, quoteId: string, 
   const input = parsed.data;
   const quote = await findQuote(db, actor.workspaceId, quoteId);
   if (!quote) return notFound("Preventivo non trovato.");
-  if (!isEditable(asQuoteStatus(quote.status))) return conflict("Questo preventivo non è più una bozza e non si può modificare.");
+  if (!isEditable(asQuoteStatus(quote.status))) return conflict("Questo preventivo è stato accettato e non si può più modificare. Duplicalo per una nuova proposta.");
   if (input.clientId && input.clientId !== quote.clientId) {
     const client = await findClientRow(db, actor.workspaceId, input.clientId);
     if (!client) return notFound("Cliente non trovato in questo workspace.");
@@ -836,7 +836,7 @@ export async function restoreVersion(
   if (!access.ok) return access;
   const quote = await findQuote(db, actor.workspaceId, quoteId);
   if (!quote) return notFound("Preventivo non trovato.");
-  if (!isEditable(asQuoteStatus(quote.status))) return conflict("Questo preventivo non è più una bozza.");
+  if (!isEditable(asQuoteStatus(quote.status))) return conflict("Questo preventivo è stato accettato e non si può più modificare.");
   const version = await getVersionSnapshot(db, actor, quoteId, versionNo);
   if (!version.ok) return version;
   const document = version.value.snapshot.document;

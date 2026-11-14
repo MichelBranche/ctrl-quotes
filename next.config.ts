@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const publicQuoteHeaders = ["/q/:path*", "/api/q/:path*"];
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
@@ -44,6 +46,16 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      ...publicQuoteHeaders.map((source) => ({
+        // Client quote links (phase 4): never indexed, never cached, never leaked through Referer.
+        // Listed after the global rules: for the same key the last match wins.
+        source,
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Cache-Control", value: "private, no-store, max-age=0" },
+        ],
+      })),
       {
         source: "/api/assets/:path*",
         headers: [{ key: "Content-Security-Policy", value: "default-src 'none'; style-src 'unsafe-inline'; sandbox" }],

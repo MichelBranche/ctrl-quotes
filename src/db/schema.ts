@@ -376,6 +376,14 @@ export const quotes = sqliteTable(
     totalCents: integer("total_cents").notNull().default(0),
     /** Phase 3: cached monthly + yearly recurring totals of the draft, for lists only. */
     recurringCents: integer("recurring_cents").notNull().default(0),
+    /** Phase 4: version the client currently sees on the public link. Null until the first send. */
+    sentVersionId: text("sent_version_id"),
+    /** Phase 4: cached copies for lists only. The source of truth is quote_events. */
+    sentAt: timestamp("sent_at"),
+    firstViewedAt: timestamp("first_viewed_at"),
+    lastViewedAt: timestamp("last_viewed_at"),
+    decidedAt: timestamp("decided_at"),
+    viewCount: integer("view_count").notNull().default(0),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -494,8 +502,19 @@ export const quotePublicLinks = sqliteTable(
     expiresAt: timestamp("expires_at"),
     revokedAt: timestamp("revoked_at"),
     createdAt: timestamp("created_at").notNull(),
+    /** Phase 4: AES-256-GCM copy of the token, so "Copia link" works later. Never the plain token. */
+    tokenEnc: text("token_enc"),
+    /** Phase 4: last 4 characters, only to recognise a link on screen. */
+    tokenHint: text("token_hint"),
+    createdBy: text("created_by"),
+    revokedBy: text("revoked_by"),
+    replacedByLinkId: text("replaced_by_link_id"),
+    firstViewedAt: timestamp("first_viewed_at"),
+    lastViewedAt: timestamp("last_viewed_at"),
+    viewCount: integer("view_count").notNull().default(0),
   },
   (table) => [
+    index("quote_public_links_quote_idx").on(table.workspaceId, table.quoteId),
     foreignKey({
       columns: [table.workspaceId, table.quoteId],
       foreignColumns: [quotes.workspaceId, quotes.id],
@@ -540,8 +559,14 @@ export const quoteAcceptances = sqliteTable("quote_acceptances", {
   userAgent: text("user_agent"),
   idempotencyKey: text("idempotency_key").notNull().unique(),
   createdAt: timestamp("created_at").notNull(),
+  /** Phase 4: link used to decide, hash of the exact version decided on, optional note on rejection. */
+  linkId: text("link_id"),
+  snapshotSha256: text("snapshot_sha256"),
+  note: text("note"),
 }, (table) => [
-  uniqueIndex("quote_acceptances_quote_uq").on(table.workspaceId, table.quoteId),
+  /** One decision per version (phase 4): after a rejection a new version can be sent and decided. */
+  uniqueIndex("quote_acceptances_version_uq").on(table.workspaceId, table.versionId),
+  index("quote_acceptances_quote_idx").on(table.workspaceId, table.quoteId),
   check("quote_acceptances_decision_chk", sql`${table.decision} in ('accepted', 'rejected')`),
 ]);
 
@@ -554,6 +579,8 @@ export const quoteChangeRequests = sqliteTable("quote_change_requests", {
   status: text("status").notNull().default("open"),
   resolvedByVersionId: text("resolved_by_version_id"),
   createdAt: timestamp("created_at").notNull(),
+  linkId: text("link_id"),
+  authorName: text("author_name"),
 }, (table) => [index("quote_change_requests_quote_idx").on(table.quoteId)]);
 
 export const quoteNumberSequences = sqliteTable(
@@ -596,6 +623,10 @@ export const emailDeliveries = sqliteTable("email_deliveries", {
   error: text("error"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
+  /** Phase 4: what the email was about. */
+  quoteId: text("quote_id"),
+  linkId: text("link_id"),
+  kind: text("kind"),
 });
 
 export const outboxJobs = sqliteTable(
@@ -691,6 +722,57 @@ export const auditLogs = sqliteTable(
   (table) => [index("audit_logs_workspace_idx").on(table.workspaceId, table.createdAt)],
 );
 
+/** Phase 4: in-app notifications, one row per recipient user. */
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    quoteId: text("quote_id"),
+    eventId: text("event_id"),
+    type: text("type").notNull(),
+    readAt: timestamp("read_at"),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (table) => [
+    index("notifications_user_idx").on(table.userId, table.workspaceId, table.readAt, table.createdAt),
+    uniqueIndex("notifications_event_user_uq").on(table.eventId, table.userId),
+  ],
+);
+
+/** Phase 4: per-user email preferences. Missing row means the defaults below. */
+export const notificationPrefs = sqliteTable(
+  "notification_prefs",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    emailOnView: text("email_on_view").notNull().default("first"),
+    emailOnDecision: integer("email_on_decision", { mode: "boolean" }).notNull().default(true),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.workspaceId] }),
+    check("notification_prefs_view_chk", sql`${table.emailOnView} in ('never', 'first', 'every')`),
+  ],
+);
+
+/** Phase 4: fixed-window counters for public endpoints when Upstash is not configured. Keys are hashed. */
+export const rateLimits = sqliteTable("rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: integer("window_start").notNull(),
+  count: integer("count").notNull().default(0),
+  expiresAt: integer("expires_at").notNull(),
+}, (table) => [index("rate_limits_expires_idx").on(table.expiresAt)]);
+
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
@@ -733,4 +815,7 @@ export const schema = {
   workspaceSettings,
   templateFavorites,
   assetBlobs,
+  notifications,
+  notificationPrefs,
+  rateLimits,
 };
