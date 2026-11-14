@@ -1,54 +1,88 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { Bell, CalendarDays, ChevronDown, LogOut, Menu, Plus } from "lucide-react";
-import { Logo } from "@/components/logo";
+import { ArrowRight, Bell, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search } from "lucide-react";
 import { PageTransition } from "@/components/motion/page-transition";
 import { AnchoredPopover } from "@/components/ui/anchored-popover";
 import { Drawer } from "@/components/ui/overlays";
 import { SideNav } from "@/components/shell/nav";
 import type { ShellData } from "@/components/shell/types";
 import { messages } from "@/i18n/it";
+import { cn } from "@/lib/cn";
 import { logoutAction, switchWorkspaceAction } from "@/server/actions";
+
+const COLLAPSE_KEY = "cq-sidebar-collapsed";
+const collapseListeners = new Set<() => void>();
+
+/** Sidebar expanded or compact, remembered in this browser. Server render is always expanded. */
+function useCollapsed(): [boolean, (value: boolean) => void] {
+  const collapsed = useSyncExternalStore(
+    (listener) => {
+      collapseListeners.add(listener);
+      return () => collapseListeners.delete(listener);
+    },
+    () => window.localStorage.getItem(COLLAPSE_KEY) === "1",
+    () => false,
+  );
+  const set = (value: boolean) => {
+    window.localStorage.setItem(COLLAPSE_KEY, value ? "1" : "0");
+    collapseListeners.forEach((listener) => listener());
+  };
+  return [collapsed, set];
+}
 
 export function AppShell({ data, children }: { data: ShellData; children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [planNote, setPlanNote] = useState(false);
-  const initial = data.workspace.name.slice(0, 1).toUpperCase();
+  const [collapsed, setCollapsed] = useCollapsed();
 
   return (
-    <div className="shell">
+    <div className={cn("shell", collapsed && "is-collapsed")}>
       <a className="skip-link visually-hidden" href="#content">
         {messages.skip}
       </a>
       <aside className="sidebar sidebar-desktop">
-        <Link href="/app/overview" className="brand-lockup">
-          <Logo />
-        </Link>
-        <WorkspaceSwitcher data={data} initial={initial} menuId="desktop-workspace-menu" />
-        <SideNav />
-        <div className="sidebar-spacer" />
-        <PlanCard open={planNote} onOpen={() => setPlanNote(true)} />
+        <div className="sb-brand">
+          <Link href="/app/overview" className="sb-logo" aria-label={`${messages.brand}, ${messages.shell.overview}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="logo-full" src="/brand/logo.png" alt="" width={126} height={28} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="logo-icon" src="/brand/icon-compact.png" alt="" width={34} height={35} />
+          </Link>
+          <button
+            type="button"
+            className="sb-toggle"
+            onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? "Espandi la barra laterale" : "Riduci la barra laterale"}
+            aria-pressed={collapsed}
+            title={collapsed ? "Espandi" : "Riduci"}
+          >
+            {collapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}
+          </button>
+        </div>
+        <SideNav compact={collapsed} />
+        <div className="sb-foot">
+          <PlanCard />
+          <Link className="btn-new" href="/app/quotes/new" title={collapsed ? messages.quotes.action : undefined}>
+            <Plus size={18} aria-hidden="true" />
+            <span>{messages.quotes.action}</span>
+          </Link>
+        </div>
       </aside>
       <div className="main-col">
         <header className="topbar">
-          <button type="button" className="btn btn-secondary menu-btn" aria-label={messages.shell.openMenu} onClick={() => setMenuOpen(true)}>
+          <button type="button" className="tb-icon menu-btn" aria-label={messages.shell.openMenu} onClick={() => setMenuOpen(true)}>
             <Menu size={18} aria-hidden="true" />
           </button>
-          <button type="button" className="btn btn-secondary" aria-disabled="true" aria-describedby="period-hint">
-            <CalendarDays size={16} aria-hidden="true" />
-            {messages.shell.period}
-            <ChevronDown size={14} aria-hidden="true" />
-          </button>
-          <span className="visually-hidden" id="period-hint">
-            {messages.shell.periodHint}
-          </span>
+          <form className="tb-search" action="/app/quotes" role="search">
+            <Search size={16} aria-hidden="true" />
+            <input type="search" name="q" placeholder="Cerca preventivi, clienti, servizi…" aria-label="Cerca nei preventivi" maxLength={100} />
+          </form>
           <AnchoredPopover
             id="notifications"
             trigger={
-              <button type="button" className="btn btn-secondary" aria-label={messages.shell.notifications}>
-                <Bell size={16} aria-hidden="true" />
+              <button type="button" className="tb-icon" aria-label={messages.shell.notifications}>
+                <Bell size={18} aria-hidden="true" />
               </button>
             }
           >
@@ -67,6 +101,18 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
               <br />
               <span className="muted">{data.user.email}</span>
             </p>
+            <p className="menu-label">{messages.shell.workspace}</p>
+            {data.workspaces.map((workspace) => (
+              <form key={workspace.id} action={switchWorkspaceAction}>
+                <input type="hidden" name="workspaceId" value={workspace.id} />
+                <button type="submit" aria-current={workspace.id === data.workspace.id ? "true" : undefined}>
+                  {workspace.name}
+                </button>
+              </form>
+            ))}
+            <Link href="/onboarding">
+              <Plus size={16} aria-hidden="true" /> {messages.shell.newWorkspace}
+            </Link>
             <form action={logoutAction}>
               <button type="submit">
                 <LogOut size={16} aria-hidden="true" /> {messages.shell.logout}
@@ -79,55 +125,35 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
         </main>
       </div>
       <Drawer open={menuOpen} title={messages.shell.openMenu} onClose={() => setMenuOpen(false)}>
-        <WorkspaceSwitcher data={data} initial={initial} menuId="drawer-workspace-menu" />
         <SideNav onNavigate={() => setMenuOpen(false)} />
-        <PlanCard open={planNote} onOpen={() => setPlanNote(true)} />
+        <div className="sb-foot">
+          <PlanCard />
+          <Link className="btn-new" href="/app/quotes/new" onClick={() => setMenuOpen(false)}>
+            <Plus size={18} aria-hidden="true" />
+            <span>{messages.quotes.action}</span>
+          </Link>
+        </div>
       </Drawer>
     </div>
   );
 }
 
-function WorkspaceSwitcher({ data, initial, menuId }: { data: ShellData; initial: string; menuId: string }) {
+function PlanCard() {
   return (
     <>
-      <AnchoredPopover
-        id={menuId}
-        align="start"
-        trigger={
-          <button type="button" className="workspace-switch">
-            <span className="workspace-mark">{initial}</span>
-            <span>
-              <strong>{data.workspace.name}</strong>
-              <br />
-              <small>{messages.shell.workspace}</small>
-            </span>
-            <ChevronDown size={16} aria-hidden="true" style={{ marginLeft: "auto" }} />
-          </button>
-        }
-      >
-        {data.workspaces.map((workspace) => (
-          <form key={workspace.id} action={switchWorkspaceAction}>
-            <input type="hidden" name="workspaceId" value={workspace.id} />
-            <button type="submit">{workspace.name}</button>
-          </form>
-        ))}
-        <Link href="/onboarding">
-          <Plus size={16} aria-hidden="true" /> {messages.shell.newWorkspace}
+      <section className="pro-card brand-fill">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="pro-quote" src="/brand/quote-marks.png" alt="" width={54} height={32} />
+        <strong className="pro-title">{messages.shell.planTitle}</strong>
+        <p className="pro-text">{messages.shell.planBody}</p>
+        <Link className="pro-btn" href="/app/settings/billing">
+          {messages.shell.managePlan} <ArrowRight size={16} aria-hidden="true" />
         </Link>
-      </AnchoredPopover>
+      </section>
+      <Link className="pro-mini brand-fill" href="/app/settings/billing" aria-label={messages.shell.planTitle} title={messages.shell.planTitle}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/quote-marks.png" alt="" width={22} height={13} />
+      </Link>
     </>
-  );
-}
-
-function PlanCard({ open, onOpen }: { open: boolean; onOpen: () => void }) {
-  return (
-    <section className="plan-card">
-      <strong>{messages.shell.planTitle}</strong>
-      <p>{messages.shell.planBody}</p>
-      <button type="button" className="btn" aria-disabled="true" onClick={onOpen}>
-        {messages.shell.managePlan}
-      </button>
-      {open ? <p>{messages.shell.managePlanHint}</p> : null}
-    </section>
   );
 }
