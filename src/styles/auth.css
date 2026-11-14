@@ -5,6 +5,7 @@
   display: grid;
   place-items: center;
   padding: 32px 20px;
+  position: relative;
   background: var(--cq-canvas);
   overflow: hidden;
 }
@@ -19,6 +20,8 @@
   border-radius: 28px;
   box-shadow: 0 1px 2px rgb(15 15 20 / 0.04), 0 24px 60px rgb(15 15 20 / 0.08);
   overflow: hidden;
+  position: relative;
+  z-index: 1;
   animation: auth-card-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -32,8 +35,26 @@
   gap: 24px;
   padding: 32px;
   color: white;
+  /* Saturated brand gradient, derived from --brand only (as in the mockup). */
+  background-color: var(--brand);
+  background-image:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--brand) 55%, white) 0%, transparent 55%),
+    radial-gradient(90% 80% at 100% 100%, color-mix(in srgb, var(--brand) 70%, black) 0%, transparent 60%),
+    linear-gradient(150deg, color-mix(in srgb, var(--brand) 85%, white) 0%, var(--brand) 45%, color-mix(in srgb, var(--brand) 80%, black) 100%);
 }
-.auth-waves { position: absolute; inset: 0; z-index: -1; animation: auth-fade-in 1.2s ease-out both; }
+.auth-brand::after {
+  content: "";
+  position: absolute;
+  right: -18%;
+  bottom: -22%;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 40%, white) 0%, transparent 65%);
+  opacity: 0.5;
+  z-index: -1;
+}
+.auth-waves { position: fixed; inset: 0; z-index: 0; pointer-events: none; animation: auth-fade-in 1.2s ease-out both; }
 .auth-mark { display: inline-flex; align-items: center; gap: 12px; color: white; text-decoration: none; }
 .auth-mark-tile {
   width: 48px;

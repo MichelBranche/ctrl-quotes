@@ -39,16 +39,25 @@ function subscribe(listener: () => void) {
   return () => queries.forEach((query) => query.removeEventListener("change", listener));
 }
 
-/** Animated line waves over the brand panel. Falls back to the plain CSS brand gradient without WebGL2 or with reduced motion. */
+/** Mixes a hex color with white: amount is the share of the color (0..1). Same idea as CSS color-mix. */
+function tint(hex: string, amount: number): string {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!match) return hex;
+  const value = Number.parseInt(match[1], 16);
+  const channel = (shift: number) => Math.round(((value >> shift) & 255) * amount + 255 * (1 - amount));
+  return `#${[16, 8, 0].map((shift) => channel(shift).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Full-page animated line waves behind the auth card, in a soft brand tone. Falls back to the plain light page without WebGL2 or with reduced motion. */
 export function AuthWaves() {
   const env = useSyncExternalStore(subscribe, read, () => SERVER);
   if (!env.ok) return null;
   return (
     <div className="auth-waves" aria-hidden="true">
       <LineWaves
-        color1={env.brand}
-        color2="#ffffff"
-        color3="#ffffff"
+        color1={tint(env.brand, 0.55)}
+        color2={tint(env.brand, 0.3)}
+        color3={tint(env.brand, 0.75)}
         speed={0.3}
         lineCount={env.mobile ? 40 : 72}
         lineWidth={1.3}
@@ -65,8 +74,8 @@ export function AuthWaves() {
         mouseInfluence={2}
         clickRipple
         intro
-        lightMode={false}
-        opacity={1}
+        lightMode
+        opacity={0.45}
       />
     </div>
   );
