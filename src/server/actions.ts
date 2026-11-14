@@ -11,6 +11,7 @@ import { messages } from "@/i18n/it";
 import { getAuth } from "@/server/auth";
 import { writeAuditLog } from "@/server/audit";
 import { clientIp } from "@/server/request-meta";
+import { previewAutoVerifyEmail } from "@/server/preview-auth";
 import { passesCaptcha } from "@/server/turnstile";
 import { requireUser, workspaceCookieOptions } from "@/server/session";
 import { createWorkspace, getWorkspaceForUser, updateWorkspace } from "@/server/workspaces";
@@ -86,9 +87,49 @@ export async function registerAction(_state: FormState, formData: FormData): Pro
     });
   } catch (error) {
     if (error instanceof APIError && error.status === 429) return { error: messages.auth.tooMany };
-    redirect("/check-email");
+    redirect(registerNext(parsed.data.email));
   }
-  redirect("/check-email");
+  redirect(registerNext(parsed.data.email));
+}
+
+function registerNext(email: string): string {
+  if (previewAutoVerifyEmail()) return "/check-email";
+  return `/verify-email?email=${encodeURIComponent(email)}`;
+}
+
+export async function verifyOtpAction(_state: FormState, formData: FormData): Promise<FormState> {
+  await ensureMigrated();
+  const email = emailSchema.safeParse(String(formData.get("email") ?? "").trim());
+  const otp = String(formData.get("otp") ?? "").replace(/\D/g, "");
+  if (!email.success) return { error: messages.auth.missingEmail };
+  if (otp.length !== 6) return { error: messages.auth.invalidCode };
+  try {
+    await getAuth().api.verifyEmailOTP({
+      body: { email: email.data, otp },
+    });
+  } catch (error) {
+    if (error instanceof APIError && error.status === 429) return { error: messages.auth.tooManyCodes };
+    const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : "";
+    if (code === "TOO_MANY_ATTEMPTS") return { error: messages.auth.tooManyCodes };
+    return { error: messages.auth.invalidCode };
+  }
+  redirect("/login?verified=1");
+}
+
+export async function resendVerificationOtpAction(emailValue: string): Promise<FormState> {
+  await ensureMigrated();
+  const email = emailSchema.safeParse(emailValue.trim());
+  if (!email.success) return { error: messages.auth.missingEmail };
+  if (previewAutoVerifyEmail()) return {};
+  try {
+    await getAuth().api.sendVerificationOTP({
+      body: { email: email.data, type: "email-verification" },
+    });
+  } catch (error) {
+    if (error instanceof APIError && error.status === 429) return { error: messages.auth.tooManyCodes };
+    return { error: messages.auth.tooManyCodes };
+  }
+  return {};
 }
 
 export async function forgotAction(_state: FormState, formData: FormData): Promise<FormState> {

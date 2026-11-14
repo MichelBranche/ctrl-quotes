@@ -19,6 +19,12 @@ function tokenFrom(text: string): string {
   throw new Error(`Token assente in ${text}`);
 }
 
+function otpFrom(text: string): string {
+  const match = text.match(/Codice:\s*(\d{6})/) ?? text.match(/\b(\d{6})\b/);
+  if (!match?.[1]) throw new Error(`Codice assente in ${text}`);
+  return match[1];
+}
+
 describe("auth", () => {
   it("registra, verifica, accede, esce e reimposta la password", async () => {
     const db = await createTestDb();
@@ -40,9 +46,18 @@ describe("auth", () => {
     });
     expect(signedUp.user.emailVerified).toBe(false);
     expect(email.messages).toHaveLength(1);
+    expect(email.messages[0]?.subject).toBe("Conferma la tua email");
+    expect(email.messages[0]?.text).toMatch(/Codice:\s*\d{6}/);
+    expect(email.messages[0]?.html).toContain("Conferma la tua email");
 
-    await auth.api.verifyEmail({
-      query: { token: tokenFrom(email.messages[0]!.text) },
+    await expect(
+      auth.api.signInEmail({
+        body: { email: "giulia.neri@example.com", password: "Esempio123" },
+      }),
+    ).rejects.toBeInstanceOf(APIError);
+
+    await auth.api.verifyEmailOTP({
+      body: { email: "giulia.neri@example.com", otp: otpFrom(email.messages[0]!.text) },
     });
     const verified = await db.select().from(user).where(eq(user.email, "giulia.neri@example.com"));
     expect(verified[0]?.emailVerified).toBe(true);

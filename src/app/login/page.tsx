@@ -7,7 +7,7 @@ import { authUiConfig } from "@/server/auth-providers";
 
 export const metadata = { title: "Accedi" };
 
-type Search = Promise<{ reset?: string; error?: string }>;
+type Search = Promise<{ reset?: string; error?: string; verified?: string }>;
 
 export default function LoginPage({ searchParams }: { searchParams: Search }) {
   return (
@@ -35,6 +35,7 @@ async function LoginNotice({ searchParams }: { searchParams: Search }) {
       </p>
     );
   }
+  if (params.verified === "1") return <p className="alert alert-success">{messages.auth.verifiedLogin}</p>;
   if (params.reset !== "1") return null;
   return <p className="alert alert-success">{messages.auth.resetDone}</p>;
 }

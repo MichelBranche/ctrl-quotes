@@ -76,16 +76,17 @@ export function TextField({ label, hint, error, icon, forceState, id, ...props }
   );
 }
 
-export function PasswordField({ label, ...props }: Omit<TextFieldProps, "icon" | "type">) {
+export function PasswordField({ label, hint, error, forceState, id, onChange, ...props }: Omit<TextFieldProps, "icon" | "type">) {
   const [visible, setVisible] = useState(false);
   const generated = useId();
-  const inputId = props.id ?? generated;
+  const inputId = id ?? generated;
+  const describedBy = [hint ? `${inputId}-hint` : "", error ? `${inputId}-error` : ""].filter(Boolean).join(" ") || undefined;
   return (
-    <div className="field">
+    <div className={cn("field", (error || forceState === "error") && "has-error", forceState && `is-${forceState}`)}>
       <label htmlFor={inputId}>{label}</label>
-      {props.hint ? (
+      {hint ? (
         <span id={`${inputId}-hint`} className="field-hint">
-          {props.hint}
+          {hint}
         </span>
       ) : null}
       <div className="input-icon">
@@ -95,11 +96,10 @@ export function PasswordField({ label, ...props }: Omit<TextFieldProps, "icon" |
         <input
           id={inputId}
           type={visible ? "text" : "password"}
-          aria-describedby={props.hint ? `${inputId}-hint` : undefined}
-          autoComplete={props.autoComplete}
-          name={props.name}
-          required={props.required}
-          minLength={props.minLength}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
+          onChange={onChange}
+          {...props}
         />
         <button
           type="button"
@@ -111,6 +111,11 @@ export function PasswordField({ label, ...props }: Omit<TextFieldProps, "icon" |
           {visible ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </div>
+      {error ? (
+        <span id={`${inputId}-error`} className="field-error" role="alert">
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }

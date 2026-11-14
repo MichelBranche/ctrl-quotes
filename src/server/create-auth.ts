@@ -10,6 +10,8 @@ import type { EmailDriver } from "@/server/email/types";
 import { previewAutoVerifyEmail } from "@/server/preview-auth";
 import { CAPTCHA_ENDPOINTS } from "@/server/auth-providers";
 import { captcha } from "better-auth/plugins";
+import { emailOTP } from "better-auth/plugins/email-otp";
+import { emailAssetBase, renderVerificationOtpEmail, VERIFICATION_OTP_MINUTES } from "@/server/email/verification-otp";
 
 type AuthDatabase = LibSQLDatabase<typeof schema>;
 type AuthPlugins = NonNullable<Parameters<typeof betterAuth>[0]["plugins"]>;
@@ -76,7 +78,7 @@ export function createAuth(options: CreateAuthOptions) {
       },
     },
     emailVerification: {
-      sendOnSignUp: true,
+      sendOnSignUp: false,
       autoSignInAfterVerification: false,
       sendVerificationEmail: async ({ user, url }) => {
         await options.email.send({
@@ -149,6 +151,26 @@ export function createAuth(options: CreateAuthOptions) {
       ...(options.turnstileSecret
         ? [captcha({ provider: "cloudflare-turnstile", secretKey: options.turnstileSecret, endpoints: [...CAPTCHA_ENDPOINTS] })]
         : []),
+      emailOTP({
+        otpLength: 6,
+        expiresIn: VERIFICATION_OTP_MINUTES * 60,
+        allowedAttempts: 5,
+        storeOTP: "hashed",
+        sendVerificationOnSignUp: !previewVerify,
+        overrideDefaultEmailVerification: false,
+        rateLimit: { window: 60, max: 3 },
+        sendVerificationOTP: async ({ email, otp, type }) => {
+          if (type !== "email-verification") return;
+          if (previewAutoVerifyEmail()) return;
+          const rendered = renderVerificationOtpEmail({ otp, assetBase: emailAssetBase() });
+          await options.email.send({
+            to: email,
+            subject: rendered.subject,
+            text: rendered.text,
+            html: rendered.html,
+          });
+        },
+      }),
       ...(options.plugins ?? []),
     ],
     hooks: {
