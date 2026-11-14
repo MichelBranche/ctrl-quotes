@@ -10,6 +10,8 @@ import { taxProfiles } from "@/domain/pricing";
 import { messages } from "@/i18n/it";
 import { getAuth } from "@/server/auth";
 import { writeAuditLog } from "@/server/audit";
+import { clientIp } from "@/server/request-meta";
+import { passesCaptcha } from "@/server/turnstile";
 import { requireUser, workspaceCookieOptions } from "@/server/session";
 import { createWorkspace, getWorkspaceForUser, updateWorkspace } from "@/server/workspaces";
 
@@ -19,6 +21,12 @@ export type FormState = {
 };
 
 const emailSchema = z.email({ error: "Inserisci un'email valida." });
+
+/** Turnstile gate for the auth actions (no-op when Turnstile env is missing). */
+async function captchaOk(formData: FormData): Promise<boolean> {
+  const ip = clientIp(await headers());
+  return passesCaptcha(formData, ip === "unknown" ? undefined : ip);
+}
 
 function fieldError(error: z.ZodError, field: string): string | undefined {
   return error.issues.find((issue) => issue.path[0] === field)?.message;
@@ -30,6 +38,7 @@ export async function loginAction(_state: FormState, formData: FormData): Promis
     .object({ email: emailSchema, password: z.string().min(1, { error: "Inserisci la password." }) })
     .safeParse({ email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { error: messages.auth.invalidForm };
+  if (!(await captchaOk(formData))) return { error: messages.auth.captchaFailed };
   try {
     await getAuth().api.signInEmail({
       body: parsed.data,
@@ -69,6 +78,7 @@ export async function registerAction(_state: FormState, formData: FormData): Pro
       },
     };
   }
+  if (!(await captchaOk(formData))) return { error: messages.auth.captchaFailed };
   try {
     await getAuth().api.signUpEmail({
       body: { name: parsed.data.name, email: parsed.data.email, password },
@@ -85,6 +95,7 @@ export async function forgotAction(_state: FormState, formData: FormData): Promi
   await ensureMigrated();
   const parsed = emailSchema.safeParse(formData.get("email"));
   if (!parsed.success) return { error: "Inserisci un'email valida." };
+  if (!(await captchaOk(formData))) return { error: messages.auth.captchaFailed };
   const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
   try {
     await getAuth().api.requestPasswordReset({
@@ -103,6 +114,7 @@ export async function resetAction(_state: FormState, formData: FormData): Promis
   const token = String(formData.get("token") ?? "");
   const issues = passwordIssues(password);
   if (!token || issues.length > 0) return { error: issues[0] ?? "Link non valido." };
+  if (!(await captchaOk(formData))) return { error: messages.auth.captchaFailed };
   try {
     await getAuth().api.resetPassword({
       body: { newPassword: password, token },

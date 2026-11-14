@@ -2,6 +2,7 @@ import "server-only";
 import { nextCookies } from "better-auth/next-js";
 import { getDb } from "@/db/client";
 import { getEmailDriver } from "@/server/email";
+import { googleConfig, turnstileConfig } from "@/server/auth-providers";
 import { createAuth, type Auth } from "@/server/create-auth";
 import { resolveAuthSecret } from "@/server/secret";
 import { createUpstashStorage } from "@/server/upstash";
@@ -10,14 +11,13 @@ let authSingleton: Auth | undefined;
 
 export function getAuth(): Auth {
   if (!authSingleton) {
-    const googleId = process.env.GOOGLE_CLIENT_ID;
-    const googleSecret = process.env.GOOGLE_CLIENT_SECRET;
     authSingleton = createAuth({
       db: getDb(),
       email: getEmailDriver(),
       secret: resolveAuthSecret(),
       baseURL: process.env.BETTER_AUTH_URL,
-      google: googleId && googleSecret ? { clientId: googleId, clientSecret: googleSecret } : undefined,
+      google: googleConfig() ?? undefined,
+      turnstileSecret: turnstileConfig()?.secretKey,
       secondaryStorage: createUpstashStorage(),
       plugins: [nextCookies()],
     });

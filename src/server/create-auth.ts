@@ -8,6 +8,8 @@ import { schema, user } from "@/db/schema";
 import { isPasswordValid } from "@/domain/password";
 import type { EmailDriver } from "@/server/email/types";
 import { previewAutoVerifyEmail } from "@/server/preview-auth";
+import { CAPTCHA_ENDPOINTS } from "@/server/auth-providers";
+import { captcha } from "better-auth/plugins";
 
 type AuthDatabase = LibSQLDatabase<typeof schema>;
 type AuthPlugins = NonNullable<Parameters<typeof betterAuth>[0]["plugins"]>;
@@ -20,6 +22,8 @@ export type CreateAuthOptions = {
   baseURL?: AuthBaseURL;
   rateLimit?: boolean;
   google?: { clientId: string; clientSecret: string };
+  /** Turnstile secret: when set, the public auth HTTP endpoints require a valid captcha token. */
+  turnstileSecret?: string;
   plugins?: AuthPlugins;
   secondaryStorage?: SecondaryStorage;
 };
@@ -83,6 +87,18 @@ export function createAuth(options: CreateAuthOptions) {
         });
       },
     },
+    account: {
+      accountLinking: {
+        // Google is NOT a trusted provider on purpose: an existing password account is linked
+        // only when Google says the email is verified, and (default) the local email is verified too.
+        enabled: true,
+        requireLocalEmailVerified: true,
+        allowDifferentEmails: false,
+      },
+    },
+    onAPIError: {
+      errorURL: "/login",
+    },
     socialProviders: options.google
       ? {
           google: {
@@ -129,7 +145,12 @@ export function createAuth(options: CreateAuthOptions) {
         secure,
       },
     },
-    plugins: options.plugins ?? [],
+    plugins: [
+      ...(options.turnstileSecret
+        ? [captcha({ provider: "cloudflare-turnstile", secretKey: options.turnstileSecret, endpoints: [...CAPTCHA_ENDPOINTS] })]
+        : []),
+      ...(options.plugins ?? []),
+    ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         const body = ctx.body as { email?: unknown; password?: unknown; newPassword?: unknown } | undefined;

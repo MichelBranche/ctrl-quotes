@@ -50,6 +50,8 @@ export const messages = {
     tooMany: "Troppi tentativi. Riprova tra un minuto.",
     invalidLogin: "Email o password non valide, oppure l'email non è ancora confermata.",
     invalidForm: "Controlla i campi evidenziati.",
+    captchaFailed: "Verifica anti-bot non riuscita o scaduta. Riprova.",
+    captchaLabel: "Verifica anti-bot",
   },
   shell: {
     workspace: "Workspace",

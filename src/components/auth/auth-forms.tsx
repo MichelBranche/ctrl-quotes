@@ -1,23 +1,40 @@
 "use client";
 
-import { useActionState } from "react";
-import { createAuthClient } from "better-auth/react";
+import { useActionState, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { messages } from "@/i18n/it";
 import { AuthSubmit } from "@/components/auth/auth-submit";
-import { Button } from "@/components/ui/button";
+import { GoogleSignIn } from "@/components/auth/google-button";
+import { TurnstileWidget } from "@/components/auth/turnstile";
 import { PasswordField, TextField } from "@/components/ui/fields";
 import { forgotAction, loginAction, registerAction, resetAction, type FormState } from "@/server/actions";
 
 const initial: FormState = {};
-const authClient = createAuthClient();
 
-export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
+export type AuthUi = { google: boolean; turnstileSiteKey: string | null };
+
+/**
+ * Turnstile for one form. The token counts only for the form state it was issued in:
+ * after an error the action returns a new state, the widget resets and the submit waits for a fresh token.
+ */
+function useCaptcha(siteKey: string | null, state: FormState): { widget: ReactNode; ready: boolean } {
+  const [captcha, setCaptcha] = useState<{ token: string; state: FormState } | null>(null);
+  if (!siteKey) return { widget: null, ready: true };
+  const ready = Boolean(captcha && captcha.state === state && captcha.token);
+  return {
+    ready,
+    widget: <TurnstileWidget siteKey={siteKey} resetKey={state} onToken={(token) => setCaptcha(token ? { token, state } : null)} />,
+  };
+}
+
+export function LoginForm({ ui }: { ui: AuthUi }) {
   const [state, action, pending] = useActionState(loginAction, initial);
+  const captcha = useCaptcha(ui.turnstileSiteKey, state);
   return (
     <>
       <h1>{messages.auth.loginTitle}</h1>
       <p className="lede">{messages.auth.loginSubtitle}</p>
+      {ui.google ? <GoogleSignIn /> : null}
       <form action={action} className="stack">
         {state.error ? <p className="alert" role="alert">{state.error}</p> : null}
         <TextField label={messages.auth.email} name="email" type="email" autoComplete="email" required placeholder={messages.auth.emailPlaceholder} icon="mail" />
@@ -25,19 +42,23 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
         <div className="auth-forgot">
           <Link href="/forgot-password">{messages.auth.forgot}</Link>
         </div>
-        <AuthSubmit loading={pending}>{messages.auth.submitLogin} →</AuthSubmit>
+        {captcha.widget}
+        <AuthSubmit loading={pending} disabled={!captcha.ready}>
+          {messages.auth.submitLogin} →
+        </AuthSubmit>
       </form>
-      <GoogleBlock enabled={googleEnabled} />
     </>
   );
 }
 
-export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
+export function RegisterForm({ ui }: { ui: AuthUi }) {
   const [state, action, pending] = useActionState(registerAction, initial);
+  const captcha = useCaptcha(ui.turnstileSiteKey, state);
   return (
     <>
       <h1>{messages.auth.registerTitle}</h1>
       <p className="lede">{messages.auth.registerSubtitle}</p>
+      {ui.google ? <GoogleSignIn note="Continuando con Google accetti i termini e la privacy policy." /> : null}
       <form action={action} className="stack">
         {state.error ? <p className="alert" role="alert">{state.error}</p> : null}
         <TextField label={messages.auth.name} name="name" autoComplete="name" required placeholder={messages.auth.namePlaceholder} icon="user" error={state.fieldErrors?.name || undefined} />
@@ -50,15 +71,18 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
           </span>
         </label>
         {state.fieldErrors?.terms ? <p className="field-error">{state.fieldErrors.terms}</p> : null}
-        <AuthSubmit loading={pending}>{messages.auth.submitRegister} →</AuthSubmit>
+        {captcha.widget}
+        <AuthSubmit loading={pending} disabled={!captcha.ready}>
+          {messages.auth.submitRegister} →
+        </AuthSubmit>
       </form>
-      <GoogleBlock enabled={googleEnabled} />
     </>
   );
 }
 
-export function ForgotForm() {
+export function ForgotForm({ turnstileSiteKey }: { turnstileSiteKey: string | null }) {
   const [state, action, pending] = useActionState(forgotAction, initial);
+  const captcha = useCaptcha(turnstileSiteKey, state);
   return (
     <>
       <h1>{messages.auth.forgotTitle}</h1>
@@ -66,15 +90,19 @@ export function ForgotForm() {
       <form action={action} className="stack">
         {state.error ? <p className="alert" role="alert">{state.error}</p> : null}
         <TextField label={messages.auth.email} name="email" type="email" autoComplete="email" required icon="mail" />
-        <AuthSubmit loading={pending}>{messages.auth.sendLink}</AuthSubmit>
+        {captcha.widget}
+        <AuthSubmit loading={pending} disabled={!captcha.ready}>
+          {messages.auth.sendLink}
+        </AuthSubmit>
       </form>
       <p><Link href="/login">{messages.auth.backLogin}</Link></p>
     </>
   );
 }
 
-export function ResetForm({ token }: { token: string }) {
+export function ResetForm({ token, turnstileSiteKey }: { token: string; turnstileSiteKey: string | null }) {
   const [state, action, pending] = useActionState(resetAction, initial);
+  const captcha = useCaptcha(turnstileSiteKey, state);
   return (
     <>
       <h1>{messages.auth.resetTitle}</h1>
@@ -83,27 +111,11 @@ export function ResetForm({ token }: { token: string }) {
         <input type="hidden" name="token" value={token} />
         {state.error ? <p className="alert" role="alert">{state.error}</p> : null}
         <PasswordField label={messages.auth.newPassword} name="password" autoComplete="new-password" required minLength={8} hint={messages.auth.passwordHint} />
-        <AuthSubmit loading={pending}>{messages.auth.savePassword}</AuthSubmit>
+        {captcha.widget}
+        <AuthSubmit loading={pending} disabled={!captcha.ready}>
+          {messages.auth.savePassword}
+        </AuthSubmit>
       </form>
     </>
-  );
-}
-
-function GoogleBlock({ enabled }: { enabled: boolean }) {
-  if (!enabled) return null;
-  return (
-    <div className="stack" style={{ marginTop: 18 }}>
-      <div className="divider">{messages.auth.or}</div>
-      <Button
-        type="button"
-        variant="secondary"
-        pill
-        onClick={() => {
-          void authClient.signIn.social({ provider: "google", callbackURL: "/app/overview" });
-        }}
-      >
-        {messages.auth.google}
-      </Button>
-    </div>
   );
 }
