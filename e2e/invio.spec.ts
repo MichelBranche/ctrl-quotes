@@ -76,15 +76,36 @@ test("invio: modale, link, email in coda e Invia aggiornamento", async ({ page, 
   await expect(page.locator(".editor-header, header").getByText("Inviato", { exact: true }).first()).toBeVisible();
 
   // The queue runs right after the response: the email lands in the dev mailbox with the PDF.
+  let link = "";
   await expect
     .poll(
       async () => {
         const emails = (await (await request.get("/api/dev/emails")).json()) as Array<{ to: string; subject: string; text: string; attachments?: Array<{ filename: string }> }>;
-        return emails.some((email) => email.to === "progetti@atelier.example" && email.subject === `Il tuo preventivo per ${title}` && email.text.includes("/q/") && email.attachments?.[0]?.filename.endsWith("-v1.pdf"));
+        const email = emails.find((item) => item.to === "progetti@atelier.example" && item.subject === `Il tuo preventivo per ${title}` && item.attachments?.[0]?.filename.endsWith("-v1.pdf"));
+        link = email?.text.match(/https?:\/\/\S+\/q\/[A-Za-z0-9_-]{43}/)?.[0] ?? "";
+        return Boolean(link);
       },
       { timeout: 30_000 },
     )
     .toBe(true);
+
+  // The client: no account, no cookies.
+  const client = await page.context().browser()!.newContext({ viewport: page.viewportSize()!, locale: "it-IT", timezoneId: "Europe/Rome" });
+  const clientPage = await client.newPage();
+  const response = await clientPage.goto(link);
+  expect(response?.headers()["x-robots-tag"]).toContain("noindex");
+  await expect(clientPage.locator(".pq-brand")).toContainText("Studio Esempio");
+  await expect(clientPage.getByText("Totale del preventivo")).toBeVisible();
+  await settle(clientPage);
+  await clientPage.waitForTimeout(2500);
+  fs.mkdirSync(shotsDir, { recursive: true });
+  await clientPage.screenshot({ path: path.join(shotsDir, `05-cliente-${mobile ? "mobile" : "desktop"}.png`) });
+  const pdf = await clientPage.request.get(`${link}/pdf`);
+  expect(pdf.status()).toBe(200);
+  expect(pdf.headers()["content-type"]).toBe("application/pdf");
+  await clientPage.goto(link.replace(/\/q\/.+$/, `/q/${"z".repeat(43)}`));
+  await expect(clientPage.getByRole("heading", { name: "Questo link non è più attivo" })).toBeVisible();
+  await client.close();
 
   await page.getByRole("button", { name: "Invia aggiornamento" }).click();
   const update = page.getByRole("dialog", { name: "Invia aggiornamento" });

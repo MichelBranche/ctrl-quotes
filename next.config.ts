@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
     "/api/quotes/[quoteId]/pdf": ["./src/server/pdf/fonts/**", "./src/server/pdf/photos/**"],
     // Phase 4: the send email can carry the PDF, rendered by the queue (cron) or right after the send action.
     "/api/cron/outbox": ["./src/server/pdf/fonts/**", "./src/server/pdf/photos/**"],
+    "/q/[token]/pdf": ["./src/server/pdf/fonts/**", "./src/server/pdf/photos/**"],
     "/app/quotes/[quoteId]": ["./src/server/pdf/fonts/**", "./src/server/pdf/photos/**"],
   },
   async headers() {
