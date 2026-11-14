@@ -1,17 +1,20 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { AppDatabase } from "@/db/client";
 import {
+  auditLogs,
   brandKits,
   catalogCategories,
   catalogItems,
   clients,
   quotePublicLinks,
+  quoteVersions,
   quotes,
   workspaceMemberships,
   workspaces,
 } from "@/db/schema";
 import { createId } from "@/domain/ids";
+import { writeAuditLog } from "@/server/audit";
 import { createPublicLink, resolvePublicLink } from "@/server/public-links";
 import { createWorkspace, deleteWorkspace, listWorkspaces, updateWorkspace } from "@/server/workspaces";
 import { createTestDb } from "./helpers/db";
@@ -61,7 +64,7 @@ describe("eliminazione workspace", () => {
     expect(mismatch).toEqual({ ok: false, error: "name_mismatch" });
   });
 
-  it("elimina in transazione preventivi, clienti, catalogo e rende invalido il link pubblico", async () => {
+  it("elimina in transazione preventivi, versioni immutabili e catalogo, lascia gli audit e invalida il link pubblico", async () => {
     process.env.PUBLIC_QUOTE_BASE_URL = "https://quotes.ctrlagency.dev";
     const ownerId = await makeUser(db, "cascade@example.com", "Titolare");
     const doomed = await createWorkspace(db, { userId: ownerId, name: "Da eliminare", taxProfile: "ordinario" });
@@ -90,6 +93,27 @@ describe("eliminazione workspace", () => {
     const link = await createPublicLink(db, { workspaceId: doomed.id, quoteId, createdBy: ownerId, now });
     const before = await resolvePublicLink(db, link.token, now);
     expect(before.state).toBe("active");
+
+    await db.insert(quoteVersions).values({
+      id: createId(),
+      workspaceId: doomed.id,
+      quoteId,
+      versionNo: 1,
+      snapshotJson: "{}",
+      snapshotSha256: "abc",
+      rendererVersion: "1",
+      totalsJson: "{}",
+      createdAt: now,
+    });
+    await expect(db.delete(quoteVersions).where(eq(quoteVersions.workspaceId, doomed.id))).rejects.toThrow(/immutabile|Failed query/);
+    await writeAuditLog(db, {
+      workspaceId: doomed.id,
+      actorUserId: ownerId,
+      action: "workspace.created",
+      entityType: "workspace",
+      entityId: doomed.id,
+    });
+    await expect(db.delete(auditLogs).where(eq(auditLogs.workspaceId, doomed.id))).rejects.toThrow(/append-only|Failed query/);
 
     const categoryId = createId();
     await db.insert(catalogCategories).values({ id: categoryId, workspaceId: doomed.id, name: "Servizi", createdAt: now });
@@ -120,6 +144,11 @@ describe("eliminazione workspace", () => {
     expect(await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, doomed.id))).toHaveLength(0);
     expect(await db.select({ id: clients.id }).from(clients).where(eq(clients.workspaceId, doomed.id))).toHaveLength(0);
     expect(await db.select({ id: quotes.id }).from(quotes).where(eq(quotes.workspaceId, doomed.id))).toHaveLength(0);
+    expect(await db.select({ id: quoteVersions.id }).from(quoteVersions).where(eq(quoteVersions.workspaceId, doomed.id))).toHaveLength(0);
+    const leftoverLogs = await db.select({ action: auditLogs.action }).from(auditLogs).where(eq(auditLogs.workspaceId, doomed.id));
+    expect(leftoverLogs).toEqual([{ action: "workspace.created" }]);
+    const triggers = await db.all<{ name: string }>(sql`select name from sqlite_master where type = 'trigger' and name in ('audit_logs_no_delete', 'quote_versions_no_delete') order by name`);
+    expect(triggers.map((row) => row.name)).toEqual(["audit_logs_no_delete", "quote_versions_no_delete"]);
     expect(await db.select({ id: quotePublicLinks.id }).from(quotePublicLinks).where(eq(quotePublicLinks.workspaceId, doomed.id))).toHaveLength(0);
     expect(await db.select({ id: catalogItems.id }).from(catalogItems).where(eq(catalogItems.workspaceId, doomed.id))).toHaveLength(0);
     expect(await db.select({ id: catalogCategories.id }).from(catalogCategories).where(eq(catalogCategories.workspaceId, doomed.id))).toHaveLength(0);

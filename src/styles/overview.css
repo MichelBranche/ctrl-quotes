@@ -79,18 +79,20 @@
 .ov-bars i:nth-child(5) { height: 100%; background: var(--brand); }
 
 /* Row bottom */
-.ov-row-bottom { display: grid; grid-template-columns: 1.22fr 0.98fr; gap: 16px; align-items: start; }
+.ov-row-bottom { display: grid; grid-template-columns: 1.22fr 0.98fr; gap: 16px; align-items: stretch; }
 .ov-section-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .ov-section-head h2 { display: flex; align-items: center; gap: 8px; }
 .ov-link-all { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--cq-ink); text-decoration: none; }
 .ov-link-all:hover { color: var(--brand); }
 
-.ov-quotes { padding: 20px 22px !important; display: flex; flex-direction: column; gap: 16px; min-height: 280px; }
-.ov-quotes .empty-illustrated { box-shadow: none; border: 1px solid var(--cq-border); }
+.ov-quotes { padding: 20px 22px !important; display: flex; flex-direction: column; gap: 16px; min-height: 280px; min-width: 0; }
+.ov-quotes .empty-illustrated { box-shadow: none; border: 1px solid var(--cq-border); flex: 1; min-height: 0; justify-content: space-evenly; }
+.ov-quotes .empty-illustrated.is-compact .empty-illustration { width: min(100%, 360px); max-height: 52%; }
+.ov-quotes .empty-illustrated.is-compact .empty-illustration img { max-height: 100%; width: auto; max-width: 100%; margin: 0 auto; object-fit: contain; }
 .ov-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .ov-chip { height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--cq-border); background: var(--cq-surface); color: var(--cq-ink-soft); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .ov-chip.is-active { background: var(--brand); border-color: var(--brand); color: white; }
-.ov-list { list-style: none; margin: 0; padding: 0; }
+.ov-list { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: auto; }
 .ov-list li + li { border-top: 1px solid var(--cq-border); }
 .ov-item { display: flex; align-items: center; gap: 12px; padding: 12px 4px; color: var(--cq-ink); text-decoration: none; }
 .ov-item:hover strong { color: var(--brand); }
@@ -101,12 +103,16 @@
 .ov-item-total { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .ov-none { margin: 0; padding: 24px 0; color: var(--cq-muted); font-size: 14px; text-align: center; }
 
-/* Templates card: short (~280px), three landscape previews fanned out */
+/* Templates card: same row as preventivi, stretches to the same height; previews sit at the bottom. */
 .ov-templates {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  height: 280px;
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  min-width: 0;
+  height: auto;
   border-radius: var(--cq-radius-card);
   padding: 20px 22px;
   color: white;
@@ -115,7 +121,7 @@
 .ov-templates h2 { color: white; font-size: 20px; font-weight: 800; }
 .ov-templates .ov-link-all { color: white; }
 .ov-templates-lead { margin: 6px 0 0; max-width: 300px; font-size: 13px; line-height: 1.45; color: color-mix(in srgb, white 86%, var(--brand)); }
-.ov-fan { position: absolute; left: 0; right: 0; bottom: -18px; height: 160px; pointer-events: none; }
+.ov-fan { position: relative; flex: 1; min-height: 148px; margin: 8px -8px -18px; pointer-events: none; }
 .tpl {
   position: absolute;
   bottom: 0;
@@ -167,6 +173,21 @@
   .ov-fan .tpl-cream { right: calc(31% - 84px); left: auto; bottom: 2px; rotate: 6deg; }
   .ov-fan .tpl-corporate { right: calc(12% - 84px); left: auto; bottom: -10px; rotate: 12deg; }
   .ov-fan .tpl-dark, .ov-fan .tpl-cream { z-index: 1; }
+}
+
+/* One screen at 1440x900 and ultrawide: the two bottom cards share the leftover height and stay aligned. */
+@media (min-width: 1280px) and (min-height: 700px) {
+  .ov-stage, .ov {
+    height: calc(var(--cq-page-h) - 8px - 24px - var(--cq-shell-pad));
+    min-height: 0;
+  }
+  .ov { display: flex; flex-direction: column; }
+  .ov-head { flex: none; }
+  .ov-row-top { flex: 1.05 1 0; min-height: 0; }
+  .ov-hero, .ov-setup { min-height: 0; height: 100%; }
+  .ov-kpis { flex: none; }
+  .ov-row-bottom { flex: 1.2 1 0; min-height: 0; align-items: stretch; }
+  .ov-quotes, .ov-templates { min-height: 0; height: 100%; }
 }
 
 @media (max-width: 1279px) {

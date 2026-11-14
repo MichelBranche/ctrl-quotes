@@ -3,7 +3,6 @@ import type { AppDatabase } from "@/db/client";
 import {
   assetBlobs,
   assets,
-  auditLogs,
   brandKits,
   catalogCategories,
   catalogItems,
@@ -270,6 +269,9 @@ export const deleteWorkspaceMessages: Record<DeleteWorkspaceError, string> = {
  * Permanently deletes a workspace the user owns, after they type its name. The last workspace
  * on the account cannot be removed. Related rows are deleted in one transaction so public
  * links and members disappear together. Logos live in the workspace database, not on Vercel Blob.
+ * audit_logs is append-only and has no FK to workspaces, so those rows are kept.
+ * quote_versions is also append-only: its no-delete trigger is dropped only inside the
+ * transaction, then recreated, so published snapshots can be removed with the workspace.
  */
 export async function deleteWorkspace(
   db: AppDatabase,
@@ -294,7 +296,14 @@ export async function deleteWorkspace(
     await tx.delete(quoteAcceptances).where(eq(quoteAcceptances.workspaceId, id));
     await tx.delete(quoteChangeRequests).where(eq(quoteChangeRequests.workspaceId, id));
     await tx.delete(quotePublicLinks).where(eq(quotePublicLinks.workspaceId, id));
+    // Production (and the migrations) keep quote_versions append-only via a BEFORE DELETE
+    // trigger. Drop it inside this transaction so the snapshots can go with the workspace;
+    // a rollback restores the trigger.
+    await tx.run(sql`drop trigger if exists quote_versions_no_delete`);
     await tx.delete(quoteVersions).where(eq(quoteVersions.workspaceId, id));
+    await tx.run(sql`create trigger quote_versions_no_delete before delete on quote_versions begin
+      select raise(abort, 'quote_versions e immutabile');
+    end`);
     await tx.delete(quotes).where(eq(quotes.workspaceId, id));
     await tx.delete(clientContacts).where(eq(clientContacts.workspaceId, id));
     await tx.delete(clientNotes).where(eq(clientNotes.workspaceId, id));
@@ -316,7 +325,8 @@ export async function deleteWorkspace(
     await tx.delete(outboxJobs).where(eq(outboxJobs.workspaceId, id));
     await tx.delete(notifications).where(eq(notifications.workspaceId, id));
     await tx.delete(notificationPrefs).where(eq(notificationPrefs.workspaceId, id));
-    await tx.delete(auditLogs).where(eq(auditLogs.workspaceId, id));
+    // audit_logs is append-only (BEFORE DELETE/UPDATE triggers). workspace_id has no FK,
+    // so the rows stay as a record after the workspace is gone.
     await tx.delete(redeemCodeUses).where(eq(redeemCodeUses.workspaceId, id));
     await tx.delete(workspaceMemberships).where(eq(workspaceMemberships.workspaceId, id));
     await tx.delete(workspaces).where(eq(workspaces.id, id));
