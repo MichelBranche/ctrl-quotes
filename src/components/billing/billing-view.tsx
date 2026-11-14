@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import Link from "next/link";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import { ArrowRight, ArrowUpRight, Check, ChartNoAxesColumn, Headset, Layers, LayoutGrid, Minus, ShieldCheck, UserRound, Users } from "lucide-react";
 import { Dialog } from "@/components/ui/overlays";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { BillingLink, useBillingTransition } from "@/components/billing/billing-transition";
 import { PlanHeroEffect } from "@/components/billing/effects/billing-effects";
 import { compareRows, formatPlanPrice, planIds, plans, type PlanIcon, type PlanId } from "@/domain/plans";
 
@@ -33,24 +33,57 @@ const icons: Record<PlanIcon, ReactNode> = {
   shield: <ShieldCheck size={17} aria-hidden="true" />,
 };
 
-/** Shared motion presets for this section only. Reduced motion: no movement, no stagger. */
+/** Where a card comes from (and goes back to): offsets in px. */
+type Dir = { x: number; y: number };
+const FROM_BOTTOM: Dir = { x: 0, y: 150 };
+const FROM_TOP: Dir = { x: 0, y: -140 };
+const FROM_RIGHT: Dir = { x: 160, y: 0 };
+const FROM_LEFT: Dir = { x: -160, y: 0 };
+
+/**
+ * Direction map per view, in grid order. Piani: hero from below, Starter from the right, Pro from above, Business from
+ * the right. Confronta: hero from the left, table from above, Pro from below, Business from the right. Single plan:
+ * hero from below, price card from the right, "Cosa include" from above, the upgrade/compare card from the right.
+ */
+const dirs = {
+  plans: { hero: FROM_BOTTOM, starter: FROM_RIGHT, pro: FROM_TOP, business: FROM_RIGHT },
+  compare: { hero: FROM_LEFT, table: FROM_TOP, pro: FROM_BOTTOM, business: FROM_RIGHT },
+  plan: { hero: FROM_BOTTOM, price: FROM_RIGHT, includes: FROM_TOP, next: FROM_RIGHT },
+} as const;
+
+const enterSpring = { type: "spring", stiffness: 260, damping: 28, mass: 0.9 } as const;
+
+/** Shared motion presets for this section only. Reduced motion: no sliding, views just switch. */
 function useBillingMotion() {
   const reduced = useReducedMotion() ?? false;
-  const grid: Variants = { hidden: {}, show: { transition: { staggerChildren: reduced ? 0 : 0.07, delayChildren: reduced ? 0 : 0.04 } } };
-  const item: Variants = reduced
-    ? { hidden: { opacity: 1, y: 0, scale: 1 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0 } } }
+  const { leaving } = useBillingTransition();
+  const grid: Variants = reduced
+    ? { hidden: {}, show: {}, exit: {} }
     : {
-        hidden: { opacity: 0, y: 14, scale: 0.985 },
-        show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.55, ease } },
+        hidden: {},
+        show: { transition: { staggerChildren: 0.09, delayChildren: 0.02 } },
+        exit: { transition: { staggerChildren: 0.06, staggerDirection: -1 } },
       };
-  const list: Variants = { hidden: {}, show: { transition: { staggerChildren: reduced ? 0 : 0.06, delayChildren: reduced ? 0 : 0.25 } } };
+  const item: Variants = reduced
+    ? {
+        hidden: { opacity: 1, x: 0, y: 0, scale: 1 },
+        show: { opacity: 1, x: 0, y: 0, scale: 1, transition: { duration: 0 } },
+        exit: { opacity: 1, x: 0, y: 0, scale: 1 },
+      }
+    : {
+        hidden: (dir: Dir = FROM_BOTTOM) => ({ opacity: 0, x: dir.x, y: dir.y, scale: 0.96 }),
+        show: { opacity: 1, x: 0, y: 0, scale: 1, transition: { ...enterSpring, opacity: { duration: 0.35, ease } } },
+        exit: (dir: Dir = FROM_BOTTOM) => ({ opacity: 0, x: dir.x, y: dir.y, scale: 0.96, transition: { duration: 0.34, ease: [0.55, 0, 0.75, 0.2] } }),
+      };
+  const list: Variants = { hidden: {}, show: { transition: { staggerChildren: reduced ? 0 : 0.06, delayChildren: reduced ? 0 : 0.35 } } };
   const row: Variants = reduced
     ? { hidden: { opacity: 1, x: 0 }, show: { opacity: 1, x: 0, transition: { duration: 0 } } }
     : { hidden: { opacity: 0, x: -8 }, show: { opacity: 1, x: 0, transition: { duration: 0.4, ease } } };
   const tick: Variants = reduced
     ? { hidden: { opacity: 1, scale: 1 }, show: { opacity: 1, scale: 1, transition: { duration: 0 } } }
     : { hidden: { opacity: 0, scale: 0.4 }, show: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 520, damping: 22, delay: 0.12 } } };
-  const lift = reduced ? undefined : { y: -4, transition: { duration: 0.25, ease } };
+  // No hover lift while leaving: the hover gesture would otherwise hold the clicked card in place.
+  const lift = reduced || leaving ? undefined : { y: -4, transition: { duration: 0.25, ease } };
   const press = reduced ? undefined : { scale: 0.97 };
   return { reduced, grid, item, list, row, tick, lift, press };
 }
@@ -58,11 +91,19 @@ function useBillingMotion() {
 export function BillingView({ view }: { view: BillingViewId }) {
   const [payments, setPayments] = useState(false);
   const m = useBillingMotion();
+  const { visit, leaving } = useBillingTransition();
   const activate = () => setPayments(true);
 
   return (
     <>
-      <motion.div key={view} className={cn("bl-grid", `bl-grid-${view}`)} variants={m.grid} initial="hidden" animate="show">
+      {/* Keyed on the visit: the cards build up again on every arrival, also when Next reveals a route it kept hidden. */}
+      <motion.div
+        key={`${view}-${visit}`}
+        className={cn("bl-grid", `bl-grid-${view}`, leaving && "is-leaving")}
+        variants={m.grid}
+        initial="hidden"
+        animate={leaving ? "exit" : "show"}
+      >
         {view === "plans" ? <PlansView /> : view === "compare" ? <CompareView /> : <PlanView id={view} onActivate={activate} />}
       </motion.div>
       <Dialog open={payments} title="Pagamenti in arrivo" onClose={() => setPayments(false)}>
@@ -83,10 +124,10 @@ export function BillingView({ view }: { view: BillingViewId }) {
 /* Building blocks */
 
 /** Dark hero. On a single plan page (`plan`) it has no 3D artwork: the animated effect fills it (CSS gradient fallback). */
-function Hero({ eyebrow, title, body, action, plan }: { eyebrow: string; title: string; body: string; action?: ReactNode; plan?: PlanId }) {
+function Hero({ eyebrow, title, body, action, plan, dir }: { eyebrow: string; title: string; body: string; action?: ReactNode; plan?: PlanId; dir: Dir }) {
   const m = useBillingMotion();
   return (
-    <motion.section className={cn("bl-card bl-hero", plan && `is-plan is-${plan}`)} variants={m.item}>
+    <motion.section className={cn("bl-card bl-hero", plan && `is-plan is-${plan}`)} variants={m.item} custom={dir}>
       {plan ? <PlanHeroEffect plan={plan} /> : <Art name="hero-blocchi" />}
       <div className="bl-hero-copy">
         <p className="bl-eyebrow">{eyebrow}</p>
@@ -112,9 +153,9 @@ function ActionLink({ href, children }: { href: string; children: ReactNode }) {
   const m = useBillingMotion();
   return (
     <motion.span className="bl-btn-wrap" whileHover={m.lift ? { y: -2 } : undefined} whileTap={m.press}>
-      <Link href={href} className="bl-btn">
+      <BillingLink href={href} className="bl-btn">
         {children} <ArrowRight size={18} aria-hidden="true" className="bl-btn-arrow" />
-      </Link>
+      </BillingLink>
     </motion.span>
   );
 }
@@ -137,20 +178,22 @@ function PlanCard({
   href,
   className,
   children,
+  dir,
 }: {
   plan: PlanId;
   href: string;
   className?: string;
   children: ReactNode;
+  dir: Dir;
 }) {
   const m = useBillingMotion();
   return (
-    <motion.div className={cn("bl-card bl-plan", tone[plan], className)} variants={m.item} whileHover={m.lift}>
+    <motion.div className={cn("bl-card bl-plan", tone[plan], className)} variants={m.item} custom={dir} whileHover={m.lift}>
       <Art name={art[plan]} />
-      <Link href={href} className="bl-plan-link">
+      <BillingLink href={href} className="bl-plan-link">
         <span className="bl-plan-copy">{children}</span>
         <ArrowUpRight size={22} aria-hidden="true" className="bl-corner" />
-      </Link>
+      </BillingLink>
     </motion.div>
   );
 }
@@ -176,10 +219,11 @@ function PlansView() {
         eyebrow="Pricing"
         title="Scegli il piano perfetto per le tue esigenze"
         body="Tutti i piani includono aggiornamenti, assistenza e la massima sicurezza per i tuoi dati."
+        dir={dirs.plans.hero}
         action={<ActionLink href={billingHref.compare}>Confronta i piani</ActionLink>}
       />
       {planIds.map((id) => (
-        <PlanCard key={id} plan={id} href={billingHref[id]} className={`bl-slot-${id}`}>
+        <PlanCard key={id} plan={id} href={billingHref[id]} className={`bl-slot-${id}`} dir={dirs.plans[id]}>
           <span className="bl-eyebrow">{plans[id].name}</span>
           <Price cents={plans[id].priceCents} />
           <span className="bl-plan-line">{plans[id].pickerLine}</span>
@@ -197,11 +241,12 @@ function CompareView() {
         eyebrow="Confronta i piani"
         title="Trova il piano più adatto al tuo lavoro"
         body="Confronta funzionalità, limiti e vantaggi di ogni piano e scegli la soluzione perfetta per te o il tuo team."
+        dir={dirs.compare.hero}
       />
-      <motion.section className="bl-card bl-compare" variants={m.item} aria-labelledby="bl-compare-title">
-        <Link href={billingHref.plans} className="bl-corner-link" aria-label="Torna alla scelta del piano">
+      <motion.section className="bl-card bl-compare" variants={m.item} custom={dirs.compare.table} aria-labelledby="bl-compare-title">
+        <BillingLink href={billingHref.plans} className="bl-corner-link" aria-label="Torna alla scelta del piano">
           <ArrowUpRight size={22} aria-hidden="true" className="bl-corner" />
-        </Link>
+        </BillingLink>
         <table>
           <caption id="bl-compare-title" className="bl-sr">
             Confronto delle funzionalità tra Starter, Pro e Business
@@ -213,13 +258,13 @@ function CompareView() {
               </th>
               {planIds.map((id) => (
                 <th key={id} scope="col" className={cn(id === "pro" && "is-pro")}>
-                  <Link href={billingHref[id]}>
+                  <BillingLink href={billingHref[id]}>
                     <span className="bl-compare-name">{plans[id].name.replace("Piano ", "")}</span>
                     <span className="bl-compare-price">
                       {formatPlanPrice(plans[id].priceCents)}
                       <small> / mese</small>
                     </span>
-                  </Link>
+                  </BillingLink>
                 </th>
               ))}
             </tr>
@@ -257,7 +302,7 @@ function CompareView() {
         </table>
       </motion.section>
       {(["pro", "business"] as const).map((id) => (
-        <PlanCard key={id} plan={id} href={billingHref[id]} className="bl-compare-card">
+        <PlanCard key={id} plan={id} href={billingHref[id]} className="bl-compare-card" dir={dirs.compare[id]}>
           <span className="bl-plan-title">{plans[id].name}</span>
           <span className="bl-plan-line">{plans[id].compareLine}</span>
         </PlanCard>
@@ -272,13 +317,13 @@ function PlanView({ id, onActivate }: { id: PlanId; onActivate: () => void }) {
   const m = useBillingMotion();
   return (
     <>
-      <Hero eyebrow={plan.eyebrow} title={plan.title} body={plan.body} plan={id} action={<ActionButton onClick={onActivate}>{plan.cta}</ActionButton>} />
-      <PlanCard plan={id} href={billingHref.compare} className="bl-price-card">
+      <Hero eyebrow={plan.eyebrow} title={plan.title} body={plan.body} plan={id} dir={dirs.plan.hero} action={<ActionButton onClick={onActivate}>{plan.cta}</ActionButton>} />
+      <PlanCard plan={id} href={billingHref.compare} className="bl-price-card" dir={dirs.plan.price}>
         <span className="bl-plan-name">{plan.name}</span>
         <Price cents={plan.priceCents} />
         <span className="bl-plan-line">{plan.priceLine}</span>
       </PlanCard>
-      <motion.section className={cn("bl-card bl-includes", tone[id])} variants={m.item} aria-labelledby={`bl-includes-${id}`}>
+      <motion.section className={cn("bl-card bl-includes", tone[id])} variants={m.item} custom={dirs.plan.includes} aria-labelledby={`bl-includes-${id}`}>
         <h2 id={`bl-includes-${id}`}>Cosa include</h2>
         <motion.ul variants={m.list}>
           {plan.includes.map((feature) => (
@@ -295,7 +340,7 @@ function PlanView({ id, onActivate }: { id: PlanId; onActivate: () => void }) {
           ))}
         </motion.ul>
       </motion.section>
-      <PlanCard plan={next.id} href={billingHref[next.id]} className="bl-next-card">
+      <PlanCard plan={next.id} href={billingHref[next.id]} className="bl-next-card" dir={dirs.plan.next}>
         <span className="bl-eyebrow">{plan.next.eyebrow}</span>
         <span className="bl-plan-title is-large">{plan.next.title}</span>
         <span className="bl-plan-line">{plan.next.body}</span>

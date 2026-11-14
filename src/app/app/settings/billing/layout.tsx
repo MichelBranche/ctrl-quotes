@@ -1,17 +1,20 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { BillingNav } from "@/components/billing/billing-nav";
+import { BillingTransitionProvider } from "@/components/billing/billing-transition";
 import { currentPlanLabel } from "@/domain/plans";
 import { requireContext } from "@/server/context";
 
 export default function BillingLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bl-page">
-      <Suspense fallback={<BillingNav planLabel="…" />}>
-        <CurrentPlanNav />
-      </Suspense>
-      {children}
-    </div>
+    <BillingTransitionProvider>
+      <div className="bl-page">
+        <Suspense fallback={<BillingNav planLabel="…" />}>
+          <CurrentPlanNav />
+        </Suspense>
+        {children}
+      </div>
+    </BillingTransitionProvider>
   );
 }
 

@@ -1,11 +1,19 @@
 /* Abbonamento (/app/settings/billing/*): hero + plan cards with 3D artwork, in-page pills. */
 
+/* The page clips the cards while they slide in and out (transforms only), so no scrollbar or layout jump appears.
+   Padding + negative margin keep hover shadows inside the clip box. */
 .bl-page {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  min-height: calc(var(--cq-page-h) - 40px - var(--cq-shell-pad));
+  min-height: calc(var(--cq-page-h) - var(--cq-shell-pad));
+  --bl-bleed: 20px; /* = horizontal padding of .main-col > .page */
+  margin: calc(-1 * var(--bl-bleed));
+  padding: var(--bl-bleed);
+  overflow: hidden;
 }
+@media (max-width: 1023px) { .bl-page { --bl-bleed: 16px; } }
+.bl-grid.is-leaving { pointer-events: none; }
 
 .bl-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .bl-pills {
