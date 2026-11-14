@@ -68,7 +68,7 @@ test("stati vuoti e pannello cliente illustrato", async ({ page }, testInfo) => 
   if (mobile) {
     await expect(newQuote).toHaveCount(1);
   } else {
-    await expect(newQuote).toHaveCount(2);
+    await expect(newQuote).toHaveCount(3);
   }
   await page.screenshot({
     path: `qa/screenshots/quotes-empty-${mobile ? "mobile" : "desktop"}.png`,

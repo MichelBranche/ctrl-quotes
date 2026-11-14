@@ -21,7 +21,10 @@ export function contrast(foreground: string, background: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+/** Hex value of a token, following plain var() references (e.g. --cq-accent: var(--brand)). */
 function token(name: string, css: string): string {
+  const reference = css.match(new RegExp(`${name}:\\s*var\\((--[\\w-]+)\\)`));
+  if (reference?.[1]) return token(reference[1], css);
   const match = css.match(new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6})`));
   if (!match?.[1]) throw new Error(`Token mancante: ${name}`);
   return match[1];

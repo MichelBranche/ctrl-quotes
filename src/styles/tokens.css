@@ -2,23 +2,27 @@
    Hex values live only in this file. Tailwind aliases them. */
 
 :root {
-  --cq-ink: #100f14;
-  --cq-ink-soft: #3c3946;
-  --cq-muted: #6d6878;
-  --cq-faint: #8b8696;
-  --cq-primary: #0b0b0f;
+  /* Brand: the only color to change for a different look. Accents, gradients and washes derive from it. */
+  --brand: #7c3aed;
+  --cq-tpl-dark: #16161a;
+  --cq-tpl-cream: #f6e8d8;
+  --cq-ink: #1a1a1e;
+  --cq-ink-soft: #3a3a40;
+  --cq-muted: #6e6e73;
+  --cq-faint: #8e8e93;
+  --cq-primary: var(--brand);
   --cq-on-primary: #ffffff;
-  --cq-accent: #6d28d9;
-  --cq-accent-bright: #7c3aed;
-  --cq-accent-soft: #e3ddfc;
-  --cq-accent-wash: #f4f2ff;
-  --cq-focus-glow: #e1c7fd;
-  --cq-canvas: #f6f6fb;
-  --cq-sidebar: #f2f3fb;
-  --cq-surface: #fdfdfe;
-  --cq-surface-sunken: #f7f7fb;
-  --cq-border: #e6e6ef;
-  --cq-border-strong: #d5d5e2;
+  --cq-accent: var(--brand);
+  --cq-accent-bright: color-mix(in srgb, white 12%, var(--brand));
+  --cq-accent-soft: color-mix(in srgb, var(--brand) 16%, white);
+  --cq-accent-wash: color-mix(in srgb, var(--brand) 7%, white);
+  --cq-focus-glow: color-mix(in srgb, var(--brand) 24%, white);
+  --cq-canvas: #f5f5f7;
+  --cq-sidebar: #ffffff;
+  --cq-surface: #ffffff;
+  --cq-surface-sunken: #f5f5f7;
+  --cq-border: #ebebef;
+  --cq-border-strong: #d1d1d6;
   --cq-success: #0f7a34;
   --cq-success-bg: #e7f6ec;
   --cq-warning: #7a3e00;
@@ -26,10 +30,10 @@
   --cq-danger: #9f1239;
   --cq-danger-bg: #fff2f1;
   --cq-draft: #3f3a4a;
-  --cq-draft-bg: #e8e8f2;
+  --cq-draft-bg: #ececf0;
   --cq-info: #5b21b6;
   --cq-info-bg: #f4f2ff;
-  --cq-chart: #7850f0;
+  --cq-chart: var(--brand);
   --cq-auth-bg: #fbeee7;
   --cq-auth-sand: #e6dfd6;
   --cq-auth-mist: #efeae3;
@@ -61,8 +65,8 @@
   --cq-file-pdf-ink: #b42318;
   --cq-doc-shadow: 0 18px 48px rgba(16, 15, 20, 0.12);
   --cq-shadow-xs: 0 1px 2px rgba(16, 15, 20, 0.04);
-  --cq-shadow-sm: 0 4px 16px rgba(16, 15, 20, 0.05);
-  --cq-shadow-md: 0 8px 24px rgba(16, 15, 20, 0.06);
+  --cq-shadow-sm: 0 1px 2px rgba(15, 15, 20, 0.04), 0 4px 12px rgba(15, 15, 20, 0.04);
+  --cq-shadow-md: 0 1px 2px rgba(15, 15, 20, 0.04), 0 8px 28px rgba(15, 15, 20, 0.05);
   --cq-shadow-lg: 0 24px 64px rgba(16, 15, 20, 0.1);
   --cq-space-1: 4px;
   --cq-space-2: 8px;
@@ -73,7 +77,7 @@
   --cq-space-8: 32px;
   --cq-space-10: 40px;
   --cq-radius-control: 12px;
-  --cq-radius-card: 16px;
+  --cq-radius-card: 20px;
   --cq-radius-auth: 28px;
   --cq-radius-pill: 999px;
   --cq-sidebar-width: 248px;
@@ -101,38 +105,11 @@
   --cq-motion-chart: 400ms;
   --cq-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --cq-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  /* Brand gradient, reused by hero, plan card and template card. */
+  --brand-gradient:
+    radial-gradient(120% 110% at 0% 0%, color-mix(in srgb, white 44%, var(--brand)) 0%, transparent 58%),
+    radial-gradient(95% 100% at 100% 115%, color-mix(in srgb, black 30%, var(--brand)) 0%, transparent 62%),
+    linear-gradient(155deg, color-mix(in srgb, white 18%, var(--brand)) 0%, var(--brand) 48%, color-mix(in srgb, black 16%, var(--brand)) 100%);
   color-scheme: light;
 }
 
-/* Optional dark tokens. The app does not switch theme in phase 1. */
-[data-theme="dark"] {
-  --cq-ink: #f4f3f8;
-  --cq-ink-soft: #d8d5e2;
-  --cq-muted: #b1acbd;
-  --cq-faint: #8e899a;
-  --cq-primary: #f4f3f8;
-  --cq-on-primary: #121018;
-  --cq-accent: #c4b5fd;
-  --cq-accent-bright: #a78bfa;
-  --cq-accent-soft: #2e2158;
-  --cq-accent-wash: #1c1630;
-  --cq-focus-glow: #4c1d95;
-  --cq-canvas: #121018;
-  --cq-sidebar: #181522;
-  --cq-surface: #1e1a2a;
-  --cq-surface-sunken: #16131f;
-  --cq-border: #322c42;
-  --cq-border-strong: #463f58;
-  --cq-success: #86efac;
-  --cq-success-bg: #052e16;
-  --cq-warning: #fcd34d;
-  --cq-warning-bg: #422006;
-  --cq-danger: #fda4af;
-  --cq-danger-bg: #4c0519;
-  --cq-draft: #e4e4e7;
-  --cq-draft-bg: #27272a;
-  --cq-info: #ddd6fe;
-  --cq-info-bg: #2e1065;
-  --cq-overlay: rgba(0, 0, 0, 0.6);
-  color-scheme: dark;
-}

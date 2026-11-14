@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, CircleHelp, CreditCard, FileText, House, LayoutTemplate, Settings, Users } from "lucide-react";
+import { CircleHelp, FileText, House, Layers, LayoutGrid, Settings, Users } from "lucide-react";
 import { messages } from "@/i18n/it";
 
 const primary = [
   { href: "/app/overview", label: messages.shell.overview, icon: House },
   { href: "/app/quotes", label: messages.shell.quotes, icon: FileText },
   { href: "/app/clients", label: messages.shell.clients, icon: Users },
-  { href: "/app/catalog", label: messages.shell.catalog, icon: Boxes },
-  { href: "/app/templates", label: messages.shell.templates, icon: LayoutTemplate },
+  { href: "/app/catalog", label: messages.shell.catalog, icon: Layers },
+  { href: "/app/templates", label: messages.shell.templates, icon: LayoutGrid },
 ] as const;
 
 const secondary = [
@@ -23,63 +22,34 @@ function isCurrent(pathname: string, href: string): boolean {
   return pathname === href || (href !== "/app/overview" && pathname.startsWith(href));
 }
 
-export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SideNav({ onNavigate, compact = false }: { onNavigate?: () => void; compact?: boolean }) {
   const pathname = usePathname();
-  const [billingNote, setBillingNote] = useState(false);
+  const list = (items: typeof primary | typeof secondary) => (
+    <ul className="nav-list">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <li key={item.href}>
+            <Link
+              href={item.href}
+              className="nav-link"
+              aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
+              onClick={onNavigate}
+              title={compact ? item.label : undefined}
+            >
+              <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
+              <span>{item.label}</span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
   return (
     <>
-      <nav aria-label={messages.shell.primaryNav}>
-        <ul className="nav-list">
-          {primary.map((item) => {
-            const Icon = item.icon;
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="nav-link"
-                  aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
-                  onClick={onNavigate}
-                >
-                  <Icon size={18} aria-hidden="true" />
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-      <nav aria-label={messages.shell.secondaryNav}>
-        <ul className="nav-list">
-          {secondary.map((item) => {
-            const Icon = item.icon;
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="nav-link"
-                  aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
-                  onClick={onNavigate}
-                >
-                  <Icon size={18} aria-hidden="true" />
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-          <li>
-            <button
-              type="button"
-              className="nav-future"
-              aria-disabled="true"
-              onClick={() => setBillingNote(true)}
-            >
-              <CreditCard size={18} aria-hidden="true" />
-              {messages.shell.billing}
-            </button>
-            {billingNote ? <p className="nav-note">{messages.shell.billingHint}</p> : null}
-          </li>
-        </ul>
-      </nav>
+      <nav aria-label={messages.shell.primaryNav}>{list(primary)}</nav>
+      <hr className="nav-rule" />
+      <nav aria-label={messages.shell.secondaryNav}>{list(secondary)}</nav>
     </>
   );
 }
