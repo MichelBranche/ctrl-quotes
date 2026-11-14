@@ -131,12 +131,15 @@ test("abbonamento: piani, confronto e attivazione senza checkout", async ({ page
   }
   await expect(page.getByRole("heading", { level: 1, name: "Scegli il piano perfetto per le tue esigenze" })).toBeVisible();
   await expect(page.getByText("Piano di prova", { exact: true })).toBeVisible();
+  // Reduced motion: no WebGL backgrounds, the static ones stay.
+  await expect(page.locator(".bl-backdrop, .bl-hero-fx")).toHaveCount(0);
   await page.getByRole("link", { name: "Confronta i piani" }).click();
   await expect(page).toHaveURL(/\/app\/settings\/billing\/compare$/);
   await expect(page.getByRole("table")).toContainText("Collaborazione team");
   await page.getByRole("navigation", { name: "Sezioni dell'abbonamento" }).getByRole("link", { name: "Business" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "La soluzione completa per il tuo team" })).toBeVisible();
   await expect(page.getByText("In arrivo").first()).toBeVisible();
+  await expect(page.locator(".bl-hero-fx")).toHaveCount(0);
   await page.getByRole("button", { name: "Attiva il Piano Business" }).click();
   const dialog = page.getByRole("dialog", { name: "Pagamenti in arrivo" });
   await expect(dialog).toBeVisible();
