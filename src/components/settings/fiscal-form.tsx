@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Landmark, Percent } from "lucide-react";
 import { SettingsFrame } from "@/components/settings/settings-frame";
 import { Switch } from "@/components/data/controls";
 import { useAction } from "@/components/data/use-action";
@@ -42,6 +43,7 @@ export function FiscalForm({ taxProfile, settings, canEdit }: { taxProfile: TaxP
     >
       <SettingsFrame
         section="fiscal"
+        plain
         title="Fiscale e IVA"
         subtitle="Regime fiscale e valori proposti quando crei voci di catalogo e preventivi."
         canEdit={canEdit}
@@ -50,7 +52,11 @@ export function FiscalForm({ taxProfile, settings, canEdit }: { taxProfile: TaxP
         saved={saved}
         error={error}
       >
-        <div className="form-grid narrow">
+        <div className="ss-cols">
+          <section className="card inset form-grid">
+            <h2 className="section-heading">
+              <Landmark size={16} aria-hidden="true" /> Regime
+            </h2>
           <SelectField
             label="Regime fiscale"
             value={values.taxProfile}
@@ -67,6 +73,18 @@ export function FiscalForm({ taxProfile, settings, canEdit }: { taxProfile: TaxP
               I preventivi mostreranno la dicitura del regime forfettario e nessuna IVA. Verifica sempre i casi particolari con il tuo commercialista.
             </p>
           ) : null}
+          <Switch
+            label="Nota sull'imposta di bollo"
+            hint="Nel regime forfettario aggiunge la nota sul bollo da 2 € sopra 77,47 €."
+            checked={values.stampDutyNote}
+            disabled={!canEdit}
+            onChange={(value) => set("stampDutyNote", value)}
+          />
+          </section>
+          <section className="card inset form-grid">
+            <h2 className="section-heading">
+              <Percent size={16} aria-hidden="true" /> Valori predefiniti
+            </h2>
           <div className="grid-2">
             <SelectField
               label="Aliquota IVA predefinita"
@@ -86,13 +104,8 @@ export function FiscalForm({ taxProfile, settings, canEdit }: { taxProfile: TaxP
               ]}
             />
           </div>
-          <Switch
-            label="Nota sull'imposta di bollo"
-            hint="Nel regime forfettario aggiunge la nota sul bollo da 2 € sopra 77,47 €."
-            checked={values.stampDutyNote}
-            disabled={!canEdit}
-            onChange={(value) => set("stampDutyNote", value)}
-          />
+            <p className="field-hint">Proposti quando crei una voce di catalogo o una riga di preventivo: puoi sempre cambiarli caso per caso.</p>
+          </section>
         </div>
       </SettingsFrame>
     </form>

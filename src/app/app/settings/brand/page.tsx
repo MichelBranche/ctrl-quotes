@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { BrandKitForm } from "@/components/settings/brand-form";
-import { Skeleton } from "@/components/ui/status";
 import { loadSettings } from "@/app/app/settings/load";
 import { listTemplates } from "@/server/templates";
 
@@ -8,7 +7,7 @@ export const metadata = { title: "Brand Kit" };
 
 export default function BrandPage() {
   return (
-    <Suspense fallback={<Skeleton width="40%" />}>
+    <Suspense fallback={<div className="pt-wait" aria-busy="true" />}>
       <BrandContent />
     </Suspense>
   );

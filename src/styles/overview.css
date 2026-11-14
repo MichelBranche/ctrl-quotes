@@ -183,10 +183,9 @@
   .ov-fan { transform: scale(0.82); transform-origin: 50% 100%; }
 }
 
-/* Build up / tear down (overview-motion.tsx): clip cards sliding in from 160px without a scrollbar. Same bleed as
-   the page padding, so shadows are not cut. */
-.ov-stage { --ov-bleed: 20px; margin: calc(-1 * var(--ov-bleed)); padding: var(--ov-bleed); overflow: hidden; }
-@media (max-width: 1023px) { .ov-stage { --ov-bleed: 16px; } }
+/* Build up / tear down (overview-motion.tsx). The stage adds no box of its own (layout identical to before) and clips
+   only while cards slide (they start 160px away: no scrollbar flash); at rest overflow is visible, shadows are whole. */
+.ov-stage.is-moving { overflow: clip; }
 .ov.is-leaving { pointer-events: none; }
 .ov-kpi, .ov-templates, .ov-setup { transition: box-shadow 0.35s ease; }
 .ov-kpi:hover, .ov-setup:hover { box-shadow: 0 16px 36px rgba(15, 15, 20, 0.1); }

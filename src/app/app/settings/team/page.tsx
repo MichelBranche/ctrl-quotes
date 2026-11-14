@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { TeamView } from "@/components/settings/team-view";
-import { Skeleton } from "@/components/ui/status";
 import { requireContext } from "@/server/context";
 import { listMembers } from "@/server/team";
 
@@ -9,7 +8,7 @@ export const metadata = { title: "Team e ruoli" };
 
 export default function TeamPage() {
   return (
-    <Suspense fallback={<Skeleton width="40%" />}>
+    <Suspense fallback={<div className="pt-wait" aria-busy="true" />}>
       <TeamContent />
     </Suspense>
   );

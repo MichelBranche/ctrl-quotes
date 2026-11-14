@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import { Check, ChevronLeft, FileText, Hash, Layers, Lock, Palette, Percent, Users } from "lucide-react";
-import { SectionLink, useSectionTransition } from "@/components/motion/section-transition";
+import { SectionLink, useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
@@ -88,6 +88,7 @@ export function SettingsFrame({
   const meta = sections[section];
   const m = useSettingsMotion();
   const { visit, leaving } = useSectionTransition();
+  const { moving, settle } = useMoving();
   return (
     <div className="ss-page">
       <motion.header
@@ -106,7 +107,7 @@ export function SettingsFrame({
         <h1>{title}</h1>
         <p>{subtitle}</p>
       </motion.header>
-      <motion.div key={visit} className={cn("ss-grid", leaving && "is-leaving")} variants={m.grid} initial="hidden" animate={leaving ? "exit" : "show"}>
+      <motion.div key={visit} className={cn("ss-grid", leaving && "is-leaving", moving && "is-moving")} variants={m.grid} initial="hidden" animate={leaving ? "exit" : "show"} onAnimationComplete={settle}>
         <motion.section className={cn("ss-hero", `is-${meta.tone}`, `is-${section}`)} variants={m.item} custom={meta.hero} aria-label={title}>
           <picture className={cn("ss-hero-art", `is-${meta.art}`)} aria-hidden="true">
             <source type="image/avif" srcSet={`${artSrc[meta.art]}.avif`} />

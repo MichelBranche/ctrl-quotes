@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Eye, Hash } from "lucide-react";
 import { SettingsFrame } from "@/components/settings/settings-frame";
 import { useAction } from "@/components/data/use-action";
 import { SelectField, TextField } from "@/components/ui/fields";
@@ -42,6 +43,7 @@ export function NumberingForm({
     >
       <SettingsFrame
         section="numbering"
+        plain
         title="Numerazione preventivi"
         subtitle="Formato del codice assegnato a ogni preventivo pubblicato."
         canEdit={canEdit}
@@ -50,7 +52,11 @@ export function NumberingForm({
         saved={saved}
         error={error}
       >
-        <div className="form-grid narrow">
+        <div className="ss-cols">
+          <section className="card inset form-grid">
+            <h2 className="section-heading">
+              <Hash size={16} aria-hidden="true" /> Formato
+            </h2>
           <TextField
             label="Formato"
             hint="Segnaposto: {YYYY} anno, {YY} anno breve, {0000} contatore con zeri iniziali."
@@ -80,11 +86,6 @@ export function NumberingForm({
               </button>
             ))}
           </div>
-          <div className="number-preview" aria-live="polite">
-            <span className="muted small">Anteprima</span>
-            <strong>{check.ok ? formatQuoteNumber(values.format, year, 1) : "Formato non valido"}</strong>
-            {check.ok ? <span className="muted small">poi {formatQuoteNumber(values.format, year, 2)}, {formatQuoteNumber(values.format, year, 3)}</span> : null}
-          </div>
           <SelectField
             label="Azzera il contatore"
             value={values.numberReset}
@@ -101,6 +102,20 @@ export function NumberingForm({
           <p className="field-hint">
             Il numero viene assegnato in modo atomico solo quando un preventivo viene pubblicato, con il motore preventivi. Qui salvi la preferenza.
           </p>
+          </section>
+          <section className="card inset ss-number-card">
+            <h2 className="section-heading">
+              <Eye size={16} aria-hidden="true" /> Anteprima
+            </h2>
+            <div className="number-preview" aria-live="polite">
+              <span className="muted small">Anteprima</span>
+              <strong>{check.ok ? formatQuoteNumber(values.format, year, 1) : "Formato non valido"}</strong>
+              {check.ok ? <span className="muted small">poi {formatQuoteNumber(values.format, year, 2)}, {formatQuoteNumber(values.format, year, 3)}</span> : null}
+            </div>
+            <p className="field-hint">
+              {values.numberReset === "yearly" ? `Dal 1° gennaio ${year + 1} il contatore riparte da 1.` : "Il contatore non si azzera mai: la numerazione continua negli anni."}
+            </p>
+          </section>
         </div>
       </SettingsFrame>
     </form>

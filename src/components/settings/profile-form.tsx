@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Check } from "lucide-react";
+import { ArrowLeftRight, Building2, Check, Eye, Mail, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SettingsFrame } from "@/components/settings/settings-frame";
 import { TextField } from "@/components/ui/fields";
@@ -35,7 +35,11 @@ export function ProfileForm({
           )
         }
       >
+        <div className="ss-cols">
         <section className="card inset stack">
+          <h2 className="section-heading">
+            <Building2 size={16} aria-hidden="true" /> Workspace
+          </h2>
           <input type="hidden" name="workspaceId" value={workspaceId} />
           {state.fieldErrors?.saved ? <p className="alert alert-success">{state.fieldErrors.saved}</p> : null}
           {state.error ? (
@@ -44,8 +48,24 @@ export function ProfileForm({
             </p>
           ) : null}
           <TextField label={messages.settings.name} name="name" defaultValue={workspaceName} required disabled={!canEdit} />
-          <p className="field-hint">Il nome compare nel selettore dei workspace, negli inviti e nelle email ai clienti.</p>
         </section>
+        <section className="card inset stack">
+          <h2 className="section-heading">
+            <Eye size={16} aria-hidden="true" /> Dove compare il nome
+          </h2>
+          <ul className="ss-uses">
+            <li>
+              <ArrowLeftRight size={16} aria-hidden="true" /> Nel selettore dei workspace, in alto a destra
+            </li>
+            <li>
+              <Users size={16} aria-hidden="true" /> Negli inviti ai membri del team
+            </li>
+            <li>
+              <Mail size={16} aria-hidden="true" /> Nelle email inviate ai clienti con i preventivi
+            </li>
+          </ul>
+        </section>
+        </div>
       </SettingsFrame>
     </form>
   );

@@ -6,7 +6,6 @@ import { OverviewMotion, OvCard, OvHead, OvRow, ovDirs } from "@/components/over
 import { RecentQuotes } from "@/components/overview/recent-quotes";
 import { TemplateWaves } from "@/components/overview/template-waves";
 import { IllustratedEmpty } from "@/components/ui/illustrated-empty";
-import { Skeleton } from "@/components/ui/status";
 import { formatEuro } from "@/domain/money";
 import { can } from "@/domain/permissions";
 import { greetingFor, messages } from "@/i18n/it";
@@ -19,7 +18,7 @@ export const metadata = { title: "Overview" };
 
 export default function OverviewPage() {
   return (
-    <Suspense fallback={<Skeleton width="40%" />}>
+    <Suspense fallback={<div className="pt-wait" aria-busy="true" />}>
       <OverviewContent />
     </Suspense>
   );

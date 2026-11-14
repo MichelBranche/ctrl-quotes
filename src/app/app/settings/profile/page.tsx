@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { ProfileForm } from "@/components/settings/profile-form";
-import { Skeleton } from "@/components/ui/status";
 import { hasRole } from "@/domain/roles";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/session";
@@ -12,7 +11,7 @@ export const metadata = { title: "Profilo workspace" };
 
 export default function SettingsProfilePage() {
   return (
-    <Suspense fallback={<Skeleton width="40%" />}>
+    <Suspense fallback={<div className="pt-wait" aria-busy="true" />}>
       <SettingsContent />
     </Suspense>
   );
