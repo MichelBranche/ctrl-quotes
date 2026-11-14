@@ -6,7 +6,7 @@ import { ArrowRight, ArrowUpRight, Check, ChartNoAxesColumn, Headset, Layers, La
 import { Dialog } from "@/components/ui/overlays";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { BillingLink, useBillingTransition } from "@/components/billing/billing-transition";
+import { SectionLink, useSectionTransition } from "@/components/motion/section-transition";
 import { PlanHeroEffect } from "@/components/billing/effects/billing-effects";
 import { compareRows, formatPlanPrice, planIds, plans, type PlanIcon, type PlanId } from "@/domain/plans";
 
@@ -56,7 +56,7 @@ const enterSpring = { type: "spring", stiffness: 260, damping: 28, mass: 0.9 } a
 /** Shared motion presets for this section only. Reduced motion: no sliding, views just switch. */
 function useBillingMotion() {
   const reduced = useReducedMotion() ?? false;
-  const { leaving } = useBillingTransition();
+  const { leaving } = useSectionTransition();
   const grid: Variants = reduced
     ? { hidden: {}, show: {}, exit: {} }
     : {
@@ -91,7 +91,7 @@ function useBillingMotion() {
 export function BillingView({ view }: { view: BillingViewId }) {
   const [payments, setPayments] = useState(false);
   const m = useBillingMotion();
-  const { visit, leaving } = useBillingTransition();
+  const { visit, leaving } = useSectionTransition();
   const activate = () => setPayments(true);
 
   return (
@@ -153,9 +153,9 @@ function ActionLink({ href, children }: { href: string; children: ReactNode }) {
   const m = useBillingMotion();
   return (
     <motion.span className="bl-btn-wrap" whileHover={m.lift ? { y: -2 } : undefined} whileTap={m.press}>
-      <BillingLink href={href} className="bl-btn">
+      <SectionLink href={href} className="bl-btn">
         {children} <ArrowRight size={18} aria-hidden="true" className="bl-btn-arrow" />
-      </BillingLink>
+      </SectionLink>
     </motion.span>
   );
 }
@@ -190,10 +190,10 @@ function PlanCard({
   return (
     <motion.div className={cn("bl-card bl-plan", tone[plan], className)} variants={m.item} custom={dir} whileHover={m.lift}>
       <Art name={art[plan]} />
-      <BillingLink href={href} className="bl-plan-link">
+      <SectionLink href={href} className="bl-plan-link">
         <span className="bl-plan-copy">{children}</span>
         <ArrowUpRight size={22} aria-hidden="true" className="bl-corner" />
-      </BillingLink>
+      </SectionLink>
     </motion.div>
   );
 }
@@ -244,9 +244,9 @@ function CompareView() {
         dir={dirs.compare.hero}
       />
       <motion.section className="bl-card bl-compare" variants={m.item} custom={dirs.compare.table} aria-labelledby="bl-compare-title">
-        <BillingLink href={billingHref.plans} className="bl-corner-link" aria-label="Torna alla scelta del piano">
+        <SectionLink href={billingHref.plans} className="bl-corner-link" aria-label="Torna alla scelta del piano">
           <ArrowUpRight size={22} aria-hidden="true" className="bl-corner" />
-        </BillingLink>
+        </SectionLink>
         <table>
           <caption id="bl-compare-title" className="bl-sr">
             Confronto delle funzionalità tra Starter, Pro e Business
@@ -258,13 +258,13 @@ function CompareView() {
               </th>
               {planIds.map((id) => (
                 <th key={id} scope="col" className={cn(id === "pro" && "is-pro")}>
-                  <BillingLink href={billingHref[id]}>
+                  <SectionLink href={billingHref[id]}>
                     <span className="bl-compare-name">{plans[id].name.replace("Piano ", "")}</span>
                     <span className="bl-compare-price">
                       {formatPlanPrice(plans[id].priceCents)}
                       <small> / mese</small>
                     </span>
-                  </BillingLink>
+                  </SectionLink>
                 </th>
               ))}
             </tr>

@@ -6,21 +6,21 @@ import { usePathname, useRouter } from "next/navigation";
 import { useReducedMotion } from "motion/react";
 
 /**
- * "Build up / tear down" navigation for Abbonamento only.
+ * "Build up / tear down" navigation for card sections (Abbonamento, Impostazioni).
  *
  * - Entering: every visit to a view gets a new `visit` number; the view keys its card grid on it, so the cards fly in
  *   again even when Next 16 reveals a route it kept hidden in the DOM (back/forward, or a view seen before).
- * - Leaving: <BillingLink> intercepts plain left clicks on links inside the section, flags the current path as
+ * - Leaving: <SectionLink> intercepts plain left clicks on links of the section, flags the current path as
  *   leaving (the grid switches to its "exit" variant) and calls router.push once the cards are out (EXIT_MS).
  *   Modified clicks (cmd/ctrl/shift/alt, middle button, target) keep the browser's default behaviour.
  */
 
-export const BILLING_EXIT_MS = 520;
+export const SECTION_EXIT_MS = 520;
 
 type Ctx = { visit: number; leaving: boolean; navigate: (href: string) => void };
-const BillingTransitionContext = createContext<Ctx>({ visit: 0, leaving: false, navigate: () => {} });
+const SectionTransitionContext = createContext<Ctx>({ visit: 0, leaving: false, navigate: () => {} });
 
-export function BillingTransitionProvider({ children }: { children: ReactNode }) {
+export function SectionTransitionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const reduced = useReducedMotion() ?? false;
@@ -48,16 +48,16 @@ export function BillingTransitionProvider({ children }: { children: ReactNode })
       timer.current = window.setTimeout(() => {
         timer.current = undefined;
         router.push(href);
-      }, BILLING_EXIT_MS);
+      }, SECTION_EXIT_MS);
     },
     [pathname, reduced, router],
   );
 
-  return <BillingTransitionContext.Provider value={{ visit: nav.visit, leaving, navigate }}>{children}</BillingTransitionContext.Provider>;
+  return <SectionTransitionContext.Provider value={{ visit: nav.visit, leaving, navigate }}>{children}</SectionTransitionContext.Provider>;
 }
 
-export function useBillingTransition(): Ctx {
-  return useContext(BillingTransitionContext);
+export function useSectionTransition(): Ctx {
+  return useContext(SectionTransitionContext);
 }
 
 function isPlainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
@@ -66,8 +66,8 @@ function isPlainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
 }
 
 /** next/link (so it still prefetches) that plays the exit of the current view before navigating inside the section. */
-export function BillingLink({ href, onClick, ...props }: Omit<ComponentProps<typeof Link>, "href"> & { href: string }) {
-  const { navigate } = useBillingTransition();
+export function SectionLink({ href, onClick, ...props }: Omit<ComponentProps<typeof Link>, "href"> & { href: string }) {
+  const { navigate } = useSectionTransition();
   return (
     <Link
       href={href}

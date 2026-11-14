@@ -7,6 +7,7 @@ import { PageTransition } from "@/components/motion/page-transition";
 import { AnchoredPopover } from "@/components/ui/anchored-popover";
 import { Drawer } from "@/components/ui/overlays";
 import { SideNav } from "@/components/shell/nav";
+import { currentPlanLabel } from "@/domain/plans";
 import type { ShellData } from "@/components/shell/types";
 import { messages } from "@/i18n/it";
 import { cn } from "@/lib/cn";
@@ -62,7 +63,7 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
         </div>
         <SideNav compact={collapsed} />
         <div className="sb-foot">
-          <PlanCard />
+          <PlanCard plan={data.workspace.plan} />
           <Link className="btn-new" href="/app/quotes/new" title={collapsed ? messages.quotes.action : undefined}>
             <Plus size={18} aria-hidden="true" />
             <span>{messages.quotes.action}</span>
@@ -127,7 +128,7 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
       <Drawer open={menuOpen} title={messages.shell.openMenu} onClose={() => setMenuOpen(false)}>
         <SideNav onNavigate={() => setMenuOpen(false)} />
         <div className="sb-foot">
-          <PlanCard />
+          <PlanCard plan={data.workspace.plan} />
           <Link className="btn-new" href="/app/quotes/new" onClick={() => setMenuOpen(false)}>
             <Plus size={18} aria-hidden="true" />
             <span>{messages.quotes.action}</span>
@@ -138,19 +139,20 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
   );
 }
 
-function PlanCard() {
+function PlanCard({ plan }: { plan: string }) {
+  const title = currentPlanLabel(plan);
   return (
     <>
       <section className="pro-card brand-fill">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="pro-quote" src="/brand/quote-marks.png" alt="" width={54} height={32} />
-        <strong className="pro-title">{messages.shell.planTitle}</strong>
+        <strong className="pro-title">{title}</strong>
         <p className="pro-text">{messages.shell.planBody}</p>
         <Link className="pro-btn" href="/app/settings/billing">
           {messages.shell.managePlan} <ArrowRight size={16} aria-hidden="true" />
         </Link>
       </section>
-      <Link className="pro-mini brand-fill" href="/app/settings/billing" aria-label={messages.shell.planTitle} title={messages.shell.planTitle}>
+      <Link className="pro-mini brand-fill" href="/app/settings/billing" aria-label={title} title={title}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/quote-marks.png" alt="" width={22} height={13} />
       </Link>
