@@ -11,6 +11,7 @@ import { previewAutoVerifyEmail } from "@/server/preview-auth";
 import { CAPTCHA_ENDPOINTS } from "@/server/auth-providers";
 import { captcha } from "better-auth/plugins";
 import { emailOTP } from "better-auth/plugins/email-otp";
+import { renderResetPasswordEmail, RESET_PASSWORD_EXPIRES_IN_SECONDS } from "@/server/email/reset-password";
 import { emailAssetBase, renderVerificationOtpEmail, VERIFICATION_OTP_MINUTES } from "@/server/email/verification-otp";
 
 type AuthDatabase = LibSQLDatabase<typeof schema>;
@@ -68,12 +69,14 @@ export function createAuth(options: CreateAuthOptions) {
       maxPasswordLength: 128,
       autoSignIn: false,
       revokeSessionsOnPasswordReset: true,
+      resetPasswordTokenExpiresIn: RESET_PASSWORD_EXPIRES_IN_SECONDS,
       sendResetPassword: async ({ user, url }) => {
+        const rendered = renderResetPasswordEmail({ url, assetBase: emailAssetBase() });
         await options.email.send({
           to: user.email,
-          subject: "Reimposta la password di CTRL Quotes",
-          text: `Apri questo link per scegliere una nuova password: ${url}`,
-          html: emailHtml("Apri questo link per scegliere una nuova password.", url),
+          subject: rendered.subject,
+          text: rendered.text,
+          html: rendered.html,
         });
       },
     },
