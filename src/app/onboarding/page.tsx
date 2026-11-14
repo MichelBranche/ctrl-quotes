@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { AuthScreen } from "@/components/auth/auth-screen";
-import { Button } from "@/components/ui/button";
+import { AuthSubmit } from "@/components/auth/auth-submit";
 import { TextField } from "@/components/ui/fields";
 import { messages } from "@/i18n/it";
 import { createWorkspaceAction, type FormState } from "@/server/actions";
@@ -25,7 +25,7 @@ export default function OnboardingPage() {
           <label className="checkline"><input type="radio" name="taxProfile" value="estero" /> {messages.onboarding.estero}</label>
         </fieldset>
         <p className="field-hint">{messages.onboarding.logoSkip}</p>
-        <Button type="submit" pill loading={pending}>{messages.onboarding.submit}</Button>
+        <AuthSubmit loading={pending}>{messages.onboarding.submit}</AuthSubmit>
       </form>
     </AuthScreen>
   );

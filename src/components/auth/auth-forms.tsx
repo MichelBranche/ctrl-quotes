@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { createAuthClient } from "better-auth/react";
 import Link from "next/link";
 import { messages } from "@/i18n/it";
+import { AuthSubmit } from "@/components/auth/auth-submit";
 import { Button } from "@/components/ui/button";
 import { PasswordField, TextField } from "@/components/ui/fields";
 import { forgotAction, loginAction, registerAction, resetAction, type FormState } from "@/server/actions";
@@ -24,9 +25,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
         <div className="auth-forgot">
           <Link href="/forgot-password">{messages.auth.forgot}</Link>
         </div>
-        <Button type="submit" pill loading={pending}>
-          {messages.auth.submitLogin} →
-        </Button>
+        <AuthSubmit loading={pending}>{messages.auth.submitLogin} →</AuthSubmit>
       </form>
       <GoogleBlock enabled={googleEnabled} />
     </>
@@ -51,9 +50,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
           </span>
         </label>
         {state.fieldErrors?.terms ? <p className="field-error">{state.fieldErrors.terms}</p> : null}
-        <Button type="submit" pill loading={pending}>
-          {messages.auth.submitRegister} →
-        </Button>
+        <AuthSubmit loading={pending}>{messages.auth.submitRegister} →</AuthSubmit>
       </form>
       <GoogleBlock enabled={googleEnabled} />
     </>
@@ -69,7 +66,7 @@ export function ForgotForm() {
       <form action={action} className="stack">
         {state.error ? <p className="alert" role="alert">{state.error}</p> : null}
         <TextField label={messages.auth.email} name="email" type="email" autoComplete="email" required icon="mail" />
-        <Button type="submit" pill loading={pending}>{messages.auth.sendLink}</Button>
+        <AuthSubmit loading={pending}>{messages.auth.sendLink}</AuthSubmit>
       </form>
       <p><Link href="/login">{messages.auth.backLogin}</Link></p>
     </>
@@ -86,7 +83,7 @@ export function ResetForm({ token }: { token: string }) {
         <input type="hidden" name="token" value={token} />
         {state.error ? <p className="alert" role="alert">{state.error}</p> : null}
         <PasswordField label={messages.auth.newPassword} name="password" autoComplete="new-password" required minLength={8} hint={messages.auth.passwordHint} />
-        <Button type="submit" pill loading={pending}>{messages.auth.savePassword}</Button>
+        <AuthSubmit loading={pending}>{messages.auth.savePassword}</AuthSubmit>
       </form>
     </>
   );

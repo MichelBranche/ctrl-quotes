@@ -5,6 +5,7 @@
   display: grid;
   place-items: center;
   padding: 32px 20px;
+  position: relative;
   background: var(--cq-canvas);
   overflow: hidden;
 }
@@ -19,6 +20,8 @@
   border-radius: 28px;
   box-shadow: 0 1px 2px rgb(15 15 20 / 0.04), 0 24px 60px rgb(15 15 20 / 0.08);
   overflow: hidden;
+  position: relative;
+  z-index: 1;
   animation: auth-card-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -32,19 +35,35 @@
   gap: 24px;
   padding: 32px;
   color: white;
+  /* Saturated brand gradient, derived from --brand only (as in the mockup). */
+  background-color: var(--brand);
+  background-image:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--brand) 55%, white) 0%, transparent 55%),
+    radial-gradient(90% 80% at 100% 100%, color-mix(in srgb, var(--brand) 70%, black) 0%, transparent 60%),
+    linear-gradient(150deg, color-mix(in srgb, var(--brand) 85%, white) 0%, var(--brand) 45%, color-mix(in srgb, var(--brand) 80%, black) 100%);
 }
-.auth-waves { position: absolute; inset: 0; z-index: -1; animation: auth-fade-in 1.2s ease-out both; }
+.auth-brand::after {
+  content: "";
+  position: absolute;
+  right: -18%;
+  bottom: -22%;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 40%, white) 0%, transparent 65%);
+  opacity: 0.5;
+  z-index: -1;
+}
+.auth-waves { position: fixed; inset: 0; z-index: 0; pointer-events: none; animation: auth-fade-in 1.2s ease-out both; }
 .auth-mark { display: inline-flex; align-items: center; gap: 12px; color: white; text-decoration: none; }
 .auth-mark-tile {
   width: 48px;
   height: 48px;
-  border-radius: 14px;
-  background: white;
   display: grid;
   place-items: center;
-  box-shadow: 0 8px 24px rgb(15 15 20 / 0.18);
+  filter: drop-shadow(0 8px 18px rgb(15 15 20 / 0.25));
 }
-.auth-mark-tile img { width: 30px; height: auto; display: block; }
+.auth-mark-tile img { width: 100%; height: auto; display: block; }
 .auth-mark-word { font-size: 22px; font-weight: 800; letter-spacing: -0.04em; }
 .auth-brand-line {
   margin: 0;
@@ -99,8 +118,6 @@
 .auth-forgot a { color: var(--brand); color: color-mix(in srgb, var(--brand) 85%, black); font-weight: 600; text-decoration: none; }
 .auth-forgot a:hover { text-decoration: underline; }
 
-.auth-card .btn-primary { background: var(--cq-ink); color: white; height: 48px; font-weight: 700; }
-.auth-card .btn-primary:hover { background: color-mix(in srgb, var(--cq-ink) 86%, white); }
 .auth-card .field input { height: 46px; border-radius: 12px; }
 
 @keyframes auth-fade-in {
@@ -113,8 +130,7 @@
   .auth-split { grid-template-columns: 1fr; min-height: 0; border-radius: 24px; }
   .auth-brand { height: 180px; padding: 22px; gap: 12px; justify-content: space-between; }
   .auth-brand-line { font-size: 20px; }
-  .auth-mark-tile { width: 40px; height: 40px; border-radius: 12px; }
-  .auth-mark-tile img { width: 25px; }
+  .auth-mark-tile { width: 40px; height: 40px; }
   .auth-mark-word { font-size: 18px; }
   .auth-card { padding: 24px 20px 24px; }
   .auth-card h1 { font-size: 24px; }
@@ -127,3 +143,40 @@
 /* LineWaves (React Bits) */
 .line-waves { position: relative; width: 100%; height: 100%; overflow: hidden; }
 .line-waves__canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+
+/* StarBorder (React Bits) */
+.star-border {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.875rem 1.5rem;
+  border: 0;
+  border-radius: var(--star-border-radius);
+  background: var(--star-border-surface);
+  color: var(--star-border-text);
+  font: inherit;
+  font-weight: 500;
+  line-height: 1.25;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.star-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 var(--star-border-thickness) var(--star-border-track);
+  pointer-events: none;
+}
+.star-border__light { position: absolute; top: -48px; left: -48px; z-index: -1; width: calc(100% + 96px); height: calc(100% + 96px); pointer-events: none; }
+button.star-border, a.star-border { cursor: pointer; }
+.star-border:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.star-border:disabled { cursor: not-allowed; opacity: 0.6; }
+
+/* Auth primary CTA: anthracite pill, white text, brand star on the border */
+.auth-cta { width: 100%; height: 48px; padding: 0 24px; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; transition: background var(--cq-motion-hover); }
