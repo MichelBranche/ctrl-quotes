@@ -386,3 +386,10 @@
   .block-item.in-row[data-col]::after { width: 5px; }
   .block-row-split { padding: 0 6px; }
 }
+
+/* Build up / tear down (quotes-view.tsx): clip only while the cards slide, shadows whole at rest; kit hover. */
+.qv-page.is-moving { overflow: clip; }
+.qv-page.is-leaving { pointer-events: none; }
+.qv-page > .card { transition: box-shadow 0.35s ease; }
+.qv-page > .card:hover { box-shadow: 0 16px 36px rgba(15, 15, 20, 0.1); }
+@media (prefers-reduced-motion: reduce) { .qv-page > .card { transition: none; } }

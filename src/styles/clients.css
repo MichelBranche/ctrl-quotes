@@ -181,3 +181,10 @@
   .cl-tabs .tab { padding-left: 9px; padding-right: 9px; font-size: 13px; }
   .cl-tabs .tab .count { display: none; }
 }
+
+/* Build up / tear down (clients-view.tsx): clip only while the cards slide, shadows whole at rest; kit hover. */
+.clients-page.is-moving { overflow: clip; }
+.clients-page.is-leaving { pointer-events: none; }
+.cl-book, .clients-pane .detail-card { transition: box-shadow 0.35s ease; }
+.cl-book:hover, .clients-pane .detail-card:hover { box-shadow: 0 16px 36px rgba(15, 15, 20, 0.1); }
+@media (prefers-reduced-motion: reduce) { .cl-book, .clients-pane .detail-card { transition: none; } }

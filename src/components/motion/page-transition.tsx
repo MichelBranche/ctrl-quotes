@@ -6,9 +6,9 @@ import { useReducedMotion } from "motion/react";
 import { useSectionTransition } from "@/components/motion/section-transition";
 import { cn } from "@/lib/cn";
 
-/** Views that build up / tear down card by card on their own (Overview, Impostazioni, Abbonamento). */
+/** Views that build up / tear down card by card on their own (Overview, Preventivi, Clienti, Catalogo, Impostazioni, Abbonamento). */
 export function hasOwnTransition(pathname: string): boolean {
-  return pathname === "/app/overview" || pathname.startsWith("/app/settings");
+  return ["/app/overview", "/app/quotes", "/app/clients", "/app/catalog"].includes(pathname) || pathname.startsWith("/app/settings");
 }
 
 /**

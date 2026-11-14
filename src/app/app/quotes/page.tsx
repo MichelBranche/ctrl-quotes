@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { QuotesView } from "@/components/quotes/quotes-view";
-import { Skeleton } from "@/components/ui/status";
 import { can } from "@/domain/permissions";
 import { quoteFilters, type QuoteFilter } from "@/domain/quote-status";
 import { requireContext } from "@/server/context";
@@ -17,7 +16,7 @@ function one(value: string | string[] | undefined): string | undefined {
 
 export default function QuotesPage({ searchParams }: { searchParams: Search }) {
   return (
-    <Suspense fallback={<QuotesSkeleton />}>
+    <Suspense fallback={<div className="pt-wait" aria-busy="true" />}>
       <QuotesContent searchParams={searchParams} />
     </Suspense>
   );
@@ -34,14 +33,4 @@ async function QuotesContent({ searchParams }: { searchParams: Search }) {
   const list = await listQuotes(db, actor, { filter, q, page, pageSize: 15 });
   if (!list.ok) throw new Error(list.message);
   return <QuotesView list={list.value} filter={filter} canWrite={can(workspace.role, "quotes.write")} />;
-}
-
-function QuotesSkeleton() {
-  return (
-    <div className="stack" aria-busy="true">
-      <Skeleton width="30%" />
-      <Skeleton width="60%" />
-      <Skeleton />
-    </div>
-  );
 }

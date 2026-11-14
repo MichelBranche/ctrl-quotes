@@ -11,6 +11,10 @@
   --cq-tpl-amber: #ff7316;
   /* Subscription plans (Abbonamento): Business lime is a fixed plan colour, not the brand. */
   --cq-plan-hero: #1e1e1e;
+  /* Catalogo: hero gradient = left edge of the purple artwork; lilac = background of the empty-detail illustration. */
+  --cq-catalog-hero-top: #8639e0;
+  --cq-catalog-hero-bottom: #732cd0;
+  --cq-catalog-lilac: #f7f2fd;
   --cq-plan-starter: #e0e2e6;
   --cq-plan-business: #c4fa46;
   --cq-plan-business-ink: #141a05;

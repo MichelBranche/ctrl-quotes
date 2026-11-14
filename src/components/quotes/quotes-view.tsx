@@ -4,7 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Copy, FileText, Plus, SquarePen, Trash2 } from "lucide-react";
+import { motion } from "motion/react";
 import { FilterTabs, Pagination, SearchBox } from "@/components/data/controls";
+import { FROM_BOTTOM, FROM_LEFT, useCardMotion } from "@/components/motion/card-motion";
+import { useMoving, useSectionTransition } from "@/components/motion/section-transition";
+import { cn } from "@/lib/cn";
 import { ActionMenu } from "@/components/data/menu";
 import { useAction } from "@/components/data/use-action";
 import { Button } from "@/components/ui/button";
@@ -33,8 +37,20 @@ export function QuotesView({ list, filter, canWrite }: { list: QuoteList; filter
   const { run, pending } = useAction();
   const [confirming, setConfirming] = useState<QuoteRow | null>(null);
   const hasAny = list.workspaceTotal > 0;
+  // Build up / tear down: title fades, toolbar from the left, list from below; out in reverse.
+  const m = useCardMotion();
+  const { visit, leaving } = useSectionTransition();
+  const { moving, settle } = useMoving();
   return (
-    <div className="stack">
+    <motion.div
+      key={visit}
+      className={cn("stack qv-page", leaving && "is-leaving", moving && "is-moving")}
+      variants={m.grid}
+      initial="hidden"
+      animate={leaving ? "exit" : "show"}
+      onAnimationComplete={settle}
+    >
+      <motion.div {...m.head(leaving)}>
       <PageHeader
         title="Preventivi"
         subtitle="Crea, gestisci e monitora tutte le tue proposte."
@@ -46,7 +62,8 @@ export function QuotesView({ list, filter, canWrite }: { list: QuoteList; filter
           ) : undefined
         }
       />
-      <div className="card toolbar">
+      </motion.div>
+      <motion.div className="card toolbar" variants={m.item} custom={FROM_LEFT}>
         <FilterTabs
           label="Filtra per stato"
           param="status"
@@ -63,8 +80,8 @@ export function QuotesView({ list, filter, canWrite }: { list: QuoteList; filter
         <div className="toolbar-end">
           <SearchBox label="Cerca preventivi" placeholder="Cerca per titolo, numero o cliente" />
         </div>
-      </div>
-      <section className="card list-pane quotes-list" aria-label="Elenco preventivi">
+      </motion.div>
+      <motion.section className="card list-pane quotes-list" aria-label="Elenco preventivi" variants={m.item} custom={FROM_BOTTOM}>
         {list.items.length === 0 ? (
           hasAny ? (
             <div className="list-empty">
@@ -148,7 +165,7 @@ export function QuotesView({ list, filter, canWrite }: { list: QuoteList; filter
           </div>
         )}
         <Pagination page={list.page} pageSize={list.pageSize} total={list.total} noun="preventivi" />
-      </section>
+      </motion.section>
       <Dialog open={confirming !== null} title="Eliminare il preventivo?" onClose={() => setConfirming(null)}>
         <p>
           {confirming?.number ?? "Il preventivo"} sparirà dall&apos;elenco e dallo storico del cliente. Il numero non verrà riutilizzato.
@@ -169,6 +186,6 @@ export function QuotesView({ list, filter, canWrite }: { list: QuoteList; filter
           </Button>
         </div>
       </Dialog>
-    </div>
+    </motion.div>
   );
 }
