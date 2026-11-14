@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { QuoteWizard } from "@/components/quotes/quote-wizard";
-import { Skeleton } from "@/components/ui/status";
 import { can } from "@/domain/permissions";
 import { requireContext } from "@/server/context";
 import { listClientOptions, listQuotableItems } from "@/server/quotes";
@@ -14,7 +13,7 @@ type Search = Promise<Record<string, string | string[] | undefined>>;
 
 export default function NewQuotePage({ searchParams }: { searchParams: Search }) {
   return (
-    <Suspense fallback={<Skeleton width="40%" />}>
+    <Suspense fallback={<div className="pt-wait" aria-busy="true" />}>
       <NewQuoteContent searchParams={searchParams} />
     </Suspense>
   );

@@ -1,9 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Building2, Check, Search, UserRound } from "lucide-react";
+import { FROM_BOTTOM, FROM_TOP, cardEase, useCardMotion } from "@/components/motion/card-motion";
+import { useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { TemplateCover } from "@/components/templates/template-cover";
 import { templateInfo } from "@/domain/templates";
 import { TextAreaField, FormError } from "@/components/data/fields";
@@ -45,7 +48,28 @@ export function QuoteWizard({
   const router = useRouter();
   const { run, pending, error } = useAction();
   const defaultTemplate = templates.find((template) => template.isDefault) ?? templates[0];
-  const [step, setStep] = useState<Step>(preselectedClientId ? 2 : 1);
+  const [step, setStepState] = useState<Step>(preselectedClientId ? 2 : 1);
+  // +1 forward, -1 back: the step card leaves towards where it goes and the next one comes from the other side.
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const setStep = (next: Step) => {
+    setDirection(next > step ? 1 : -1);
+    setStepState(next);
+  };
+  const m = useCardMotion(2);
+  const { visit, leaving } = useSectionTransition();
+  const { moving, settle } = useMoving();
+  const stepVariants: Variants = {
+    enter: (d: number) => ({ opacity: 0, x: d * 80, scale: 0.98 }),
+    center: { opacity: 1, x: 0, scale: 1, transition: m.reduced ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 28, opacity: { duration: 0.3, ease: cardEase } } },
+    leave: (d: number) => (m.reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, x: d * -80, scale: 0.98, transition: { duration: 0.22, ease: [0.55, 0, 0.75, 0.2] } }),
+  };
+  const stepMotion = {
+    custom: direction,
+    initial: m.reduced ? (false as const) : "enter",
+    animate: "center",
+    exit: "leave",
+    variants: stepVariants,
+  };
   const [clientId, setClientId] = useState<string | null>(preselectedClientId);
   const [templateId, setTemplateId] = useState<string | null>(defaultTemplate?.id ?? null);
   const [clientQuery, setClientQuery] = useState("");
@@ -98,8 +122,16 @@ export function QuoteWizard({
   }
 
   return (
-    <div className="wizard">
-      <header className="wizard-head">
+    <div className="wizard-stage">
+    <motion.div
+      key={visit}
+      className={cn("wizard", leaving && "is-leaving", moving && "is-moving")}
+      variants={m.grid}
+      initial="hidden"
+      animate={leaving ? "exit" : "show"}
+      onAnimationComplete={settle}
+    >
+      <motion.header className="wizard-head" variants={m.item} custom={FROM_TOP}>
         <Link href="/app/quotes" className="btn btn-ghost back-link">
           <ArrowLeft size={16} aria-hidden="true" /> Preventivi
         </Link>
@@ -115,10 +147,13 @@ export function QuoteWizard({
             </li>
           ))}
         </ol>
-      </header>
+      </motion.header>
+
+      <motion.div className="wizard-body" variants={m.item} custom={FROM_BOTTOM}>
+      <AnimatePresence mode="wait" initial={false} custom={direction}>
 
       {step === 1 ? (
-        <section className="card wizard-card" aria-labelledby="wizard-client">
+        <motion.section key={1} className="card wizard-card" aria-labelledby="wizard-client" {...stepMotion}>
           <div className="wizard-card-head">
             <h2 id="wizard-client">Per chi è il preventivo?</h2>
             <p className="muted small">I dati del cliente arrivano dalla rubrica e restano modificabili nell&apos;editor.</p>
@@ -177,11 +212,11 @@ export function QuoteWizard({
               Continua <ArrowRight size={16} aria-hidden="true" />
             </Button>
           </div>
-        </section>
+        </motion.section>
       ) : null}
 
       {step === 2 ? (
-        <section className="card wizard-card" aria-labelledby="wizard-template">
+        <motion.section key={2} className="card wizard-card" aria-labelledby="wizard-template" {...stepMotion}>
           <div className="wizard-card-head">
             <h2 id="wizard-template">Scegli lo stile</h2>
             <p className="muted small">Puoi cambiarlo in qualsiasi momento dall&apos;editor. Il predefinito è già selezionato.</p>
@@ -224,11 +259,11 @@ export function QuoteWizard({
               Continua <ArrowRight size={16} aria-hidden="true" />
             </Button>
           </div>
-        </section>
+        </motion.section>
       ) : null}
 
       {step === 3 ? (
-        <section className="card wizard-card" aria-labelledby="wizard-content">
+        <motion.section key={3} className="card wizard-card" aria-labelledby="wizard-content" {...stepMotion}>
           <div className="wizard-card-head">
             <h2 id="wizard-content">Titolo e prime voci</h2>
             <p className="muted small">
@@ -328,8 +363,11 @@ export function QuoteWizard({
               Crea e apri l&apos;editor <ArrowRight size={16} aria-hidden="true" />
             </Button>
           </div>
-        </section>
+        </motion.section>
       ) : null}
+      </AnimatePresence>
+      </motion.div>
+    </motion.div>
     </div>
   );
 }

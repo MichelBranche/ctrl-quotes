@@ -31,7 +31,8 @@ test.describe("ritorno all'Overview con transizione", () => {
     "/app/quotes": ".qv-page.is-leaving",
     "/app/clients": ".clients-page.is-leaving",
     "/app/catalog": ".ct-grid.is-leaving",
-    "/app/templates": ".pt-leaving",
+    "/app/templates": ".templates-page.is-leaving",
+    "/app/quotes/new": ".wizard.is-leaving",
     "/app/help": ".pt-leaving",
   };
   for (const [from, selector] of Object.entries(leaving)) {
@@ -45,6 +46,7 @@ test.describe("ritorno all'Overview con transizione", () => {
       ["/app/quotes", ".qv-page > .toolbar"],
       ["/app/clients", ".cl-kpi"],
       ["/app/catalog", ".ct-hero"],
+      ["/app/templates", ".template-card"],
     ] as const) {
       await page.goto("/app/overview");
       await page.waitForTimeout(1200);
@@ -77,11 +79,28 @@ test.describe("ritorno all'Overview con transizione", () => {
       ["/app/quotes", ".qv-page"],
       ["/app/clients", ".clients-page"],
       ["/app/catalog", ".ct-grid"],
+      ["/app/templates", ".templates-page"],
+      ["/app/quotes/new", ".wizard"],
     ] as const) {
       await page.goto(path);
       await page.waitForTimeout(1500);
       expect(await page.locator(stage).evaluate((el) => getComputedStyle(el).overflow)).toBe("visible");
     }
+  });
+
+  test("Nuovo preventivo: i passi entrano ed escono di lato", async ({ page }) => {
+    await page.goto("/app/quotes/new");
+    await page.waitForTimeout(1200);
+    const card = page.locator(".wizard-card");
+    await expect(card).toHaveCount(1);
+    await page.getByRole("link", { name: "Gestisci rubrica" }).waitFor();
+    // Leaving the wizard tears it down before the URL changes.
+    await page.locator(".wizard-head .back-link").click();
+    await expect(page.locator(".wizard.is-leaving")).toBeAttached({ timeout: 400 });
+    await expect(page).toHaveURL(/\/app\/quotes$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/app\/quotes\/new$/);
+    await expect.poll(async () => page.locator(".wizard-card").evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
   });
 
   test("con reduced motion si cambia pagina subito", async ({ page }) => {

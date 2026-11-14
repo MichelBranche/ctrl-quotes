@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { TemplatesView } from "@/components/templates/templates-view";
-import { Skeleton } from "@/components/ui/status";
 import { can } from "@/domain/permissions";
 import { requireContext } from "@/server/context";
 import { getWorkspaceConfig } from "@/server/settings";
@@ -17,7 +16,7 @@ function one(value: string | string[] | undefined): string | undefined {
 
 export default function TemplatesPage({ searchParams }: { searchParams: Search }) {
   return (
-    <Suspense fallback={<Skeleton width="40%" />}>
+    <Suspense fallback={<div className="pt-wait" aria-busy="true" />}>
       <TemplatesContent searchParams={searchParams} />
     </Suspense>
   );

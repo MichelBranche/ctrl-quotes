@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { FROM_BOTTOM, FROM_LEFT, FROM_RIGHT, FROM_TOP, cardEase as ease, useCardMotion } from "@/components/motion/card-motion";
 import { ArrowLeft, ArrowRight, Boxes, ChevronDown, LayoutGrid, Package, Plus, Settings2, Sparkles, Tags, X } from "lucide-react";
 import { useMoving, useSectionTransition } from "@/components/motion/section-transition";
+import { CatalogEmptyWaves } from "@/components/catalog-data/catalog-empty-waves";
 import { CatalogDetailPanel } from "@/components/catalog-data/catalog-detail";
 import { CatalogItemDialog } from "@/components/catalog-data/item-form";
 import { CategoriesDialog } from "@/components/catalog-data/categories-dialog";
@@ -256,11 +257,7 @@ export function CatalogView({
                 </>
               ) : (
                 <div className="ct-empty">
-                  <picture className="ct-empty-art" aria-hidden="true">
-                    <source type="image/avif" srcSet="/catalog/empty-seleziona-elemento-900.avif" />
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/catalog/empty-seleziona-elemento-900.webp" alt="" decoding="async" />
-                  </picture>
+                  <CatalogEmptyWaves />
                   <div className="ct-empty-copy">
                     <h2>{detailMissing ? "Elemento non disponibile" : hasAny ? "Seleziona un elemento" : "Nessun elemento"}</h2>
                     <p>

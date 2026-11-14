@@ -128,10 +128,22 @@
 }
 .ct-close:hover { background: var(--cq-accent-wash); color: var(--cq-accent); }
 .ct-empty { position: relative; flex: 1; min-height: 260px; overflow: hidden; isolation: isolate; border-radius: 18px; background: var(--cq-catalog-lilac); display: flex; align-items: flex-end; justify-content: center; text-align: center; }
-.ct-empty-art { position: absolute; inset: 0; z-index: -1; }
-.ct-empty-art img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
-.ct-detail:hover .ct-empty-art img { transform: scale(1.03); }
-.ct-empty-copy { max-width: 340px; padding: 0 24px 15%; }
+/* Login waves as background (catalog-empty-waves.tsx); the gradient below is the fallback (reduced motion, no WebGL2). */
+.ct-empty {
+  background:
+    radial-gradient(120% 80% at 85% 0%, color-mix(in srgb, var(--brand) 18%, transparent), transparent 60%),
+    radial-gradient(90% 70% at 0% 100%, color-mix(in srgb, var(--brand) 14%, transparent), transparent 60%),
+    var(--cq-catalog-lilac);
+}
+.ct-empty-waves { position: absolute; inset: 0; z-index: -2; animation: ct-waves-in 1.2s ease-out both; }
+@keyframes ct-waves-in { from { opacity: 0; } to { opacity: 1; } }
+/* Soft veil behind the text so it stays readable over the lines. */
+.ct-empty::after {
+  content: ""; position: absolute; inset: auto 0 0; height: 55%; z-index: -1; pointer-events: none;
+  background: radial-gradient(70% 70% at 50% 75%, color-mix(in srgb, var(--cq-catalog-lilac) 88%, transparent), transparent 75%);
+}
+@media (prefers-reduced-motion: reduce) { .ct-empty-waves { animation: none; } }
+.ct-empty-copy { max-width: 340px; padding: 0 24px 18%; }
 .ct-empty h2 { margin: 0; font-size: clamp(20px, 1.6vw, 24px); font-weight: 650; letter-spacing: -0.02em; }
 .ct-empty p { margin: 8px 0 0; color: var(--cq-ink-soft); line-height: 1.5; }
 .ct-role { margin: 0 6px 4px; display: flex; align-items: center; gap: 6px; }

@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { motion } from "motion/react";
+import { FROM_BOTTOM, FROM_LEFT, FROM_RIGHT, FROM_TOP, useCardMotion } from "@/components/motion/card-motion";
+import { useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { Check, Heart, Info, LayoutTemplate, Monitor } from "lucide-react";
 import { TemplateCover } from "@/components/templates/template-cover";
 import { templateInfo } from "@/domain/templates";
@@ -31,24 +34,44 @@ export function TemplatesView({
   const selected =
     templates.find((template) => template.key === selectedKey) ?? templates.find((template) => template.isDefault) ?? templates[0];
 
+  // Build up / tear down: title fades, tabs from the left, cards alternately from the left and from below, detail from the right; out in reverse.
+  const m = useCardMotion(visible.length + 2);
+  const { visit, leaving } = useSectionTransition();
+  const { moving, settle } = useMoving();
+
   return (
-    <div className="templates-page">
+    <motion.div
+      key={visit}
+      className={cn("templates-page", leaving && "is-leaving", moving && "is-moving")}
+      variants={m.grid}
+      initial="hidden"
+      animate={leaving ? "exit" : "show"}
+      onAnimationComplete={settle}
+    >
       <div>
-        <PageHeader title="Libreria template" subtitle="Scegli lo stile predefinito dei tuoi preventivi e segna i preferiti." />
-        <nav className="filter-tabs inline" aria-label="Filtra template">
+        <motion.div {...m.head(leaving)}>
+          <PageHeader title="Libreria template" subtitle="Scegli lo stile predefinito dei tuoi preventivi e segna i preferiti." />
+        </motion.div>
+        <motion.nav className="filter-tabs inline" aria-label="Filtra template" variants={m.item} custom={FROM_TOP}>
           <Link href={href({ view: null })} aria-current={view === "all" ? "page" : undefined} scroll={false} replace>
             Tutti <span className="count">{templates.length}</span>
           </Link>
           <Link href={href({ view: "favorites" })} aria-current={view === "favorites" ? "page" : undefined} scroll={false} replace>
             <Heart size={14} aria-hidden="true" /> Preferiti <span className="count">{templates.filter((template) => template.isFavorite).length}</span>
           </Link>
-        </nav>
+        </motion.nav>
         {visible.length === 0 ? (
           <EmptyState title="Nessun preferito" body="Tocca il cuore su un template per ritrovarlo qui." />
         ) : (
           <ul className="template-grid">
-            {visible.map((template) => (
-              <li key={template.id} className={cn("card template-card", selected?.id === template.id && "is-selected")}>
+            {visible.map((template, index) => (
+              <motion.li
+                key={template.id}
+                className={cn("card template-card", selected?.id === template.id && "is-selected")}
+                variants={m.item}
+                custom={index % 2 === 0 ? FROM_LEFT : FROM_BOTTOM}
+                whileHover={m.lift}
+              >
                 <Link href={href({ t: template.key })} scroll={false} className="template-link">
                   <span className="visually-hidden">Dettagli del template {template.name}</span>
                   <span aria-hidden="true">
@@ -88,14 +111,14 @@ export function TemplatesView({
                     </Button>
                   )}
                 </div>
-              </li>
+              </motion.li>
             ))}
           </ul>
         )}
       </div>
 
       {selected ? (
-        <aside className="card template-detail" aria-label={`Template ${selected.name}`}>
+        <motion.aside className="card template-detail" aria-label={`Template ${selected.name}`} variants={m.item} custom={FROM_RIGHT}>
           <header className="detail-header">
             <span className="type-icon">
               <LayoutTemplate size={18} aria-hidden="true" />
@@ -140,8 +163,8 @@ export function TemplatesView({
             </Button>
           )}
           {!permissions.setDefault ? <p className="field-hint">Solo amministratori e proprietario scelgono il template predefinito.</p> : null}
-        </aside>
+        </motion.aside>
       ) : null}
-    </div>
+    </motion.div>
   );
 }

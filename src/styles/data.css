@@ -437,3 +437,13 @@ dialog:modal:not(.drawer) { margin: auto; }
 .page-header .btn { white-space: nowrap; }
 .template-card .btn { white-space: nowrap; }
 .save-status:empty { display: none; }
+
+/* Template: build up / tear down (templates-view.tsx). Motion drives transform, so CSS transitions only colors and
+   shadow; clip only while the cards slide, shadows whole at rest; kit hover. */
+.templates-page.is-moving { overflow: clip; }
+.templates-page.is-leaving { pointer-events: none; }
+.templates-page .template-card { transition: border-color var(--cq-motion-hover) var(--cq-ease-out), box-shadow 0.35s ease; }
+.templates-page .template-card:hover { box-shadow: 0 16px 36px rgba(15, 15, 20, 0.1); }
+.templates-page .template-card.is-selected:hover { box-shadow: 0 0 0 3px var(--cq-accent-soft), 0 16px 36px rgba(15, 15, 20, 0.1); }
+.templates-page .template-detail { transition: box-shadow 0.35s ease; }
+.templates-page .template-detail:hover { box-shadow: 0 16px 36px rgba(15, 15, 20, 0.1); }

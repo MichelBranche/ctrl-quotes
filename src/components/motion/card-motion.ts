@@ -13,14 +13,15 @@ export const FROM_RIGHT: Dir = { x: 160, y: 0 };
 export const cardEase = [0.16, 1, 0.3, 1] as const;
 const spring = { type: "spring", stiffness: 260, damping: 28, mass: 0.9 } as const;
 
-export function useCardMotion() {
+/** `cards`: how many cards stagger; long lists stagger faster so the exit ends within SECTION_EXIT_MS. */
+export function useCardMotion(cards = 4) {
   const reduced = useReducedMotion() ?? false;
   const grid: Variants = reduced
     ? { hidden: {}, show: {}, exit: {} }
     : {
         hidden: {},
-        show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
-        exit: { transition: { staggerChildren: 0.06, staggerDirection: -1 } },
+        show: { transition: { staggerChildren: Math.min(0.09, 0.6 / Math.max(1, cards)), delayChildren: 0.05 } },
+        exit: { transition: { staggerChildren: Math.min(0.06, 0.16 / Math.max(1, cards - 1)), staggerDirection: -1 } },
       };
   const item: Variants = reduced
     ? { hidden: { opacity: 1, x: 0, y: 0, scale: 1 }, show: { opacity: 1, x: 0, y: 0, scale: 1, transition: { duration: 0 } }, exit: { opacity: 1 } }

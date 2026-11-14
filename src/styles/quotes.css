@@ -393,3 +393,30 @@
 .qv-page > .card { transition: box-shadow 0.35s ease; }
 .qv-page > .card:hover { box-shadow: 0 16px 36px rgba(15, 15, 20, 0.1); }
 @media (prefers-reduced-motion: reduce) { .qv-page > .card { transition: none; } }
+
+/* Nuovo preventivo: centred on screen (both axes when there is room), premium card, steps slide in and out
+   (quote-wizard.tsx). The editor itself is untouched. */
+.wizard-stage { display: flex; flex-direction: column; min-height: calc(var(--cq-page-h) - var(--cq-shell-pad) - 32px); }
+.wizard-stage > .wizard { margin: auto; width: 100%; max-width: 1040px; gap: 22px; }
+.wizard.is-moving { overflow: clip; }
+.wizard.is-leaving { pointer-events: none; }
+.wizard-stage .wizard-head { position: relative; grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; gap: 14px; }
+.wizard-stage .wizard-head .back-link { position: absolute; left: 0; top: 0; grid-row: auto; }
+.wizard-stage .wizard-head h1 { font-size: clamp(30px, 2.6vw, 40px); font-weight: 700; letter-spacing: -0.035em; }
+.wizard-stage .wizard-head p { margin-top: 8px; font-size: var(--cq-font-size-lg); }
+.wizard-stage .wizard-steps { box-shadow: var(--cq-shadow-sm); }
+.wizard-stage .wizard-steps li { transition: background-color 0.3s ease, color 0.3s ease; }
+/* Steps slide sideways: clip them horizontally, with room so the card shadow is never cut. */
+.wizard-body { margin: -28px; padding: 28px; overflow-x: clip; }
+.wizard-stage .wizard-card {
+  gap: 20px; padding: 28px 32px; border-radius: 28px;
+  box-shadow: 0 1px 2px rgba(15, 15, 20, 0.04), 0 24px 60px rgba(15, 15, 20, 0.08);
+}
+.wizard-stage .wizard-card-head h2 { font-size: clamp(22px, 1.7vw, 26px); font-weight: 650; }
+@media (max-width: 1023px) {
+  .wizard-stage { min-height: 0; }
+  .wizard-stage .wizard-head { justify-items: start; text-align: left; }
+  .wizard-stage .wizard-head .back-link { position: static; }
+  .wizard-body { margin: -16px; padding: 16px; }
+  .wizard-stage .wizard-card { padding: 20px; border-radius: 22px; }
+}
