@@ -132,7 +132,7 @@ test("abbonamento: piani, confronto e attivazione senza checkout", async ({ page
   await expect(page.getByRole("heading", { level: 1, name: "Scegli il piano perfetto per le tue esigenze" })).toBeVisible();
   await expect(page.getByText("Piano di prova", { exact: true })).toBeVisible();
   // Reduced motion: no WebGL backgrounds, the static ones stay.
-  await expect(page.locator(".bl-backdrop, .bl-hero-fx")).toHaveCount(0);
+  await expect(page.locator(".bl-hero-fx")).toHaveCount(0);
   await page.getByRole("link", { name: "Confronta i piani" }).click();
   await expect(page).toHaveURL(/\/app\/settings\/billing\/compare$/);
   await expect(page.getByRole("table")).toContainText("Collaborazione team");

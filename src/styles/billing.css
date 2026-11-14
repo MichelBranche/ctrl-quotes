@@ -249,38 +249,39 @@
   .bl-plan:hover .bl-art img { transform: none; }
 }
 
-/* Animated backgrounds (src/components/billing/effects). Without WebGL2 or with reduced motion they don't render and
-   the static backgrounds above stay. */
-.bl-hero-fx { position: absolute; inset: 0; z-index: -2; isolation: isolate; pointer-events: none; animation: bl-fx-in 1.2s ease-out both; }
-/* Business: chrome Iridescence tinted with the Business lime (multiply), so the folds read as neon lime. */
-.bl-hero-fx.is-business::before { content: ""; position: absolute; inset: 0; z-index: 1; background: var(--cq-plan-business); mix-blend-mode: multiply; }
+/* Animated hero backgrounds on /starter, /pro and /business (src/components/billing/effects). The hero has no 3D
+   artwork there: the effect fills the card. Without WebGL2 or with reduced motion the effect doesn't render and these
+   gradients stay. */
+.bl-hero.is-starter {
+  background:
+    radial-gradient(85% 65% at 85% 95%, color-mix(in srgb, var(--cq-plan-starter) 55%, transparent) 0%, transparent 70%),
+    radial-gradient(60% 45% at 15% 100%, color-mix(in srgb, var(--cq-plan-starter) 22%, transparent) 0%, transparent 70%),
+    var(--cq-plan-hero);
+}
+.bl-hero.is-pro {
+  background:
+    radial-gradient(85% 65% at 85% 95%, color-mix(in srgb, var(--brand) 75%, transparent) 0%, transparent 70%),
+    radial-gradient(60% 45% at 10% 100%, color-mix(in srgb, var(--brand) 35%, transparent) 0%, transparent 70%),
+    var(--cq-plan-hero);
+}
+.bl-hero.is-business {
+  background:
+    radial-gradient(85% 65% at 85% 95%, color-mix(in srgb, var(--cq-plan-business) 70%, transparent) 0%, transparent 70%),
+    radial-gradient(60% 45% at 10% 100%, color-mix(in srgb, var(--cq-plan-business) 30%, transparent) 0%, transparent 70%),
+    var(--cq-plan-hero);
+}
+.bl-hero-fx { position: absolute; inset: 0; z-index: -1; isolation: isolate; pointer-events: none; animation: bl-fx-in 1.2s ease-out both; }
 .bl-hero-fx > * { position: absolute; inset: 0; }
-/* Dark veil from the text side so the copy stays readable on the effect. */
+/* Business: high-contrast chrome Iridescence multiplied by the Business lime: bright folds read as neon lime, deep ones go dark green. */
+.bl-hero-fx.is-business::before { content: ""; position: absolute; inset: 0; z-index: 1; background: var(--cq-plan-business); mix-blend-mode: multiply; }
+/* Minimal veil behind the copy only (top-left), so the text stays readable. */
 .bl-hero-fx::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 2;
-  background:
-    radial-gradient(42% 36% at 74% 76%, color-mix(in srgb, var(--cq-plan-hero) 92%, transparent) 0%, color-mix(in srgb, var(--cq-plan-hero) 60%, transparent) 55%, transparent 100%),
-    linear-gradient(180deg, color-mix(in srgb, var(--cq-plan-hero) 72%, transparent) 0%, color-mix(in srgb, var(--cq-plan-hero) 30%, transparent) 50%, transparent 75%),
-    linear-gradient(90deg, color-mix(in srgb, var(--cq-plan-hero) 40%, transparent) 0%, transparent 60%);
-}
-/* The 3D blocks render keep their dark backdrop: lighten lets the effect through it while the blocks stay on top. */
-.bl-hero:has(.bl-hero-fx) .bl-art { mix-blend-mode: lighten; }
-
-/* "Scegli il piano": one backdrop for the whole window, under every element (the shell goes transparent around its
-   cards). Scoped to html[data-bl-backdrop], set and removed by PlansBackdrop, so other pages never see these rules. */
-.bl-backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none; animation: bl-fx-in 1.2s ease-out both; }
-.bl-backdrop > * { position: absolute; inset: 0; }
-html[data-bl-backdrop] body,
-html[data-bl-backdrop] .shell { background: transparent; }
-html[data-bl-backdrop] { background: var(--cq-canvas); }
-html[data-bl-backdrop] .sidebar {
-  background: color-mix(in srgb, var(--cq-surface) 82%, transparent);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  backdrop-filter: blur(18px) saturate(1.2);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--cq-plan-hero) 80%, transparent) 0%, color-mix(in srgb, var(--cq-plan-hero) 55%, transparent) 38%, transparent 62%);
 }
 @keyframes bl-fx-in { from { opacity: 0; } to { opacity: 1; } }
-.iridescence-container, .gradient-blinds-container { position: relative; width: 100%; height: 100%; overflow: hidden; }
-.iridescence-canvas, .gradient-blinds-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.iridescence-container { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.iridescence-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
