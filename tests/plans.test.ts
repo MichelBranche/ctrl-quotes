@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { compareRows, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, plans, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, upcomingFeatures } from "@/domain/plans";
+import { compareRows, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, planIds, plans, quoteSendDailyLimitLabel, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, upcomingFeatures, type PlanId } from "@/domain/plans";
 
 describe("subscription plans", () => {
   it("formats prices the Italian way", () => {
@@ -51,5 +51,38 @@ describe("subscription plans", () => {
     expect(globalQuoteSendDailyCap({ QUOTE_SEND_GLOBAL_DAILY_CAP: "40" })).toBe(40);
     expect(globalQuoteSendDailyCap({ QUOTE_SEND_GLOBAL_DAILY_CAP: "0" })).toBe(90);
     expect(globalQuoteSendDailyCap({ QUOTE_SEND_GLOBAL_DAILY_CAP: "no" })).toBe(90);
+  });
+
+  it("shows the daily send limits on plan cards and in the comparison table, from quoteSendDailyLimits", () => {
+    expect(quoteSendDailyLimitLabel("starter")).toBe(`${quoteSendDailyLimits.starter} invii preventivi al giorno`);
+    expect(quoteSendDailyLimitLabel("pro")).toBe(`${quoteSendDailyLimits.pro} invii al giorno`);
+    expect(quoteSendDailyLimitLabel("business")).toBe("Invii illimitati");
+    expect(quoteSendDailyLimitLabel("starter")).toBe("3 invii preventivi al giorno");
+    expect(quoteSendDailyLimitLabel("pro")).toBe("15 invii al giorno");
+
+    const sendRow = compareRows.find((row) => row.label === "Invio preventivi");
+    expect(sendRow?.values).toEqual({
+      starter: quoteSendDailyLimitLabel("starter"),
+      pro: quoteSendDailyLimitLabel("pro"),
+      business: quoteSendDailyLimitLabel("business"),
+    });
+    for (const id of planIds) {
+      expect(plans[id].includes.some((item) => item.label === quoteSendDailyLimitLabel(id) && !item.soon)).toBe(true);
+    }
+  });
+
+  it("does not promise unlimited sends on Starter or Pro", () => {
+    const limited: PlanId[] = ["starter", "pro"];
+    const copyOf = (id: PlanId) => {
+      const plan = plans[id];
+      return [plan.pickerLine, plan.compareLine, plan.body, plan.priceLine, plan.title, ...plan.includes.map((item) => item.label)].join(" | ");
+    };
+    for (const id of limited) {
+      const copy = copyOf(id).toLowerCase();
+      expect(copy).not.toMatch(/illimitat/);
+      expect(copy).not.toMatch(/senza limiti/);
+      expect(compareRows.find((row) => row.label === "Invio preventivi")?.values?.[id]?.toLowerCase()).not.toMatch(/illimitat/);
+    }
+    expect(quoteSendDailyLimitLabel("business").toLowerCase()).toContain("illimitat");
   });
 });

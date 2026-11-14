@@ -7,7 +7,7 @@
 export const planIds = ["starter", "pro", "business"] as const;
 export type PlanId = (typeof planIds)[number];
 
-export type PlanIcon = "layers" | "user" | "users" | "chart" | "grid" | "headset" | "shield";
+export type PlanIcon = "layers" | "user" | "users" | "chart" | "grid" | "headset" | "shield" | "send";
 
 export type PlanFeature = { label: string; icon: PlanIcon; soon: boolean };
 
@@ -28,6 +28,26 @@ export type Plan = {
   next: { eyebrow: string; title: string; body: string; plan: PlanId };
 };
 
+
+/** Daily client-email sends allowed for the sender, by effective plan. `null` = unlimited (Business). */
+export const quoteSendDailyLimits: Record<PlanId, number | null> = {
+  starter: 3,
+  pro: 15,
+  business: null,
+};
+
+export function quoteSendDailyLimit(planId: PlanId): number | null {
+  return quoteSendDailyLimits[planId];
+}
+
+/** Line shown on plan cards, "Cosa include" and the comparison table. Numbers come from `quoteSendDailyLimits`. */
+export function quoteSendDailyLimitLabel(planId: PlanId): string {
+  const limit = quoteSendDailyLimits[planId];
+  if (limit === null) return "Invii illimitati";
+  if (planId === "starter") return `${limit} invii preventivi al giorno`;
+  return `${limit} invii al giorno`;
+}
+
 export const plans: Record<PlanId, Plan> = {
   starter: {
     id: "starter",
@@ -41,6 +61,7 @@ export const plans: Record<PlanId, Plan> = {
     cta: "Attiva il piano",
     priceLine: "L’opzione ideale per freelancer e professionisti indipendenti.",
     includes: [
+      { label: quoteSendDailyLimitLabel("starter"), icon: "send", soon: false },
       { label: "Creazione preventivi", icon: "layers", soon: false },
       { label: "Gestione clienti", icon: "user", soon: false },
       { label: "Report di base", icon: "chart", soon: false },
@@ -52,7 +73,7 @@ export const plans: Record<PlanId, Plan> = {
     id: "pro",
     name: "Piano Pro",
     priceCents: 1900,
-    pickerLine: "Tutte le funzionalità per creare preventivi senza limiti.",
+    pickerLine: "Più invii al giorno e funzionalità per lavorare meglio.",
     compareLine: "Più funzionalità per professionisti e freelancer.",
     eyebrow: "Piano Pro",
     title: "Più potenza per far crescere il tuo lavoro",
@@ -60,6 +81,7 @@ export const plans: Record<PlanId, Plan> = {
     cta: "Attiva il Piano Pro",
     priceLine: "La scelta ideale per professionisti e team in crescita.",
     includes: [
+      { label: quoteSendDailyLimitLabel("pro"), icon: "send", soon: false },
       { label: "Tutte le funzionalità Starter", icon: "layers", soon: false },
       { label: "Analytics avanzate", icon: "chart", soon: true },
       { label: "Collaborazione team", icon: "users", soon: true },
@@ -80,6 +102,7 @@ export const plans: Record<PlanId, Plan> = {
     cta: "Attiva il Piano Business",
     priceLine: "La soluzione completa per team e aziende in crescita.",
     includes: [
+      { label: quoteSendDailyLimitLabel("business"), icon: "send", soon: false },
       { label: "Tutte le funzionalità Pro", icon: "layers", soon: false },
       { label: "Utenti illimitati", icon: "users", soon: true },
       { label: "Controlli amministrativi", icon: "chart", soon: true },
@@ -90,10 +113,28 @@ export const plans: Record<PlanId, Plan> = {
   },
 };
 
-export type CompareRow = { label: string; icon: PlanIcon; included: Record<PlanId, boolean>; soon: boolean };
+export type CompareRow = {
+  label: string;
+  icon: PlanIcon;
+  included: Record<PlanId, boolean>;
+  soon: boolean;
+  /** Per-plan text (daily send limits). When set, the table shows the text instead of a tick. */
+  values?: Record<PlanId, string>;
+};
 
-/** "Confronta i piani" table, exactly as in the mockup. */
+/** "Confronta i piani" table. The send-limit row reads `quoteSendDailyLimits` through `quoteSendDailyLimitLabel`. */
 export const compareRows: CompareRow[] = [
+  {
+    label: "Invio preventivi",
+    icon: "send",
+    included: { starter: true, pro: true, business: true },
+    soon: false,
+    values: {
+      starter: quoteSendDailyLimitLabel("starter"),
+      pro: quoteSendDailyLimitLabel("pro"),
+      business: quoteSendDailyLimitLabel("business"),
+    },
+  },
   { label: "Creazione preventivi", icon: "layers", included: { starter: true, pro: true, business: true }, soon: false },
   { label: "Template personalizzati", icon: "grid", included: { starter: false, pro: true, business: true }, soon: true },
   { label: "Gestione clienti", icon: "user", included: { starter: true, pro: true, business: true }, soon: false },
@@ -104,13 +145,6 @@ export const compareRows: CompareRow[] = [
 export function formatPlanPrice(cents: number): string {
   return `€ ${(cents / 100).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
-
-/** Daily client-email sends allowed for the sender, by effective plan. `null` = unlimited (Business). */
-export const quoteSendDailyLimits: Record<PlanId, number | null> = {
-  starter: 3,
-  pro: 15,
-  business: null,
-};
 
 export const DEFAULT_QUOTE_SEND_GLOBAL_DAILY_CAP = 90;
 export const BILLING_PATH = "/app/settings/billing";
@@ -124,10 +158,6 @@ export function effectivePlanId(plan: string, override: PlanId | null = null): P
   if (plan === "pro") return "pro";
   if (plan === "studio") return "business";
   return "starter";
-}
-
-export function quoteSendDailyLimit(planId: PlanId): number | null {
-  return quoteSendDailyLimits[planId];
 }
 
 /** Calendar day in Europe/Rome, YYYY-MM-DD. The send quota resets at Rome midnight. */
@@ -146,8 +176,14 @@ export function globalQuoteSendDailyCap(env: Record<string, string | undefined> 
 export const QUOTE_SEND_GLOBAL_CAP_MESSAGE = "Invio temporaneamente non disponibile, riprova domani.";
 
 export function quoteSendLimitReachedMessage(planId: PlanId): string {
-  if (planId === "starter") return "Hai raggiunto il limite di 3 invii al giorno del piano Starter. Passa a Pro per inviarne fino a 15.";
-  if (planId === "pro") return "Hai raggiunto il limite di 15 invii al giorno del piano Pro. Passa a Business per invii illimitati.";
+  const limit = quoteSendDailyLimits[planId];
+  const proLimit = quoteSendDailyLimits.pro;
+  if (planId === "starter" && limit !== null && proLimit !== null) {
+    return `Hai raggiunto il limite di ${limit} invii al giorno del piano Starter. Passa a Pro per inviarne fino a ${proLimit}.`;
+  }
+  if (planId === "pro" && limit !== null) {
+    return `Hai raggiunto il limite di ${limit} invii al giorno del piano Pro. Passa a Business per invii illimitati.`;
+  }
   return "Hai raggiunto il limite di invii giornalieri.";
 }
 

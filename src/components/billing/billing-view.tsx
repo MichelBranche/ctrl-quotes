@@ -2,14 +2,14 @@
 
 import { useState, type ReactNode } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { ArrowRight, ArrowUpRight, Check, ChartNoAxesColumn, Headset, Layers, LayoutGrid, Minus, ShieldCheck, UserRound, Users } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, ChartNoAxesColumn, Headset, Layers, LayoutGrid, Minus, Send, ShieldCheck, UserRound, Users } from "lucide-react";
 import { Dialog } from "@/components/ui/overlays";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { SectionLink, useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { PlanHeroEffect } from "@/components/billing/effects/billing-effects";
 import { RedeemButton } from "@/components/billing/redeem-dialog";
-import { compareRows, formatPlanPrice, planIds, plans, type PlanIcon, type PlanId } from "@/domain/plans";
+import { compareRows, formatPlanPrice, planIds, plans, quoteSendDailyLimitLabel, type PlanIcon, type PlanId } from "@/domain/plans";
 
 export type BillingViewId = "plans" | "compare" | PlanId;
 
@@ -32,6 +32,7 @@ const icons: Record<PlanIcon, ReactNode> = {
   grid: <LayoutGrid size={17} aria-hidden="true" />,
   headset: <Headset size={17} aria-hidden="true" />,
   shield: <ShieldCheck size={17} aria-hidden="true" />,
+  send: <Send size={17} aria-hidden="true" />,
 };
 
 /** Where a card comes from (and goes back to): offsets in px. */
@@ -234,6 +235,7 @@ function PlansView() {
         <PlanCard key={id} plan={id} href={billingHref[id]} className={`bl-slot-${id}`} dir={dirs.plans[id]}>
           <span className="bl-eyebrow">{plans[id].name}</span>
           <Price cents={plans[id].priceCents} />
+          <span className="bl-plan-limit">{quoteSendDailyLimitLabel(id)}</span>
           <span className="bl-plan-line">{plans[id].pickerLine}</span>
         </PlanCard>
       ))}
@@ -291,7 +293,9 @@ function CompareView() {
                 </th>
                 {planIds.map((id) => (
                   <td key={id} className={cn(id === "pro" && "is-pro")}>
-                    {row.included[id] ? (
+                    {row.values?.[id] ? (
+                      <span className="bl-compare-value">{row.values[id]}</span>
+                    ) : row.included[id] ? (
                       <motion.span className="bl-tick" variants={m.tick}>
                         <Check size={12} strokeWidth={3} aria-hidden="true" />
                         <span className="bl-sr">Incluso</span>
@@ -312,6 +316,7 @@ function CompareView() {
       {(["pro", "business"] as const).map((id) => (
         <PlanCard key={id} plan={id} href={billingHref[id]} className="bl-compare-card" dir={dirs.compare[id]}>
           <span className="bl-plan-title">{plans[id].name}</span>
+          <span className="bl-plan-limit">{quoteSendDailyLimitLabel(id)}</span>
           <span className="bl-plan-line">{plans[id].compareLine}</span>
         </PlanCard>
       ))}
