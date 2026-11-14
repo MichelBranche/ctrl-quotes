@@ -8,6 +8,9 @@ const pages = [
   { path: "/app/catalog", name: "catalog" },
   { path: "/app/templates", name: "templates" },
   { path: "/app/settings", name: "settings" },
+  { path: "/app/settings/billing", name: "billing" },
+  { path: "/app/settings/billing/compare", name: "billing-compare" },
+  { path: "/app/settings/billing/pro", name: "billing-pro" },
   { path: "/dev/components", name: "components" },
 ];
 
@@ -32,7 +35,7 @@ for (const entry of pages) {
     }
     const shot = mobile ? "mobile" : "desktop";
     await page.screenshot({ path: `qa/screenshots/${entry.name}-${shot}.png`, fullPage: true });
-    if (entry.name === "overview") {
+    if (entry.name === "overview" || entry.name.startsWith("billing")) {
       const results = await new AxeBuilder({ page }).analyze();
       const serious = results.violations.filter((item) => item.impact === "serious" || item.impact === "critical");
       expect(serious).toEqual([]);
@@ -114,4 +117,30 @@ test("il menu account si apre sotto l'avatar", async ({ page }, testInfo) => {
   const bellRight = bellBox!.x + bellBox!.width;
   const notesRight = notesBox!.x + notesBox!.width;
   expect(Math.abs(notesRight - bellRight)).toBeLessThan(24);
+});
+
+test("abbonamento: piani, confronto e attivazione senza checkout", async ({ page }, testInfo) => {
+  const mobile = testInfo.project.name.includes("mobile");
+  await page.setViewportSize(mobile ? { width: 375, height: 812 } : { width: 1440, height: 900 });
+  await page.goto("/app/overview");
+  if (mobile) {
+    await page.goto("/app/settings/billing");
+  } else {
+    await page.getByRole("link", { name: /Gestisci piano/ }).click();
+    await expect(page).toHaveURL(/\/app\/settings\/billing$/);
+  }
+  await expect(page.getByRole("heading", { level: 1, name: "Scegli il piano perfetto per le tue esigenze" })).toBeVisible();
+  await expect(page.getByText("Piano di prova", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Confronta i piani" }).click();
+  await expect(page).toHaveURL(/\/app\/settings\/billing\/compare$/);
+  await expect(page.getByRole("table")).toContainText("Collaborazione team");
+  await page.getByRole("navigation", { name: "Sezioni dell'abbonamento" }).getByRole("link", { name: "Business" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "La soluzione completa per il tuo team" })).toBeVisible();
+  await expect(page.getByText("In arrivo").first()).toBeVisible();
+  await page.getByRole("button", { name: "Attiva il Piano Business" }).click();
+  const dialog = page.getByRole("dialog", { name: "Pagamenti in arrivo" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Ho capito" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("Piano di prova", { exact: true })).toBeVisible();
 });
