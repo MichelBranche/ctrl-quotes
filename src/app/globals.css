@@ -12,6 +12,7 @@
 @import "../styles/clients.css";
 @import "../styles/auth.css";
 @import "../styles/billing.css";
+@import "../styles/settings-home.css";
 
 @theme inline {
   --color-ink: var(--cq-ink);

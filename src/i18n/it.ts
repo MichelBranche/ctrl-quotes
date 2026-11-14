@@ -125,7 +125,7 @@ export const messages = {
   },
   settings: {
     title: "Impostazioni",
-    subtitle: "Configura il workspace, il Brand Kit e le preferenze dei preventivi.",
+    subtitle: "Gestisci il tuo workspace, il team e tutte le preferenze di CTRL® Quotes.",
     profile: "Profilo workspace",
     brand: "Brand Kit",
     numbering: "Numerazione",

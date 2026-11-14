@@ -1,0 +1,129 @@
+/* Impostazioni home (/app/settings): header, dark hero and five cards. Colours come from tokens (brand, plan tokens). */
+
+.st-page {
+  --st-bleed: 20px; /* = horizontal padding of .main-col > .page: clips sliding cards without a scrollbar */
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: calc(var(--cq-page-h) - var(--cq-shell-pad));
+  margin: calc(-1 * var(--st-bleed));
+  padding: var(--st-bleed);
+  overflow: hidden;
+}
+@media (max-width: 1023px) { .st-page { --st-bleed: 16px; } }
+
+.st-head h1 { margin: 0; font-size: clamp(30px, 2.6vw, 40px); font-weight: 650; letter-spacing: -0.035em; line-height: 1.1; }
+.st-head p { margin: 8px 0 0; color: var(--cq-ink-soft); font-size: var(--cq-font-size-lg); }
+
+.st-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: minmax(220px, 1.15fr) minmax(180px, 1fr) minmax(180px, 1fr);
+  gap: 14px;
+}
+.st-grid.is-leaving { pointer-events: none; }
+.st-hero { grid-column: 1 / -1; }
+.st-profile, .st-brand, .st-fiscal { grid-column: span 2; }
+.st-team, .st-billing { grid-column: span 3; }
+
+.st-card { position: relative; overflow: hidden; isolation: isolate; border-radius: 24px; min-width: 0; }
+
+.st-art { position: absolute; z-index: -1; pointer-events: none; }
+.st-art img { width: 100%; height: 100%; object-fit: cover; object-position: right bottom; transform-origin: right bottom; transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* Hero */
+.st-hero { display: flex; align-items: center; min-height: 220px; padding: 34px 40px; background: var(--cq-plan-hero); color: var(--cq-surface); }
+.st-hero-art { inset: 0; }
+.st-hero-art img { object-position: right center; }
+.st-hero-copy { max-width: 470px; }
+.st-hero h2 { margin: 0; font-size: clamp(28px, 2.4vw, 38px); line-height: 1.12; letter-spacing: -0.03em; font-weight: 600; }
+.st-hero p { margin: 12px 0 22px; font-size: var(--cq-font-size-lg); line-height: 1.5; color: color-mix(in srgb, var(--cq-surface) 85%, transparent); }
+.st-btn-wrap { display: inline-flex; }
+.st-btn {
+  display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 20px; border-radius: 14px;
+  background: var(--cq-surface); color: var(--cq-ink); font-weight: 600; text-decoration: none; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.st-btn-arrow { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.st-btn:hover .st-btn-arrow { transform: translateX(3px); }
+.st-btn:focus-visible { outline: 3px solid var(--cq-focus-glow); outline-offset: 3px; }
+.st-hero:hover .st-hero-art img { transform: scale(1.03); }
+
+/* Tiles */
+.st-tile { border: 1px solid color-mix(in srgb, var(--cq-ink) 6%, transparent); box-shadow: var(--cq-shadow-sm); transition: box-shadow 0.35s ease; }
+.st-tile:hover { box-shadow: 0 18px 40px rgba(15, 15, 20, 0.12); }
+.st-tile:hover .st-art img { transform: scale(1.05); }
+.st-tile-link { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; padding: 24px 26px; color: inherit; text-decoration: none; border-radius: inherit; }
+.st-tile-link:focus-visible { outline: 3px solid var(--cq-focus-glow); outline-offset: -3px; }
+.st-tile-icon { display: inline-grid; width: 30px; height: 30px; place-items: center; margin-bottom: 14px; }
+.st-tile-title { font-size: clamp(19px, 1.5vw, 23px); font-weight: 650; letter-spacing: -0.02em; }
+.st-tile-body { margin-top: 8px; max-width: 250px; font-size: var(--cq-font-size-md); line-height: 1.5; color: var(--cq-ink-soft); }
+.st-circle {
+  position: absolute; top: 20px; right: 20px; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--cq-surface); color: var(--cq-ink); box-shadow: var(--cq-shadow-sm);
+}
+.st-circle svg { transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+.st-tile:hover .st-circle svg { transform: translateX(3px); }
+
+.st-tile.is-grey { background: linear-gradient(160deg, var(--cq-surface) 0%, color-mix(in srgb, var(--cq-plan-starter) 45%, var(--cq-surface)) 100%); }
+.st-tile.is-grey .st-circle { background: color-mix(in srgb, var(--cq-plan-starter) 60%, var(--cq-surface)); }
+.st-art-lastre { right: -12%; bottom: -18%; width: 62%; height: 78%; opacity: 0.75; -webkit-mask-image: radial-gradient(closest-side, black 55%, transparent); mask-image: radial-gradient(closest-side, black 55%, transparent); }
+
+.st-tile.is-brand { background: var(--brand); color: var(--cq-surface); border-color: transparent; }
+.st-tile.is-brand .st-tile-body { color: color-mix(in srgb, var(--cq-surface) 90%, transparent); }
+.st-tile.is-brand .st-circle { background: color-mix(in srgb, var(--brand) 18%, var(--cq-surface)); color: var(--brand); }
+.st-art-sfere { inset: 0; }
+.st-art-sfere img { mix-blend-mode: luminosity; }
+
+.st-tile.is-lime { background: linear-gradient(170deg, var(--cq-surface) 40%, color-mix(in srgb, var(--cq-plan-business) 22%, var(--cq-surface)) 100%); }
+.st-tile.is-lime .st-circle, .st-tile.is-violet .st-circle { background: color-mix(in srgb, var(--cq-plan-starter) 60%, var(--cq-surface)); }
+.st-art-archi { left: 10%; right: -10%; bottom: -40%; height: 85%; opacity: 0.85; -webkit-mask-image: radial-gradient(70% 70% at 50% 100%, black 40%, transparent 75%); mask-image: radial-gradient(70% 70% at 50% 100%, black 40%, transparent 75%); }
+.st-art-archi img { object-position: center top; }
+
+.st-tile.is-violet { background: linear-gradient(160deg, var(--cq-surface) 30%, color-mix(in srgb, var(--brand) 9%, var(--cq-surface)) 100%); }
+
+/* Team avatars (decorative stock faces) */
+.st-avatars { position: absolute; right: 26px; bottom: 30px; z-index: 2; display: flex; pointer-events: none; }
+.st-avatar {
+  width: 56px; height: 56px; border-radius: 50%; border: 3px solid var(--cq-surface); object-fit: cover; margin-left: -12px;
+  box-shadow: 0 4px 12px rgba(15, 15, 20, 0.12); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); background: var(--cq-surface);
+}
+.st-avatar:first-child { margin-left: 0; }
+.st-avatar-plus { display: grid; place-items: center; color: var(--brand); background: color-mix(in srgb, var(--brand) 14%, var(--cq-surface)); }
+.st-tile:hover .st-avatar:nth-child(1) { transform: translateX(-9px); }
+.st-tile:hover .st-avatar:nth-child(2) { transform: translateX(-3px); }
+.st-tile:hover .st-avatar:nth-child(3) { transform: translateX(3px); }
+.st-tile:hover .st-avatar:nth-child(4) { transform: translateX(9px); }
+
+/* Fatturazione: three 3D violet bars in crescendo (front face gradient, lit top, shaded side). */
+.st-bars { position: absolute; right: 30px; bottom: 0; z-index: 0; display: flex; align-items: flex-end; gap: 10px; height: 78%; pointer-events: none; }
+.st-bar-wrap { display: flex; align-items: flex-end; width: 56px; transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.st-bar-1 { height: 34%; --st-bar: color-mix(in srgb, var(--brand) 30%, var(--cq-surface)); }
+.st-bar-2 { height: 62%; --st-bar: color-mix(in srgb, var(--brand) 62%, var(--cq-surface)); transition-delay: 0.04s; }
+.st-bar-3 { height: 92%; --st-bar: var(--brand); transition-delay: 0.08s; }
+.st-bar {
+  display: block; width: 100%; height: 100%; transform-origin: bottom; border-radius: 12px 12px 0 0;
+  background:
+    linear-gradient(90deg, transparent 72%, color-mix(in srgb, black 14%, transparent) 100%),
+    linear-gradient(180deg, color-mix(in srgb, white 38%, var(--st-bar)) 0%, var(--st-bar) 38%, color-mix(in srgb, black 6%, var(--st-bar)) 100%);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, white 70%, transparent), inset 2px 0 0 color-mix(in srgb, white 30%, transparent), 0 10px 26px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+.st-tile:hover .st-bar-wrap { transform: translateY(-6px); }
+
+@media (max-width: 1180px) {
+  .st-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; }
+  .st-hero { grid-column: 1 / -1; }
+  .st-profile, .st-brand, .st-fiscal, .st-team, .st-billing { grid-column: span 1; min-height: 190px; }
+  .st-billing { grid-column: 1 / -1; }
+}
+@media (max-width: 720px) {
+  .st-grid { grid-template-columns: minmax(0, 1fr); }
+  .st-hero { padding: 26px 22px; min-height: 280px; align-items: flex-start; }
+  .st-hero-art img { object-position: 70% bottom; opacity: 0.55; }
+  .st-billing { grid-column: auto; }
+  .st-team { padding-bottom: 70px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .st-art img, .st-circle svg, .st-btn-arrow, .st-avatar, .st-bar-wrap, .st-tile { transition: none; }
+  .st-tile:hover .st-art img, .st-tile:hover .st-avatar, .st-tile:hover .st-bar-wrap { transform: none; }
+}

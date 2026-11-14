@@ -35,7 +35,7 @@ for (const entry of pages) {
     }
     const shot = mobile ? "mobile" : "desktop";
     await page.screenshot({ path: `qa/screenshots/${entry.name}-${shot}.png`, fullPage: true });
-    if (entry.name === "overview" || entry.name.startsWith("billing")) {
+    if (entry.name === "overview" || entry.name === "settings" || entry.name.startsWith("billing")) {
       const results = await new AxeBuilder({ page }).analyze();
       const serious = results.violations.filter((item) => item.impact === "serious" || item.impact === "critical");
       expect(serious).toEqual([]);
