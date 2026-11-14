@@ -4,7 +4,7 @@ import { ClientsView } from "@/components/clients/clients-view";
 import { Skeleton } from "@/components/ui/status";
 import { clientFilters, type ClientFilter, type ClientKind } from "@/domain/clients";
 import { can } from "@/domain/permissions";
-import { getClient, listClients } from "@/server/clients";
+import { clientSorts, clientStats, clientTimeline, getClient, listClients, type ClientSort } from "@/server/clients";
 import { requireContext } from "@/server/context";
 import { listClientQuotes } from "@/server/quotes";
 
@@ -36,15 +36,26 @@ async function ClientsContent({ searchParams }: { searchParams: Search }) {
   const kind: ClientKind | "all" = kindParam === "azienda" || kindParam === "privato" ? kindParam : "all";
   const page = Math.max(1, Number.parseInt(one(params.page) ?? "1", 10) || 1);
   const q = one(params.q)?.slice(0, 100) ?? "";
-  const list = await listClients(db, actor, { filter, kind, page, q, pageSize: 12 });
+  const sortParam = one(params.sort);
+  const sort: ClientSort = (clientSorts as readonly string[]).includes(sortParam ?? "") ? (sortParam as ClientSort) : "name";
+  const view: "list" | "grid" = one(params.view) === "grid" ? "grid" : "list";
+  const [list, stats] = await Promise.all([
+    listClients(db, actor, { filter, kind, page, q, sort, pageSize: 10 }),
+    clientStats(db, actor),
+  ]);
   if (!list.ok) throw new Error(list.message);
+  if (!stats.ok) throw new Error(stats.message);
   const selectedId = one(params.id);
-  const [detailResult, history] = selectedId
-    ? await Promise.all([getClient(db, actor, selectedId), listClientQuotes(db, actor, selectedId)])
-    : [null, null];
+  const [detailResult, history, timeline] = selectedId
+    ? await Promise.all([getClient(db, actor, selectedId), listClientQuotes(db, actor, selectedId), clientTimeline(db, actor, selectedId)])
+    : [null, null, null];
   return (
     <ClientsView
       list={list.value}
+      stats={stats.value}
+      sort={sort}
+      view={view}
+      timeline={timeline?.ok ? timeline.value : []}
       filter={filter}
       kind={kind}
       q={q}

@@ -217,7 +217,7 @@ test("preventivi: wizard, editor, versione, PDF e storico cliente", async ({ pag
 
   // Client history.
   await page.goto(clientUrl);
-  const history = page.getByRole("region", { name: "Storico preventivi" });
+  const history = page.getByRole("region", { name: "Preventivi recenti" });
   await expect(history.getByText(`Nuovo sito web ${suffix}`)).toBeVisible();
   await expect(history.getByText(number)).toBeVisible();
   await history.scrollIntoViewIfNeeded();

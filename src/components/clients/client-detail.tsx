@@ -7,6 +7,15 @@ import {
   Archive,
   ArchiveRestore,
   AtSign,
+  BadgeCheck,
+  CircleDot,
+  Eye,
+  History,
+  Receipt,
+  Send,
+  Shapes,
+  ThumbsDown,
+  ThumbsUp,
   Building2,
   FileText,
   Globe,
@@ -39,17 +48,27 @@ import {
   deleteNoteAction,
   saveContactAction,
 } from "@/server/actions/clients";
-import type { ClientContact, ClientDetail } from "@/server/clients";
-import type { ClientPermissions } from "@/components/clients/clients-view";
+import type { ClientContact, ClientDetail, ClientEvent } from "@/server/clients";
+import { statusTone, type ClientPermissions } from "@/components/clients/clients-view";
 import { QuoteAmount } from "@/components/quotes/quotes-view";
 import { quoteStatusLabel, quoteStatusTone } from "@/domain/quote-status";
 import type { QuoteRow } from "@/server/quotes";
 
 const dateFormat = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Rome" });
 
-type Tab = "overview" | "contacts" | "notes";
+type Tab = "overview" | "quotes" | "notes" | "history";
 
-export function ClientDetailPanel({ client, permissions, quotes }: { client: ClientDetail; permissions: ClientPermissions; quotes: QuoteRow[] }) {
+export function ClientDetailPanel({
+  client,
+  permissions,
+  quotes,
+  timeline,
+}: {
+  client: ClientDetail;
+  permissions: ClientPermissions;
+  quotes: QuoteRow[];
+  timeline: ClientEvent[];
+}) {
   const [tab, setTab] = useState<Tab>("overview");
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -60,24 +79,23 @@ export function ClientDetailPanel({ client, permissions, quotes }: { client: Cli
   const primary = client.contacts.find((contact) => contact.isPrimary) ?? client.contacts[0];
   const tabs: Array<{ id: Tab; label: string; count?: number }> = [
     { id: "overview", label: "Panoramica" },
-    { id: "contacts", label: "Referenti", count: client.contacts.length },
+    { id: "quotes", label: "Preventivi", count: quotes.length },
     { id: "notes", label: "Note", count: client.notes.length },
+    { id: "history", label: "Storico" },
   ];
 
   return (
     <article className="card detail-card">
-      <header className="detail-header">
+      <header className="detail-header cl-hero brand-fill">
         <ClientAvatar name={client.name} />
         <div className="detail-title">
           <div className="detail-title-row">
             <h2>{client.name}</h2>
-            <StatusBadge tone={client.status === "active" ? "success" : client.status === "prospect" ? "info" : "draft"}>
-              {clientStatusLabel[client.status]}
-            </StatusBadge>
+            <StatusBadge tone={statusTone[client.status]}>{clientStatusLabel[client.status]}</StatusBadge>
           </div>
-          <p className="muted">
-            {client.sector ?? clientKindLabel[client.kind]}
-            {client.vatNumber ? ` · P. IVA ${client.vatNumber}` : ""}
+          <p>
+            {clientKindLabel[client.kind]}
+            {client.sector ? ` · ${client.sector}` : ""}
           </p>
         </div>
         <ActionMenu
@@ -136,7 +154,7 @@ export function ClientDetailPanel({ client, permissions, quotes }: { client: Cli
 
       <div role="tabpanel" id={`client-panel-${tab}`} aria-labelledby={`client-tab-${tab}`} className="tab-panel">
         {tab === "overview" ? (
-          <div className="detail-grid">
+          <div className="stack-tight">
             <section className="card inset">
               <SectionTitle
                 icon={<Building2 size={16} aria-hidden="true" />}
@@ -150,45 +168,28 @@ export function ClientDetailPanel({ client, permissions, quotes }: { client: Cli
               >
                 Informazioni cliente
               </SectionTitle>
-              <dl className="info-list">
-                <InfoRow icon={<UserRound size={16} />} label="Referente" value={primary ? primary.name : null} sub={primary?.roleLabel} />
+              <dl className="info-list cl-info">
+                <InfoRow icon={<Shapes size={16} />} label="Tipologia" value={clientKindLabel[client.kind]} />
+                <InfoRow icon={<CircleDot size={16} />} label="Stato" value={clientStatusLabel[client.status]} />
                 <InfoRow icon={<AtSign size={16} />} label="Email" value={client.email} href={client.email ? `mailto:${client.email}` : undefined} />
                 <InfoRow icon={<Phone size={16} />} label="Telefono" value={client.phone} href={client.phone ? `tel:${client.phone.replace(/\s/g, "")}` : undefined} />
-                <InfoRow icon={<Globe size={16} />} label="Sito web" value={client.website?.replace(/^https?:\/\//, "") ?? null} href={client.website ?? undefined} external />
+                <InfoRow icon={<Receipt size={16} />} label="P. IVA" value={client.vatNumber} />
                 <InfoRow icon={<MapPin size={16} />} label="Indirizzo" value={client.address} />
+                <InfoRow icon={<Globe size={16} />} label="Sito web" value={client.website?.replace(/^https?:\/\//, "") ?? null} href={client.website ?? undefined} external />
                 <InfoRow icon={<FileText size={16} />} label="Codice fiscale" value={client.taxCode} />
+                <InfoRow icon={<UserRound size={16} />} label="Referente" value={primary ? primary.name : null} sub={primary?.roleLabel} />
               </dl>
             </section>
-            <div className="stack-tight">
-              <ClientQuotes client={client} quotes={quotes} canCreate={permissions.createQuote && !archived} />
-              <section className="card inset">
-                <SectionTitle
-                  icon={<NotebookPen size={16} aria-hidden="true" />}
-                  action={
-                    <button type="button" className="link-btn" onClick={() => setTab("notes")}>
-                      {client.notes.length ? "Tutte le note" : "Aggiungi nota"}
-                    </button>
-                  }
-                >
-                  Note
-                </SectionTitle>
-                {client.notes[0] ? (
-                  <>
-                    <p className="note-preview">{client.notes[0].body}</p>
-                    <p className="muted small">Ultima modifica: {dateFormat.format(client.notes[0].createdAt)}</p>
-                  </>
-                ) : (
-                  <p className="muted small">Nessuna nota interna.</p>
-                )}
-              </section>
-              <p className="muted small">
-                Creato il {dateFormat.format(client.createdAt)} · aggiornato il {dateFormat.format(client.updatedAt)}
-              </p>
-            </div>
+            <ClientQuotes client={client} quotes={quotes} canCreate={permissions.createQuote && !archived} limit={3} onAll={() => setTab("quotes")} />
+            <ContactsTab client={client} canWrite={permissions.write} />
+            <p className="muted small">
+              Creato il {dateFormat.format(client.createdAt)} · aggiornato il {dateFormat.format(client.updatedAt)}
+            </p>
           </div>
         ) : null}
-        {tab === "contacts" ? <ContactsTab client={client} canWrite={permissions.write} /> : null}
+        {tab === "quotes" ? <ClientQuotes client={client} quotes={quotes} canCreate={permissions.createQuote && !archived} limit={50} /> : null}
         {tab === "notes" ? <NotesTab client={client} canWrite={permissions.write} /> : null}
+        {tab === "history" ? <HistoryTab events={timeline} /> : null}
       </div>
 
       <ClientFormDialog open={editing} onClose={() => setEditing(false)} client={client} />
@@ -221,26 +222,55 @@ export function ClientDetailPanel({ client, permissions, quotes }: { client: Cli
   );
 }
 
-function ClientQuotes({ client, quotes, canCreate }: { client: ClientDetail; quotes: QuoteRow[]; canCreate: boolean }) {
+function ClientQuotes({
+  client,
+  quotes,
+  canCreate,
+  limit,
+  onAll,
+}: {
+  client: ClientDetail;
+  quotes: QuoteRow[];
+  canCreate: boolean;
+  limit: number;
+  onAll?: () => void;
+}) {
+  const newHref = `/app/quotes/new?client=${client.id}`;
   return (
-    <section className="card inset" aria-label="Storico preventivi">
+    <section className="card inset" aria-label={limit < 50 ? "Preventivi recenti" : "Tutti i preventivi"}>
       <SectionTitle
         icon={<FileText size={16} aria-hidden="true" />}
         action={
-          canCreate ? (
-            <Link className="link-btn" href={`/app/quotes/new?client=${client.id}`}>
+          quotes.length > limit && onAll ? (
+            <button type="button" className="link-btn" onClick={onAll}>
+              Vedi tutti
+            </button>
+          ) : canCreate && quotes.length > 0 ? (
+            <Link className="link-btn" href={newHref}>
               <Plus size={14} aria-hidden="true" /> Nuovo
             </Link>
           ) : undefined
         }
       >
-        Preventivi {quotes.length ? <span className="count">{quotes.length}</span> : null}
+        {limit < 50 ? "Preventivi recenti" : "Preventivi"} {quotes.length ? <span className="count">{quotes.length}</span> : null}
       </SectionTitle>
       {quotes.length === 0 ? (
-        <p className="muted small">Ancora nessun preventivo per questo cliente.</p>
+        <div className="cl-quotes-empty">
+          <picture>
+            <source type="image/avif" srcSet="/illustrations/no-quotes-480.avif 480w, /illustrations/no-quotes-960.avif 960w" sizes="220px" />
+            <source type="image/webp" srcSet="/illustrations/no-quotes-480.webp 480w, /illustrations/no-quotes-960.webp 960w" sizes="220px" />
+            <img src="/illustrations/no-quotes-480.webp" alt="" width={480} height={320} decoding="async" loading="lazy" />
+          </picture>
+          <p className="muted small">Ancora nessun preventivo per questo cliente.</p>
+          {canCreate ? (
+            <Link className="btn btn-primary" href={newHref}>
+              <Plus size={16} aria-hidden="true" /> Nuovo preventivo
+            </Link>
+          ) : null}
+        </div>
       ) : (
         <ul className="client-quotes">
-          {quotes.slice(0, 8).map((quote) => (
+          {quotes.slice(0, limit).map((quote) => (
             <li key={quote.id}>
               <Link href={`/app/quotes/${quote.id}`} className="client-quote">
                 <span className="client-quote-main">
@@ -260,11 +290,45 @@ function ClientQuotes({ client, quotes, canCreate }: { client: ClientDetail; quo
           ))}
         </ul>
       )}
-      {quotes.length > 8 ? (
-        <Link className="link-btn" href={`/app/quotes?q=${encodeURIComponent(client.name)}`}>
-          Vedi tutti i {quotes.length} preventivi
-        </Link>
-      ) : null}
+    </section>
+  );
+}
+
+const eventIcon: Record<ClientEvent["kind"], React.ReactNode> = {
+  client_created: <BadgeCheck size={15} aria-hidden="true" />,
+  note_added: <NotebookPen size={15} aria-hidden="true" />,
+  quote_created: <FileText size={15} aria-hidden="true" />,
+  quote_sent: <Send size={15} aria-hidden="true" />,
+  quote_viewed: <Eye size={15} aria-hidden="true" />,
+  quote_accepted: <ThumbsUp size={15} aria-hidden="true" />,
+  quote_rejected: <ThumbsDown size={15} aria-hidden="true" />,
+};
+
+const eventTimeFormat = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" });
+
+function HistoryTab({ events }: { events: ClientEvent[] }) {
+  return (
+    <section className="card inset" aria-label="Storico del cliente">
+      <SectionTitle icon={<History size={16} aria-hidden="true" />}>Storico</SectionTitle>
+      <ol className="cl-timeline">
+        {events.map((event, index) => (
+          <li key={`${event.kind}-${event.at.getTime()}-${index}`} className={`is-${event.kind}`}>
+            <span className="cl-timeline-ico">{eventIcon[event.kind]}</span>
+            <span className="cl-timeline-main">
+              {event.quoteId ? (
+                <Link href={`/app/quotes/${event.quoteId}`} className="clamp-1">
+                  {event.label}
+                </Link>
+              ) : (
+                <span className="clamp-1">{event.label}</span>
+              )}
+              <time className="muted small" dateTime={event.at.toISOString()}>
+                {eventTimeFormat.format(event.at)}
+              </time>
+            </span>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

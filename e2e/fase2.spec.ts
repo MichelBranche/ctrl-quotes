@@ -65,14 +65,14 @@ test("clienti: crea, cerca, referenti, note, archivia e ripristina", async ({ pa
   }
   await expect(page).toHaveURL(/id=/);
 
-  await page.getByRole("tab", { name: /Referenti/ }).click();
+  // Referenti live in the Panoramica tab of the client card.
   await page.getByRole("button", { name: "Aggiungi referente" }).click();
   const contact = page.getByRole("dialog", { name: "Nuovo referente" });
   await contact.getByLabel("Nome e cognome").fill("Luca Ferri");
   await contact.getByLabel("Ruolo").fill("Direttore creativo");
   await contact.getByLabel("Referente principale").check();
   await contact.getByRole("button", { name: "Salva referente" }).click();
-  await expect(page.getByText("Luca Ferri")).toBeVisible();
+  await expect(page.getByText("Luca Ferri").first()).toBeVisible();
 
   await page.getByRole("tab", { name: /Note/ }).click();
   await page.getByLabel("Nuova nota interna").fill("Interessato alla manutenzione dopo il lancio.");
@@ -80,7 +80,11 @@ test("clienti: crea, cerca, referenti, note, archivia e ripristina", async ({ pa
   await expect(page.getByText("Interessato alla manutenzione dopo il lancio.")).toBeVisible();
 
   await page.getByRole("tab", { name: "Panoramica" }).click();
-  await expect(page.getByRole("tabpanel").getByText("Luca Ferri")).toBeVisible();
+  await expect(page.getByRole("tabpanel").getByText("Luca Ferri").first()).toBeVisible();
+  await page.getByRole("tab", { name: "Storico" }).click();
+  await expect(page.getByRole("tabpanel").getByText("Cliente aggiunto alla rubrica")).toBeVisible();
+  await expect(page.getByRole("tabpanel").getByText("Nota interna aggiunta")).toBeVisible();
+  await page.getByRole("tab", { name: "Panoramica" }).click();
   await shot(page, "clienti-dettaglio", testInfo);
   if (mobile) await noOverflow(page);
   expect(await seriousA11y(page)).toEqual([]);
