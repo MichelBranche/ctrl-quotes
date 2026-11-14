@@ -26,6 +26,7 @@ const payloadSchema = z.object({
   message: z.string(),
   attachPdf: z.boolean(),
   replyTo: z.string().nullable(),
+  url: z.string().url().optional(),
   isUpdate: z.boolean(),
   countsTowardQuota: z.boolean().optional(),
   quotaDay: z.string().nullable().optional(),
@@ -62,7 +63,7 @@ export async function deliverQuoteEmail(
     const version = rows[0];
     if (!version) throw new Error("Versione del preventivo non trovata");
     const snapshot = JSON.parse(version.snapshot) as QuoteSnapshot;
-    const url = await revealPublicLinkUrl(db, payload.workspaceId, payload.linkId);
+    const url = payload.url ?? (await revealPublicLinkUrl(db, payload.workspaceId, payload.linkId));
     if (!url) throw new Error("Link del preventivo non disponibile: rigeneralo e invia di nuovo");
     const validUntil = snapshot.quote.validUntil ? longDate.format(new Date(snapshot.quote.validUntil)) : null;
     const content = renderQuoteEmail({
