@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { FROM_BOTTOM, FROM_LEFT, FROM_RIGHT, FROM_TOP, useCardMotion } from "@/components/motion/card-motion";
+import { useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -85,9 +87,21 @@ export function ClientsView({
     transition: { duration: reducedMotion ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] as const },
   };
   const hasAny = list.workspaceTotal > 0;
+  // Build up / tear down: title fades, KPIs from left / above / right, address book from below, client card from the right; out in reverse.
+  const m = useCardMotion();
+  const { visit, leaving } = useSectionTransition();
+  const { moving, settle } = useMoving();
 
   return (
-    <div className={cn("two-pane-page clients-page", selectedId && "has-selection")}>
+    <motion.div
+      key={visit}
+      className={cn("two-pane-page clients-page", selectedId && "has-selection", leaving && "is-leaving", moving && "is-moving")}
+      variants={m.grid}
+      initial="hidden"
+      animate={leaving ? "exit" : "show"}
+      onAnimationComplete={settle}
+    >
+      <motion.div {...m.head(leaving)}>
       <PageHeader
         title="Clienti"
         subtitle="Gestisci la rubrica, i referenti e le note interne."
@@ -107,6 +121,7 @@ export function ClientsView({
           </div>
         }
       />
+      </motion.div>
 
       <ClientKpis stats={stats} />
 
@@ -124,7 +139,7 @@ export function ClientsView({
           onCreate={() => setCreating(true)}
         />
 
-        <section className="detail-pane" aria-label="Dettaglio cliente">
+        <motion.section className="detail-pane" aria-label="Dettaglio cliente" variants={m.item} custom={FROM_RIGHT}>
           {selectedId ? <BackLink /> : null}
           <div className="detail-stage">
             <AnimatePresence initial={false}>
@@ -155,12 +170,12 @@ export function ClientsView({
               )}
             </AnimatePresence>
           </div>
-        </section>
+        </motion.section>
       </div>
 
       <ClientFormDialog open={creating} onClose={() => setCreating(false)} client={null} />
       {permissions.importCsv ? <ImportDialog open={importing} onClose={() => setImporting(false)} /> : null}
-    </div>
+    </motion.div>
   );
 }
 
@@ -177,10 +192,11 @@ function BackLink() {
 
 function ClientKpis({ stats }: { stats: ClientStats }) {
   const delta = stats.createdThisMonth - stats.createdLastMonth;
+  const m = useCardMotion();
   const share = (value: number) => (stats.total > 0 ? `${Math.round((value / stats.total) * 100)}% della rubrica` : "Nessun cliente in rubrica");
   return (
     <div className="ov-kpis cl-kpis">
-      <section className="card ov-kpi cl-kpi">
+      <motion.section className="card ov-kpi cl-kpi" variants={m.item} custom={FROM_LEFT} whileHover={m.lift}>
         <span className="ov-kpi-ico">
           <Users size={20} aria-hidden="true" />
         </span>
@@ -195,8 +211,8 @@ function ClientKpis({ stats }: { stats: ClientStats }) {
           </p>
         </div>
         <Sparkline values={stats.growth} label="Clienti in rubrica per mese di creazione, ultimi 8 mesi" />
-      </section>
-      <section className="card ov-kpi cl-kpi">
+      </motion.section>
+      <motion.section className="card ov-kpi cl-kpi" variants={m.item} custom={FROM_TOP} whileHover={m.lift}>
         <span className="ov-kpi-ico">
           <UserCheck size={20} aria-hidden="true" />
         </span>
@@ -206,8 +222,8 @@ function ClientKpis({ stats }: { stats: ClientStats }) {
           <p className="ov-kpi-note">{share(stats.active)}</p>
         </div>
         <ShareRing value={stats.active} total={stats.total} />
-      </section>
-      <section className="card ov-kpi cl-kpi">
+      </motion.section>
+      <motion.section className="card ov-kpi cl-kpi" variants={m.item} custom={FROM_RIGHT} whileHover={m.lift}>
         <span className="ov-kpi-ico">
           <UserPlus size={20} aria-hidden="true" />
         </span>
@@ -217,7 +233,7 @@ function ClientKpis({ stats }: { stats: ClientStats }) {
           <p className="ov-kpi-note">{share(stats.prospect)}</p>
         </div>
         <ShareRing value={stats.prospect} total={stats.total} />
-      </section>
+      </motion.section>
     </div>
   );
 }
@@ -289,6 +305,7 @@ function AddressBook({
 }) {
   const href = useHref();
   const router = useRouter();
+  const m = useCardMotion();
   const [checked, setChecked] = useState<string[]>([]);
   const [editing, setEditing] = useState<ClientListItem | null>(null);
   const { pending, run } = useAction();
@@ -321,7 +338,7 @@ function AddressBook({
   );
 
   return (
-    <section className="card list-pane cl-book" aria-labelledby="cl-book-title">
+    <motion.section className="card list-pane cl-book" aria-labelledby="cl-book-title" variants={m.item} custom={FROM_BOTTOM}>
       <header className="cl-book-head">
         <h2 id="cl-book-title">
           La tua rubrica <span className="count">{list.workspaceTotal}</span>
@@ -509,6 +526,6 @@ function AddressBook({
       )}
       <Pagination page={list.page} pageSize={list.pageSize} total={list.total} noun="clienti" />
       <ClientFormDialog open={editing !== null} onClose={() => setEditing(null)} client={editing} />
-    </section>
+    </motion.section>
   );
 }

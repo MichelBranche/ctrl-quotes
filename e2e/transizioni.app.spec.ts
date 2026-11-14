@@ -26,11 +26,36 @@ test.describe("ritorno all'Overview con transizione", () => {
     test.skip(testInfo.project.name.includes("mobile"), "la sidebar desktop serve per il clic");
   });
 
-  for (const from of ["/app/quotes", "/app/clients", "/app/catalog", "/app/templates", "/app/help"]) {
+  // Card choreography of their own (Preventivi, Clienti, Catalogo) or the generic page exit (Template, Aiuto).
+  const leaving: Record<string, string> = {
+    "/app/quotes": ".qv-page.is-leaving",
+    "/app/clients": ".clients-page.is-leaving",
+    "/app/catalog": ".ct-grid.is-leaving",
+    "/app/templates": ".pt-leaving",
+    "/app/help": ".pt-leaving",
+  };
+  for (const [from, selector] of Object.entries(leaving)) {
     test(`da ${from}`, async ({ page }) => {
-      await leavesThenArrives(page, from, ".pt-leaving", sidebarOverview(page));
+      await leavesThenArrives(page, from, selector, sidebarOverview(page));
     });
   }
+
+  test("verso Preventivi, Clienti e Catalogo le card arrivano e si fermano", async ({ page }) => {
+    for (const [to, card] of [
+      ["/app/quotes", ".qv-page > .toolbar"],
+      ["/app/clients", ".cl-kpi"],
+      ["/app/catalog", ".ct-hero"],
+    ] as const) {
+      await page.goto("/app/overview");
+      await page.waitForTimeout(1200);
+      await page.locator(`.sidebar-desktop a.nav-link[href='${to}']`).click();
+      await expect(page).toHaveURL(new RegExp(`${to}$`));
+      await expect.poll(async () => page.locator(card).first().evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+      await page.goBack();
+      await expect(page).toHaveURL(/\/app\/overview$/);
+      await expect.poll(async () => page.locator(".ov-kpi").first().evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+    }
+  });
 
   test("da Impostazioni e da una sottopagina", async ({ page }) => {
     await leavesThenArrives(page, "/app/settings", ".st-grid.is-leaving", sidebarOverview(page));
@@ -48,6 +73,15 @@ test.describe("ritorno all'Overview con transizione", () => {
     await page.goto("/app/settings");
     await page.waitForTimeout(1500);
     expect(await page.locator(".st-grid").evaluate((el) => getComputedStyle(el).overflow)).toBe("visible");
+    for (const [path, stage] of [
+      ["/app/quotes", ".qv-page"],
+      ["/app/clients", ".clients-page"],
+      ["/app/catalog", ".ct-grid"],
+    ] as const) {
+      await page.goto(path);
+      await page.waitForTimeout(1500);
+      expect(await page.locator(stage).evaluate((el) => getComputedStyle(el).overflow)).toBe("visible");
+    }
   });
 
   test("con reduced motion si cambia pagina subito", async ({ page }) => {

@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { CatalogView } from "@/components/catalog-data/catalog-view";
-import { Skeleton } from "@/components/ui/status";
 import { catalogTypes, type CatalogType } from "@/domain/catalog";
 import { can } from "@/domain/permissions";
 import { getCatalogItem, listCatalog, listCategories, listComponentOptions } from "@/server/catalog";
@@ -18,14 +17,7 @@ function one(value: string | string[] | undefined): string | undefined {
 
 export default function CatalogPage({ searchParams }: { searchParams: Search }) {
   return (
-    <Suspense
-      fallback={
-        <div className="stack" aria-busy="true">
-          <Skeleton width="30%" />
-          <Skeleton />
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="pt-wait" aria-busy="true" />}>
       <CatalogContent searchParams={searchParams} />
     </Suspense>
   );

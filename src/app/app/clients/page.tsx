@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { ClientsView } from "@/components/clients/clients-view";
-import { Skeleton } from "@/components/ui/status";
 import { clientFilters, type ClientFilter, type ClientKind } from "@/domain/clients";
 import { can } from "@/domain/permissions";
 import { clientSorts, clientStats, clientTimeline, getClient, listClients, type ClientSort } from "@/server/clients";
@@ -14,7 +13,7 @@ type Search = Promise<Record<string, string | string[] | undefined>>;
 
 export default function ClientsPage({ searchParams }: { searchParams: Search }) {
   return (
-    <Suspense fallback={<ClientsSkeleton />}>
+    <Suspense fallback={<div className="pt-wait" aria-busy="true" />}>
       <ClientsContent searchParams={searchParams} />
     </Suspense>
   );
@@ -70,15 +69,5 @@ async function ClientsContent({ searchParams }: { searchParams: Search }) {
       }}
       quoteHistory={history?.ok ? history.value : []}
     />
-  );
-}
-
-function ClientsSkeleton() {
-  return (
-    <div className="stack" aria-busy="true">
-      <Skeleton width="30%" />
-      <Skeleton width="60%" />
-      <Skeleton />
-    </div>
   );
 }
