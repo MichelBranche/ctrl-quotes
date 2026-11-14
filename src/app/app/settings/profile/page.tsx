@@ -25,6 +25,6 @@ async function SettingsContent() {
   const workspace = workspaces.find((item) => item.id === requested) ?? workspaces[0];
   if (!workspace) return null;
   return (
-    <ProfileForm workspaceId={workspace.id} workspaceName={workspace.name} canEdit={hasRole(workspace.role, "admin")} />
+    <ProfileForm workspaceId={workspace.id} workspaceName={workspace.name} workspaceSlug={workspace.slug} canEdit={hasRole(workspace.role, "admin")} />
   );
 }

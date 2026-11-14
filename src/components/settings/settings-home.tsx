@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { ArrowRight, CreditCard, FileText, Hash, Layers, Palette, Percent, Plus, Users } from "lucide-react";
+import { ArrowRight, Building2, CreditCard, FileText, Hash, Layers, Palette, Percent, Plus, Users } from "lucide-react";
 import { SectionLink, useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { cn } from "@/lib/cn";
 import { messages } from "@/i18n/it";
@@ -19,7 +19,7 @@ const FROM_LEFT: Dir = { x: -160, y: 0 };
 const FROM_RIGHT: Dir = { x: 160, y: 0 };
 
 /** Hero from above; row 1 left, below, right; row 2: Team left, the two micro cards top and bottom, Fatturazione right. */
-const dirs = { hero: FROM_TOP, profile: FROM_LEFT, brand: FROM_BOTTOM, fiscal: FROM_RIGHT, team: FROM_LEFT, numbering: FROM_TOP, terms: FROM_BOTTOM, billing: FROM_RIGHT } as const;
+const dirs = { hero: FROM_TOP, profile: FROM_LEFT, brand: FROM_BOTTOM, fiscal: FROM_RIGHT, team: FROM_LEFT, workspace: FROM_LEFT, numbering: FROM_TOP, terms: FROM_BOTTOM, billing: FROM_RIGHT } as const;
 
 const ease = [0.16, 1, 0.3, 1] as const;
 const spring = { type: "spring", stiffness: 260, damping: 28, mass: 0.9 } as const;
@@ -68,6 +68,7 @@ export function SettingsHome() {
         </Card>
         {/* Settings without a tile in the mockup: two micro cards stacked between Team and Fatturazione. */}
         <div className="st-micro">
+          <Row href="/app/workspace" dir={dirs.workspace} icon={<Building2 size={20} />} title={messages.settings.manageWorkspaces} className="st-workspaces" />
           <Row href="/app/settings/numbering" dir={dirs.numbering} icon={<Hash size={20} />} title="Numerazione" className="st-numbering" />
           <Row href="/app/settings/terms" dir={dirs.terms} icon={<FileText size={20} />} title="Condizioni e note" className="st-terms" />
         </div>

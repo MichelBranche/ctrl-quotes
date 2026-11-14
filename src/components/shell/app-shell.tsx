@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { ArrowRight, Bell, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search } from "lucide-react";
+import { ArrowRight, Bell, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { PageTransition } from "@/components/motion/page-transition";
 import { SectionTransitionProvider } from "@/components/motion/section-transition";
 import { AnchoredPopover } from "@/components/ui/anchored-popover";
@@ -12,6 +12,8 @@ import { currentPlanLabel, type PlanId } from "@/domain/plans";
 import type { ShellData } from "@/components/shell/types";
 import { messages } from "@/i18n/it";
 import { cn } from "@/lib/cn";
+import { DeleteWorkspaceDialog, type DeleteWorkspaceTarget } from "@/components/workspace/delete-workspace-dialog";
+import { hasRole } from "@/domain/roles";
 import { logoutAction, switchWorkspaceAction } from "@/server/actions";
 
 const COLLAPSE_KEY = "cq-sidebar-collapsed";
@@ -37,6 +39,8 @@ function useCollapsed(): [boolean, (value: boolean) => void] {
 export function AppShell({ data, children }: { data: ShellData; children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useCollapsed();
+  const [deleteTarget, setDeleteTarget] = useState<DeleteWorkspaceTarget | null>(null);
+  const canDeleteAny = data.workspaces.length > 1;
 
   return (
     // One transition provider for the whole app: every in-app link (sidebar, logo, cards) tears the current view down
@@ -107,14 +111,54 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
                 <span className="muted">{data.user.email}</span>
               </p>
               <p className="menu-label">{messages.shell.workspace}</p>
-              {data.workspaces.map((workspace) => (
-                <form key={workspace.id} action={switchWorkspaceAction}>
-                  <input type="hidden" name="workspaceId" value={workspace.id} />
-                  <button type="submit" aria-current={workspace.id === data.workspace.id ? "true" : undefined}>
-                    {workspace.name}
-                  </button>
-                </form>
-              ))}
+              {data.workspaces.map((workspace) => {
+                const isCurrent = workspace.id === data.workspace.id;
+                const canEdit = hasRole(workspace.role, "admin");
+                const canDelete = workspace.role === "owner";
+                return (
+                  <div key={workspace.id} className="ws-menu-item">
+                    <form action={switchWorkspaceAction} className="ws-menu-switch">
+                      <input type="hidden" name="workspaceId" value={workspace.id} />
+                      <button type="submit" aria-current={isCurrent ? "true" : undefined}>
+                        {workspace.name}
+                        {isCurrent ? <span className="ws-menu-current">{messages.shell.currentWorkspace}</span> : null}
+                      </button>
+                    </form>
+                    <div className="ws-menu-acts">
+                      {canEdit ? (
+                        isCurrent ? (
+                          <Link href="/app/settings/profile" title={messages.shell.editWorkspace} aria-label={messages.shell.editWorkspace}>
+                            <Pencil size={14} aria-hidden="true" />
+                          </Link>
+                        ) : (
+                          <form action={switchWorkspaceAction}>
+                            <input type="hidden" name="workspaceId" value={workspace.id} />
+                            <input type="hidden" name="next" value="/app/settings/profile" />
+                            <button type="submit" title={messages.shell.editWorkspace} aria-label={messages.shell.editWorkspace}>
+                              <Pencil size={14} aria-hidden="true" />
+                            </button>
+                          </form>
+                        )
+                      ) : null}
+                      {canDelete ? (
+                        <button
+                          type="button"
+                          className="is-danger"
+                          title={canDeleteAny ? messages.shell.deleteWorkspace : messages.workspace.lastWorkspace}
+                          aria-label={messages.shell.deleteWorkspace}
+                          disabled={!canDeleteAny}
+                          onClick={() => {
+                            if (canDeleteAny) setDeleteTarget({ id: workspace.id, name: workspace.name });
+                          }}
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+              <Link href="/app/workspace">{messages.shell.manageWorkspaces}</Link>
               <Link href="/onboarding">
                 <Plus size={16} aria-hidden="true" /> {messages.shell.newWorkspace}
               </Link>
@@ -139,6 +183,7 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
             </Link>
           </div>
         </Drawer>
+        <DeleteWorkspaceDialog target={deleteTarget} onClose={() => setDeleteTarget(null)} />
       </div>
     </SectionTransitionProvider>
   );

@@ -26,7 +26,7 @@
 .st-grid.is-leaving { pointer-events: none; }
 .st-hero { grid-column: 1 / -1; }
 .st-profile, .st-brand, .st-fiscal, .st-team { grid-column: span 4; }
-.st-micro { grid-column: span 3; display: grid; grid-template-rows: 1fr 1fr; gap: 14px; min-height: 0; }
+.st-micro { grid-column: span 3; display: grid; grid-template-rows: 1fr 1fr 1fr; gap: 10px; min-height: 0; }
 .st-billing { grid-column: span 5; }
 
 .st-card { position: relative; overflow: hidden; isolation: isolate; border-radius: 24px; min-width: 0; }
@@ -140,8 +140,13 @@
   .st-page { height: calc(var(--cq-page-h) + 8px - var(--cq-shell-pad)); min-height: 0; }
   .st-grid { min-height: 0; }
   .st-hero { min-height: 0; padding: 26px 36px; }
+  .st-grid { grid-template-rows: minmax(150px, 1.05fr) minmax(140px, 1fr) minmax(196px, 1.15fr); }
   .st-tile-link { padding: 20px 22px; }
   .st-tile-icon { margin-bottom: 10px; }
+  .st-micro .st-row-link { padding: 8px 12px 8px 12px; }
+  .st-micro .st-row-icon { width: 36px; height: 36px; border-radius: 11px; }
+  .st-micro .st-row-title { font-size: 15px; }
+  .st-micro .st-circle { width: 32px; height: 32px; }
 }
 
 @media (max-width: 1180px) {
@@ -149,7 +154,7 @@
   .st-hero { grid-column: 1 / -1; }
   .st-profile, .st-brand, .st-fiscal, .st-team, .st-billing { grid-column: span 1; min-height: 190px; }
   .st-billing { grid-column: 1 / -1; }
-  .st-micro { grid-column: 1 / -1; grid-template-rows: none; grid-template-columns: 1fr 1fr; }
+  .st-micro { grid-column: 1 / -1; grid-template-rows: none; grid-template-columns: 1fr 1fr 1fr; }
   .st-row { min-height: 72px; }
 }
 @media (max-width: 720px) {

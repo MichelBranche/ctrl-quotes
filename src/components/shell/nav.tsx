@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CircleHelp, FileText, House, Layers, LayoutGrid, Settings, Users } from "lucide-react";
+import { Building2, CircleHelp, FileText, House, Layers, LayoutGrid, Settings, Users } from "lucide-react";
 import { messages } from "@/i18n/it";
 
 const primary = [
@@ -10,6 +10,7 @@ const primary = [
   { href: "/app/quotes", label: messages.shell.quotes, icon: FileText },
   { href: "/app/clients", label: messages.shell.clients, icon: Users },
   { href: "/app/catalog", label: messages.shell.catalog, icon: Layers },
+  { href: "/app/workspace", label: messages.shell.workspace, icon: Building2 },
   { href: "/app/templates", label: messages.shell.templates, icon: LayoutGrid },
 ] as const;
 

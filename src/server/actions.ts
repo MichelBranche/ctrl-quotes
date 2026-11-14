@@ -14,7 +14,13 @@ import { clientIp } from "@/server/request-meta";
 import { previewAutoVerifyEmail } from "@/server/preview-auth";
 import { passesCaptcha } from "@/server/turnstile";
 import { requireUser, workspaceCookieOptions } from "@/server/session";
-import { createWorkspace, getWorkspaceForUser, updateWorkspace } from "@/server/workspaces";
+import {
+  createWorkspace,
+  deleteWorkspace,
+  deleteWorkspaceMessages,
+  getWorkspaceForUser,
+  updateWorkspace,
+} from "@/server/workspaces";
 
 export type FormState = {
   error?: string;
@@ -199,6 +205,12 @@ export async function createWorkspaceAction(_state: FormState, formData: FormDat
   redirect("/app/overview");
 }
 
+const switchNextPaths = new Set(["/app/overview", "/app/workspace", "/app/settings/profile"]);
+
+function safeSwitchNext(value: string): string {
+  return switchNextPaths.has(value) ? value : "/app/overview";
+}
+
 export async function switchWorkspaceAction(formData: FormData): Promise<void> {
   const session = await requireUser();
   const workspaceId = String(formData.get("workspaceId") ?? "");
@@ -206,16 +218,18 @@ export async function switchWorkspaceAction(formData: FormData): Promise<void> {
   if (!workspace) redirect("/app/overview");
   const jar = await cookies();
   jar.set("cq_workspace", workspace.id, await workspaceCookieOptions());
-  redirect("/app/overview");
+  redirect(safeSwitchNext(String(formData.get("next") ?? "/app/overview")));
 }
 
 export async function updateWorkspaceAction(_state: FormState, formData: FormData): Promise<FormState> {
   const session = await requireUser();
   const workspaceId = String(formData.get("workspaceId") ?? "");
+  const slugRaw = String(formData.get("slug") ?? "").trim();
   const result = await updateWorkspace(getDb(), {
     userId: session.user.id,
     workspaceId,
     name: String(formData.get("name") ?? ""),
+    ...(slugRaw ? { slug: slugRaw } : {}),
   });
   if (!result.ok && result.error === "forbidden") return { error: messages.settings.memberHint };
   if (!result.ok) return { error: messages.errors.notFoundBody };
@@ -227,4 +241,24 @@ export async function updateWorkspaceAction(_state: FormState, formData: FormDat
     entityId: workspaceId,
   });
   return { error: undefined, fieldErrors: { saved: messages.settings.saved } };
+}
+
+export async function deleteWorkspaceAction(input: {
+  workspaceId: string;
+  confirmName: string;
+}): Promise<{ ok: false; message: string }> {
+  const session = await requireUser();
+  const jar = await cookies();
+  const active = jar.get("cq_workspace")?.value;
+  const result = await deleteWorkspace(getDb(), {
+    userId: session.user.id,
+    workspaceId: input.workspaceId,
+    confirmName: input.confirmName,
+  });
+  if (!result.ok) return { ok: false, message: deleteWorkspaceMessages[result.error] };
+  if (!active || active === input.workspaceId) {
+    jar.set("cq_workspace", result.nextWorkspaceId, await workspaceCookieOptions());
+    redirect("/app/overview");
+  }
+  redirect("/app/workspace");
 }

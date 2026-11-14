@@ -11,10 +11,12 @@ import { updateWorkspaceAction, type FormState } from "@/server/actions";
 export function ProfileForm({
   workspaceId,
   workspaceName,
+  workspaceSlug,
   canEdit,
 }: {
   workspaceId: string;
   workspaceName: string;
+  workspaceSlug: string;
   canEdit: boolean;
 }) {
   const [state, action, pending] = useActionState(updateWorkspaceAction, {} as FormState);
@@ -48,6 +50,7 @@ export function ProfileForm({
             </p>
           ) : null}
           <TextField label={messages.settings.name} name="name" defaultValue={workspaceName} required disabled={!canEdit} />
+          <TextField label={messages.settings.slug} name="slug" defaultValue={workspaceSlug} disabled={!canEdit} hint={messages.settings.slugHint} />
         </section>
         <section className="card inset stack">
           <h2 className="section-heading">

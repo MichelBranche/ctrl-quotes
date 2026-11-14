@@ -45,7 +45,7 @@ export async function loadShell(): Promise<ShellData> {
       initials: initials(session.user.name),
     },
     workspace: { id: active.id, name: active.name, plan: active.plan, planOverride: active.planOverride },
-    workspaces: workspaces.map((item) => ({ id: item.id, name: item.name })),
+    workspaces: workspaces.map((item) => ({ id: item.id, name: item.name, role: item.role })),
   };
 }
 
