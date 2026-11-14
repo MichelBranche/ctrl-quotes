@@ -68,6 +68,17 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    // Solo l'alias di produzione: le Preview restano sui propri host *.vercel.app.
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "ctrl-quotes.vercel.app" }],
+        destination: "https://quotes.ctrlagency.dev/:path*",
+        permanent: true,
+      },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {

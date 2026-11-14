@@ -54,7 +54,7 @@ export function createAuth(options: CreateAuthOptions) {
     appName: "CTRL Quotes",
     secret: options.secret,
     baseURL,
-    trustedOrigins: ["https://*.vercel.app"],
+    trustedOrigins: ["https://quotes.ctrlagency.dev", "https://*.vercel.app"],
     database: drizzleAdapter(options.db, {
       provider: "sqlite",
       schema,
