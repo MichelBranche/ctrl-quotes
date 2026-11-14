@@ -300,6 +300,9 @@ async function performSendQuote(
   let emailQueued = false;
   if (input.mode === "email") {
     const sender = await senderOf(db, actor.userId);
+    const snapshot = await getDraftSnapshot(db, actor, quoteId);
+    const workspaceEmail = snapshot.ok ? (snapshot.value.issuer.ownerEmail ?? snapshot.value.issuer.email) : null;
+    const replyTo = sender.email ?? workspaceEmail ?? null;
     const deliveries: Array<{ to: string; cc: string[]; subject: string; kind: "quote_send" | "quote_send_copy" }> = [
       { to: input.to, cc: input.cc, subject: input.subject, kind: "quote_send" },
     ];
@@ -335,7 +338,7 @@ async function performSendQuote(
           subject: delivery.subject,
           message: input.message,
           attachPdf: input.attachPdf,
-          replyTo: sender.email,
+          replyTo,
           isUpdate,
           countsTowardQuota,
           quotaDay: countsTowardQuota ? reservedDay : null,

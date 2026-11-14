@@ -1,6 +1,9 @@
+import { after } from "next/server";
 import { NextResponse } from "next/server";
 import { ensureMigrated, getDb } from "@/db/client";
 import { getAuth } from "@/server/auth";
+import { ownerNoticeHandlers } from "@/server/notifications";
+import { processDueJobs } from "@/server/outbox";
 import { recordView } from "@/server/public-quote";
 import { createRateLimiter, rateRules } from "@/server/rate-limit";
 import { clientIp } from "@/server/request-meta";
@@ -30,5 +33,14 @@ export async function POST(request: Request, context: { params: Promise<{ token:
   const session = await getAuth().api.getSession({ headers: request.headers }).catch(() => null);
   const skipWorkspaceIds = session ? (await listWorkspaces(db, session.user.id)).map((workspace) => workspace.id) : [];
   const result = await recordView(db, token, { userAgent: request.headers.get("user-agent"), skipWorkspaceIds });
+  if (result.first) {
+    after(async () => {
+      try {
+        await processDueJobs(getDb(), ownerNoticeHandlers(getDb()));
+      } catch {
+        /* cron will retry */
+      }
+    });
+  }
   return NextResponse.json({ ok: result.recorded });
 }

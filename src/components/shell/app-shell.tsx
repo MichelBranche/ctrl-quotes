@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowRight, Bell, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { PageTransition } from "@/components/motion/page-transition";
@@ -15,6 +15,8 @@ import { cn } from "@/lib/cn";
 import { DeleteWorkspaceDialog, type DeleteWorkspaceTarget } from "@/components/workspace/delete-workspace-dialog";
 import { hasRole } from "@/domain/roles";
 import { logoutAction, switchWorkspaceAction } from "@/server/actions";
+import { markNotificationsReadAction } from "@/server/actions/notifications";
+import type { ShellNotification } from "@/components/shell/types";
 
 const COLLAPSE_KEY = "cq-sidebar-collapsed";
 const collapseListeners = new Set<() => void>();
@@ -87,16 +89,7 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
               <Search size={16} aria-hidden="true" />
               <input type="search" name="q" placeholder="Cerca preventivi, clienti, servizi…" aria-label="Cerca nei preventivi" maxLength={100} />
             </form>
-            <AnchoredPopover
-              id="notifications"
-              trigger={
-                <button type="button" className="tb-icon" aria-label={messages.shell.notifications}>
-                  <Bell size={18} aria-hidden="true" />
-                </button>
-              }
-            >
-              <p>{messages.shell.noNotifications}</p>
-            </AnchoredPopover>
+            <NotificationBell items={data.notifications} />
             <AnchoredPopover
               id="account-menu"
               trigger={
@@ -207,5 +200,64 @@ function PlanCard({ plan, override }: { plan: string; override: PlanId | null })
         <img src="/brand/quote-marks.png" alt="" width={22} height={13} />
       </Link>
     </>
+  );
+}
+
+
+const noticeDate = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" });
+
+function NotificationBell({ items }: { items: ShellNotification[] }) {
+  const [list, setList] = useState(items);
+  const unread = list.filter((item) => !item.readAt);
+  const pendingIds = useRef(unread.map((item) => item.id));
+
+  useEffect(() => {
+    const popover = document.getElementById("notifications");
+    if (!popover) return;
+    const onToggle = (event: Event) => {
+      if ((event as ToggleEvent).newState !== "open") return;
+      const ids = pendingIds.current;
+      if (ids.length === 0) return;
+      pendingIds.current = [];
+      void markNotificationsReadAction(ids);
+      const now = new Date().toISOString();
+      setList((current) => current.map((item) => (item.readAt ? item : { ...item, readAt: now })));
+    };
+    popover.addEventListener("toggle", onToggle);
+    return () => popover.removeEventListener("toggle", onToggle);
+  }, []);
+
+  return (
+    <AnchoredPopover
+      id="notifications"
+      trigger={
+        <button type="button" className="tb-icon tb-notify" aria-label={messages.shell.notifications}>
+          <Bell size={18} aria-hidden="true" />
+          {unread.length > 0 ? <span className="tb-notify-badge">{unread.length > 9 ? "9+" : unread.length}</span> : null}
+        </button>
+      }
+    >
+      {list.length === 0 ? (
+        <p>{messages.shell.noNotifications}</p>
+      ) : (
+        <ul className="tb-notify-list">
+          {list.map((item) => (
+            <li key={item.id}>
+              {item.href ? (
+                <Link href={item.href} className={item.readAt ? undefined : "is-unread"}>
+                  <strong>{item.title}</strong>
+                  <span>{noticeDate.format(new Date(item.createdAt))}</span>
+                </Link>
+              ) : (
+                <p className={item.readAt ? undefined : "is-unread"}>
+                  <strong>{item.title}</strong>
+                  <span>{noticeDate.format(new Date(item.createdAt))}</span>
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </AnchoredPopover>
   );
 }

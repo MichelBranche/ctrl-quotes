@@ -25,7 +25,13 @@ describe("email del preventivo", () => {
 
   it("ha titolo, piè di pagina e versione testo, senza trattini lunghi", () => {
     const { html, text } = renderQuoteEmail(base);
-    expect(html).toContain("Il tuo preventivo è pronto");
+    expect(html).toContain("Hai ricevuto un preventivo");
+    expect(html).toContain("/email/logo.png");
+    expect(html).toContain("Apri il preventivo");
+    expect(html).toContain("2026/001");
+    expect(html).toContain("3.294,00 € IVA inclusa");
+    expect(html).toContain("Valido fino al 12 gennaio 2027");
+    expect(html).toContain("Inviato da");
     expect(renderQuoteEmail({ ...base, isUpdate: true }).html).toContain("Il preventivo è stato aggiornato");
     expect(emailFooterLines(base)).toEqual(["2026/001 · 3.294,00 € IVA inclusa", "Valido fino al 12 gennaio 2027", "Il link è personale: non inoltrarlo."]);
     for (const value of [html, text, defaultSubject("X", true), defaultMessage({ recipientName: "Luca Ferri", title: "X", senderName: "Giulia Neri", isUpdate: true })]) {

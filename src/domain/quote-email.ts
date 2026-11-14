@@ -3,6 +3,8 @@
  * same heading, message and footer as a live preview, and the server renders it to HTML and text.
  */
 
+import { emailAssetBase, emailCtaButton, escapeHtml, renderSystemEmail, SYSTEM_EMAIL } from "@/server/email/system-layout";
+
 export const EMAIL_LIMITS = { subject: 160, message: 2000, cc: 3 } as const;
 
 export type QuoteEmailInput = {
@@ -37,7 +39,7 @@ export function defaultMessage(input: { recipientName: string | null; title: str
 }
 
 export function emailHeading(isUpdate: boolean): string {
-  return isUpdate ? "Il preventivo è stato aggiornato" : "Il tuo preventivo è pronto";
+  return isUpdate ? "Il preventivo è stato aggiornato" : "Hai ricevuto un preventivo";
 }
 
 export function emailFooterLines(input: Pick<QuoteEmailInput, "quoteNumber" | "totalLabel" | "validUntilLabel">): string[] {
@@ -61,40 +63,50 @@ export function buttonColor(hex: string): string {
   return (1.05 / (luminance + 0.05)) >= 4.5 ? `#${match[1]!.toLowerCase()}` : "#1f1b18";
 }
 
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
 export function renderQuoteEmail(input: QuoteEmailInput): { html: string; text: string } {
   const heading = emailHeading(input.isUpdate);
-  const footer = emailFooterLines(input);
-  const color = buttonColor(input.brandColor);
-  const initial = escapeHtml((input.studioName.trim()[0] ?? "S").toUpperCase());
+  const titleHtml = input.isUpdate ? "Il preventivo è<br>stato aggiornato" : "Hai ricevuto<br>un preventivo";
+  const { ink, muted, font } = SYSTEM_EMAIL;
   const paragraphs = input.message
     .split(/\n{2,}/)
-    .map((block) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#4a4540">${escapeHtml(block).replace(/\n/g, "<br>")}</p>`)
+    .map((block) => `<p style="margin:0 0 14px;font-family:${font};font-size:15px;line-height:1.6;color:${ink};text-align:left;">${escapeHtml(block).replace(/\n/g, "<br>")}</p>`)
     .join("");
+  const meta = [input.quoteNumber, input.totalLabel].filter(Boolean).join(" · ");
   const url = escapeHtml(input.url);
-  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(heading)}</title></head>
-<body style="margin:0;padding:0;background:#f4f1ec;font-family:Inter,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f1b18">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ec;padding:32px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:20px;border:1px solid #ece4da">
-<tr><td style="padding:32px 32px 8px">
-<table role="presentation" cellpadding="0" cellspacing="0"><tr>
-<td style="width:28px;height:28px;border-radius:14px;background:#1f1b18;color:#ffffff;font-size:13px;font-weight:700;text-align:center;line-height:28px">${initial}</td>
-<td style="padding-left:10px;font-size:15px;font-weight:700;color:#1f1b18">${escapeHtml(input.studioName)}</td>
-</tr></table>
-<h1 style="margin:26px 0 14px;font-family:'Instrument Serif',Georgia,'Times New Roman',serif;font-weight:400;font-size:32px;line-height:1.1;color:#1f1b18">${escapeHtml(heading)}</h1>
+  const bodyHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="text-align:left;">
+<tr><td style="font-family:${font};font-size:15px;line-height:1.6;color:${ink};">
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${ink};">Inviato da <strong>${escapeHtml(input.studioName)}</strong>.</p>
+${meta ? `<p style="margin:0 0 16px;font-size:16px;line-height:1.5;font-weight:700;color:${ink};">${escapeHtml(meta)}</p>` : ""}
 ${paragraphs}
-<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 8px"><tr><td style="border-radius:999px;background:${color}">
-<a href="${url}" style="display:inline-block;padding:13px 24px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:999px">Apri il preventivo</a>
-</td></tr></table>
-<p style="margin:10px 0 0;font-size:12px;line-height:1.5;color:#6b635b">Se il pulsante non funziona, copia questo indirizzo nel browser:<br><a href="${url}" style="color:#6b5d50;word-break:break-all">${url}</a></p>
 </td></tr>
-<tr><td style="padding:20px 32px 28px"><div style="border-top:1px solid #eee7df;padding-top:16px;font-size:12px;line-height:1.6;color:#6b635b">${footer.map(escapeHtml).join("<br>")}</div></td></tr>
-</table>
-<p style="margin:16px 0 0;font-size:11px;color:#6b635b">Inviato con CTRL Quotes per conto di ${escapeHtml(input.studioName)}</p>
-</td></tr></table></body></html>`;
-  const text = [input.studioName, "", heading, "", input.message, "", `Apri il preventivo: ${input.url}`, "", ...footer, "", `Inviato con CTRL Quotes per conto di ${input.studioName}`].join("\n");
-  return { html, text };
+<tr><td style="padding:8px 0 12px;">${emailCtaButton("Apri il preventivo", input.url)}</td></tr>
+<tr><td>
+<p style="margin:8px 0 0;font-family:${font};font-size:12px;line-height:1.5;color:${muted};">Se il pulsante non funziona, copia questo indirizzo nel browser:<br><a href="${url}" style="color:${muted};word-break:break-all;">${url}</a></p>
+</td></tr>
+</table>`;
+  const validityText = input.validUntilLabel ? `Valido fino al ${input.validUntilLabel}.` : undefined;
+  const rendered = renderSystemEmail({
+    subject: heading,
+    preheader: `${input.studioName} ti ha inviato un preventivo${meta ? ` (${meta})` : ""}.`,
+    titleHtml,
+    titleText: heading,
+    subtitle: `Inviato da ${input.studioName}.`,
+    bodyHtml,
+    bodyText: [
+      `Inviato da ${input.studioName}.`,
+      meta,
+      "",
+      input.message,
+      "",
+      `Apri il preventivo: ${input.url}`,
+    ]
+      .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
+      .join("\n"),
+    validityHtml: validityText ? escapeHtml(validityText) : undefined,
+    validityText,
+    securityTitle: "Link personale",
+    securityBody: "Questo link è personale: non inoltrarlo. Se non aspettavi questo preventivo, puoi ignorare l'email.",
+    assetBase: emailAssetBase(),
+  });
+  return { html: rendered.html, text: rendered.text };
 }

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { connection } from "next/server";
-import { Clock, Download, Lock, Mail, PenLine } from "lucide-react";
+import { Clock, Download, Lock, Mail } from "lucide-react";
+import { PublicDecisionForm } from "@/components/public-quote/decision-form";
 import { QuoteDocumentView } from "@/components/quote-render/quote-document";
 import { ensureMigrated, getDb } from "@/db/client";
 import { headlineTotal, logoSrc } from "@/domain/quote-snapshot";
@@ -97,15 +98,21 @@ async function PublicQuoteContent({ params }: { params: Params }) {
                 <div><dt>Valido fino al</dt><dd>{longDate.format(validUntil)}</dd></div>
               ) : null}
             </dl>
-            {/* F4: accept, request changes and decline replace this box. */}
-            <div className="pq-cta-soon">
-              <PenLine size={16} aria-hidden="true" />
-              <span>
+            {accepted || view.status === "rejected" ? (
+              <p className="pq-decided" role="status">
                 {accepted
-                  ? "Questo preventivo è stato accettato."
-                  : `L'accettazione online arriva a breve. Per accettare o chiedere modifiche ${view.contactEmail ? "rispondi all'email o scrivi qui sotto" : "rispondi all'email che hai ricevuto"}.`}
-              </span>
-            </div>
+                  ? `Questo preventivo è stato accettato${view.decidedAt ? ` il ${longDate.format(view.decidedAt)}` : ""}.`
+                  : `Questo preventivo è stato rifiutato${view.decidedAt ? ` il ${longDate.format(view.decidedAt)}` : ""}.`}
+              </p>
+            ) : (
+              <PublicDecisionForm
+                token={clean}
+                status={view.status}
+                decidedAt={view.decidedAt ? view.decidedAt.toISOString() : null}
+                defaultName={snapshot.client?.contactName || (snapshot.client?.kind === "privato" ? snapshot.client.name : "") || ""}
+                defaultEmail={snapshot.client?.email ?? ""}
+              />
+            )}
             <a className="pq-btn dark block" href={pdfHref} download>
               <Download size={16} aria-hidden="true" /> Scarica il PDF
             </a>

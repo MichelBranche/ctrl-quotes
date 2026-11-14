@@ -176,6 +176,39 @@
   cursor: pointer;
 }
 .tb-icon.menu-btn { display: none; }
+.tb-icon.tb-notify { position: relative; }
+.tb-notify-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+.tb-notify-list { list-style: none; margin: 0; padding: 4px 0; min-width: 260px; max-width: 320px; }
+.tb-notify-list a,
+.tb-notify-list p {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px;
+  text-decoration: none;
+  color: inherit;
+}
+.tb-notify-list a strong,
+.tb-notify-list p strong { font-size: 13px; font-weight: 600; }
+.tb-notify-list a span,
+.tb-notify-list p span { font-size: 11px; color: var(--cq-muted); }
+.tb-notify-list .is-unread strong { font-weight: 700; }
+.tb-notify-list a:hover { background: var(--cq-pub-bg, var(--cq-surface-2, #f6f4f1)); }
 .topbar .avatar { width: 42px; height: 42px; background: var(--cq-ink); color: white; border: 0; cursor: pointer; font-weight: 700; letter-spacing: 0.02em; }
 .menu-label { margin: 8px 10px 2px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cq-muted); }
 .popover form button[aria-current="true"] { font-weight: 700; }

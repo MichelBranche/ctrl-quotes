@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureMigrated, getDb } from "@/db/client";
 import { processDueJobs } from "@/server/outbox";
+import { ownerNoticeHandlers } from "@/server/notifications";
 import { quoteJobHandlers } from "@/server/quote-send-job";
 import { pruneRateLimits } from "@/server/rate-limit";
 
@@ -13,6 +14,7 @@ export async function GET(request: Request): Promise<Response> {
   const result = await processDueJobs(getDb(), {
     "email.test": async () => undefined,
     ...quoteJobHandlers(getDb()),
+    ...ownerNoticeHandlers(getDb()),
   });
   const prunedRateLimits = await pruneRateLimits(getDb());
   return NextResponse.json({ ...result, prunedRateLimits });

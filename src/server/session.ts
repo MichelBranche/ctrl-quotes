@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ensureMigrated, getDb } from "@/db/client";
 import type { ShellData } from "@/components/shell/types";
 import { getAuth } from "@/server/auth";
+import { listNotifications } from "@/server/notifications";
 import { listWorkspaces } from "@/server/workspaces";
 
 export async function readSession() {
@@ -46,6 +47,7 @@ export async function loadShell(): Promise<ShellData> {
     },
     workspace: { id: active.id, name: active.name, plan: active.plan, planOverride: active.planOverride },
     workspaces: workspaces.map((item) => ({ id: item.id, name: item.name, role: item.role })),
+    notifications: await listNotifications(getDb(), session.user.id, active.id),
   };
 }
 

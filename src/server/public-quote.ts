@@ -5,6 +5,7 @@ import { assetBlobs, assets, quoteEvents, quotePublicLinks, quotes, quoteVersion
 import { createId } from "@/domain/ids";
 import type { QuoteSnapshot } from "@/domain/quote-snapshot";
 import { nextQuoteStatus, type QuoteStatus } from "@/domain/quote-status";
+import { notifyQuoteOwner } from "@/server/notifications";
 import { resolvePublicLink, type ResolvedLink } from "@/server/public-links";
 import { createRateLimiter, rateRules } from "@/server/rate-limit";
 import { deviceClass } from "@/server/request-meta";
@@ -29,6 +30,7 @@ export type PublicQuoteView =
       status: QuoteStatus;
       /** Whole days left before the link expires (0 on the last day), null without validity. */
       daysLeft: number | null;
+      decidedAt: Date | null;
     } & Studio);
 
 type SentVersion = { snapshot: QuoteSnapshot; versionNo: number };
@@ -81,15 +83,18 @@ export async function loadPublicQuote(db: AppDatabase, token: string, ip: string
     await expireIfOpen(db, resolved.quote, now);
     return { kind: "expired", expiredOn: resolved.quote.validUntil, ...studio };
   }
-  const sentAt = await sentAtOf(db, resolved);
+  const times = await quoteTimes(db, resolved);
   const expiresAt = resolved.link.expiresAt;
   const daysLeft = expiresAt ? Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / 86_400_000) - 1) : null;
-  return { kind: "active", snapshot: sent.snapshot, versionNo: sent.versionNo, sentAt, status: resolved.quote.status, daysLeft, ...studio };
+  return { kind: "active", snapshot: sent.snapshot, versionNo: sent.versionNo, sentAt: times.sentAt, decidedAt: times.decidedAt, status: resolved.quote.status, daysLeft, ...studio };
 }
 
-async function sentAtOf(db: AppDatabase, resolved: Exclude<ResolvedLink, { state: "invalid" }>) {
-  const rows = await db.select({ sentAt: quotes.sentAt }).from(quotes).where(and(eq(quotes.workspaceId, resolved.quote.workspaceId), eq(quotes.id, resolved.quote.id)));
-  return rows[0]?.sentAt ?? null;
+async function quoteTimes(db: AppDatabase, resolved: Exclude<ResolvedLink, { state: "invalid" }>) {
+  const rows = await db
+    .select({ sentAt: quotes.sentAt, decidedAt: quotes.decidedAt })
+    .from(quotes)
+    .where(and(eq(quotes.workspaceId, resolved.quote.workspaceId), eq(quotes.id, resolved.quote.id)));
+  return { sentAt: rows[0]?.sentAt ?? null, decidedAt: rows[0]?.decidedAt ?? null };
 }
 
 /** Sent version for the PDF and image routes: only for links the client may still open. */
@@ -146,8 +151,9 @@ export async function recordView(
     .set({ lastViewedAt: now, viewCount: sql`${quotes.viewCount} + 1` })
     .where(and(eq(quotes.workspaceId, workspaceId), eq(quotes.id, quoteId)));
   if (first.length > 0) {
+    const eventId = createId();
     await db.insert(quoteEvents).values({
-      id: createId(),
+      id: eventId,
       workspaceId,
       quoteId,
       type: "viewed",
@@ -155,6 +161,14 @@ export async function recordView(
       versionId: resolved.quote.sentVersionId,
       meta: JSON.stringify({ device: deviceClass(meta.userAgent), linkId: resolved.link.id }),
       createdAt: now,
+    });
+    const sent = await loadSentVersion(db, workspaceId, resolved.quote.sentVersionId);
+    await notifyQuoteOwner(db, {
+      workspaceId,
+      quoteId,
+      eventId,
+      type: "quote_viewed",
+      studioName: sent?.snapshot.issuer.displayName ?? "Studio",
     });
   }
   return { recorded: true, first: first.length > 0 };
