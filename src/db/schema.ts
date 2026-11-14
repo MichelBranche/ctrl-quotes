@@ -92,6 +92,9 @@ export const workspaces = sqliteTable(
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),
     deletedAt: timestamp("deleted_at"),
+    /** Plan unlocked by a redeem code (starter/pro/business, validated in code: a CHECK here would rebuild the table). Null = none. With planOverrideUntil null it is lifetime. */
+    planOverride: text("plan_override"),
+    planOverrideUntil: timestamp("plan_override_until"),
   },
   (table) => [
     check("workspaces_plan_chk", sql`${table.plan} in ('free', 'pro', 'studio')`),
@@ -779,6 +782,51 @@ export const userRelations = relations(user, ({ many }) => ({
   memberships: many(workspaceMemberships),
 }));
 
+/** Redeem codes. `code` is stored uppercased, so uniqueness is case-insensitive. */
+export const redeemCodes = sqliteTable(
+  "redeem_codes",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull(),
+    kind: text("kind").notNull(),
+    /** Days granted by a free_month code; null for lifetime. */
+    days: integer("days"),
+    plan: text("plan").notNull(),
+    maxUses: integer("max_uses").notNull().default(1),
+    usedCount: integer("used_count").notNull().default(0),
+    expiresAt: timestamp("expires_at"),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("redeem_codes_code_uq").on(table.code),
+    check("redeem_codes_kind_chk", sql`${table.kind} in ('free_month', 'lifetime')`),
+    check("redeem_codes_plan_chk", sql`${table.plan} in ('starter', 'pro', 'business')`),
+    check("redeem_codes_days_chk", sql`(${table.kind} = 'lifetime' and ${table.days} is null) or (${table.kind} = 'free_month' and ${table.days} > 0)`),
+    check("redeem_codes_uses_chk", sql`${table.maxUses} > 0 and ${table.usedCount} >= 0 and ${table.usedCount} <= ${table.maxUses}`),
+  ],
+);
+
+export const redeemCodeUses = sqliteTable(
+  "redeem_code_uses",
+  {
+    id: text("id").primaryKey(),
+    codeId: text("code_id")
+      .notNull()
+      .references(() => redeemCodes.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    redeemedAt: timestamp("redeemed_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("redeem_code_uses_user_uq").on(table.codeId, table.userId),
+    index("redeem_code_uses_workspace_idx").on(table.workspaceId),
+  ],
+);
+
 export const schema = {
   user,
   session,
@@ -818,4 +866,6 @@ export const schema = {
   notifications,
   notificationPrefs,
   rateLimits,
+  redeemCodes,
+  redeemCodeUses,
 };

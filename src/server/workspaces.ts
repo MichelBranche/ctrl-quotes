@@ -4,12 +4,18 @@ import { clients, workspaceMemberships, workspaces } from "@/db/schema";
 import { assertWorkspaceId, createId, slugify } from "@/domain/ids";
 import { hasRole, isRole, type Role } from "@/domain/roles";
 import type { TaxProfile } from "@/domain/pricing";
+import type { PlanId } from "@/domain/plans";
+import { activePlanOverride } from "@/domain/redeem";
 
 export type WorkspaceSummary = {
   id: string;
   name: string;
   slug: string;
   plan: "free" | "pro" | "studio";
+  /** Plan unlocked by a redeem code and still in force, or null. */
+  planOverride: PlanId | null;
+  /** End of that override; null with an override = lifetime. */
+  planOverrideUntil: number | null;
   taxProfile: TaxProfile;
   role: Role;
 };
@@ -75,7 +81,7 @@ export async function createWorkspace(
     role: "owner",
     createdAt: now,
   });
-  return { id, name, slug, plan: "free", taxProfile: input.taxProfile, role: "owner" };
+  return { id, name, slug, plan: "free", planOverride: null, planOverrideUntil: null, taxProfile: input.taxProfile, role: "owner" };
 }
 
 export async function listWorkspaces(db: AppDatabase, userId: string): Promise<WorkspaceSummary[]> {
@@ -85,6 +91,8 @@ export async function listWorkspaces(db: AppDatabase, userId: string): Promise<W
       name: workspaces.name,
       slug: workspaces.slug,
       plan: workspaces.plan,
+      overridePlan: workspaces.planOverride,
+      overrideUntil: workspaces.planOverrideUntil,
       taxProfile: workspaces.taxProfile,
       role: workspaceMemberships.role,
     })
@@ -94,7 +102,10 @@ export async function listWorkspaces(db: AppDatabase, userId: string): Promise<W
 
   return rows.flatMap((row) => {
     if (!isPlan(row.plan) || !isTaxProfile(row.taxProfile) || !isRole(row.role)) return [];
-    return [{ ...row, plan: row.plan, taxProfile: row.taxProfile, role: row.role }];
+    const { overridePlan, overrideUntil, ...rest } = row;
+    const until = overrideUntil ? overrideUntil.getTime() : null;
+    const planOverride = activePlanOverride(overridePlan, until);
+    return [{ ...rest, plan: row.plan, planOverride, planOverrideUntil: planOverride ? until : null, taxProfile: row.taxProfile, role: row.role }];
   });
 }
 

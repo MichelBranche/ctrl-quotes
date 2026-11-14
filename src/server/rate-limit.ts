@@ -24,6 +24,8 @@ export const rateRules = {
   linkWrite: { name: "q-link-write", limit: 5, windowSec: 3600 },
   /** Unknown or malformed tokens: per IP. Slows down guessing. */
   badToken: { name: "q-bad-token", limit: 20, windowSec: 3600 },
+  /** Redeem codes: per user. Slows down guessing. */
+  redeem: { name: "redeem", limit: 8, windowSec: 600 },
 } as const satisfies Record<string, RateRule>;
 
 export type RateResult = { ok: boolean; remaining: number; resetAt: number };

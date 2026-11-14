@@ -7,7 +7,7 @@ import { PageTransition } from "@/components/motion/page-transition";
 import { AnchoredPopover } from "@/components/ui/anchored-popover";
 import { Drawer } from "@/components/ui/overlays";
 import { SideNav } from "@/components/shell/nav";
-import { currentPlanLabel } from "@/domain/plans";
+import { currentPlanLabel, type PlanId } from "@/domain/plans";
 import type { ShellData } from "@/components/shell/types";
 import { messages } from "@/i18n/it";
 import { cn } from "@/lib/cn";
@@ -63,7 +63,7 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
         </div>
         <SideNav compact={collapsed} />
         <div className="sb-foot">
-          <PlanCard plan={data.workspace.plan} />
+          <PlanCard plan={data.workspace.plan} override={data.workspace.planOverride} />
           <Link className="btn-new" href="/app/quotes/new" title={collapsed ? messages.quotes.action : undefined}>
             <Plus size={18} aria-hidden="true" />
             <span>{messages.quotes.action}</span>
@@ -128,7 +128,7 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
       <Drawer open={menuOpen} title={messages.shell.openMenu} onClose={() => setMenuOpen(false)}>
         <SideNav onNavigate={() => setMenuOpen(false)} />
         <div className="sb-foot">
-          <PlanCard plan={data.workspace.plan} />
+          <PlanCard plan={data.workspace.plan} override={data.workspace.planOverride} />
           <Link className="btn-new" href="/app/quotes/new" onClick={() => setMenuOpen(false)}>
             <Plus size={18} aria-hidden="true" />
             <span>{messages.quotes.action}</span>
@@ -139,8 +139,8 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
   );
 }
 
-function PlanCard({ plan }: { plan: string }) {
-  const title = currentPlanLabel(plan);
+function PlanCard({ plan, override }: { plan: string; override: PlanId | null }) {
+  const title = currentPlanLabel(plan, override);
   return (
     <>
       <section className="pro-card brand-fill">
