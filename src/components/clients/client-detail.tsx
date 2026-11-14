@@ -11,6 +11,8 @@ import {
   CircleDot,
   Eye,
   History,
+  House,
+  StickyNote,
   Receipt,
   Send,
   Shapes,
@@ -29,6 +31,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { ClientFormDialog } from "@/components/clients/client-form";
+import { TemplateWaves } from "@/components/overview/template-waves";
 import { useHref, SectionTitle } from "@/components/data/controls";
 import { FormError, TextAreaField, text } from "@/components/data/fields";
 import { ActionMenu } from "@/components/data/menu";
@@ -77,26 +80,25 @@ export function ClientDetailPanel({
   const href = useHref();
   const archived = client.status === "archived";
   const primary = client.contacts.find((contact) => contact.isPrimary) ?? client.contacts[0];
-  const tabs: Array<{ id: Tab; label: string; count?: number }> = [
-    { id: "overview", label: "Panoramica" },
-    { id: "quotes", label: "Preventivi", count: quotes.length },
-    { id: "notes", label: "Note", count: client.notes.length },
-    { id: "history", label: "Storico" },
+  const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode; count?: number }> = [
+    { id: "overview", label: "Panoramica", icon: <House size={15} aria-hidden="true" /> },
+    { id: "quotes", label: "Preventivi", icon: <FileText size={15} aria-hidden="true" />, count: quotes.length },
+    { id: "notes", label: "Note", icon: <StickyNote size={15} aria-hidden="true" />, count: client.notes.length },
+    { id: "history", label: "Storico", icon: <History size={15} aria-hidden="true" /> },
   ];
 
   return (
     <article className="card detail-card">
       <header className="detail-header cl-hero brand-fill">
+        <TemplateWaves className="cl-hero-waves" lines={32} />
         <ClientAvatar name={client.name} />
         <div className="detail-title">
-          <div className="detail-title-row">
-            <h2>{client.name}</h2>
-            <StatusBadge tone={statusTone[client.status]}>{clientStatusLabel[client.status]}</StatusBadge>
-          </div>
+          <h2>{client.name}</h2>
           <p>
             {clientKindLabel[client.kind]}
             {client.sector ? ` · ${client.sector}` : ""}
           </p>
+          <StatusBadge tone={statusTone[client.status]}>{clientStatusLabel[client.status]}</StatusBadge>
         </div>
         <ActionMenu
           label={`Azioni per ${client.name}`}
@@ -124,7 +126,7 @@ export function ClientDetailPanel({
         />
       </header>
 
-      <div className="tabs detail-tabs" role="tablist" aria-label="Sezioni del cliente">
+      <div className="tabs detail-tabs cl-tabs" role="tablist" aria-label="Sezioni del cliente">
         {tabs.map((item) => (
           <button
             key={item.id}
@@ -146,6 +148,7 @@ export function ClientDetailPanel({
               }
             }}
           >
+            {item.icon}
             {item.label}
             {item.count ? <span className="count">{item.count}</span> : null}
           </button>

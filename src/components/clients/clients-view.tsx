@@ -13,6 +13,7 @@ import {
   Download,
   LayoutGrid,
   List,
+  ListFilter,
   Pencil,
   Plus,
   RotateCcw,
@@ -206,7 +207,7 @@ function ClientKpis({ stats }: { stats: ClientStats }) {
         </div>
         <ShareRing value={stats.active} total={stats.total} />
       </section>
-      <section className="card ov-kpi cl-kpi is-accent">
+      <section className="card ov-kpi cl-kpi">
         <span className="ov-kpi-ico">
           <UserPlus size={20} aria-hidden="true" />
         </span>
@@ -372,19 +373,18 @@ function AddressBook({
       />
       <div className="list-tools">
         <SearchBox label="Cerca cliente" placeholder="Cerca per nome, email, P. IVA" />
-        <nav className="kind-filter" aria-label="Filtra per tipo">
-          {(["all", "azienda", "privato"] as const).map((value) => (
-            <Link
-              key={value}
-              href={href({ kind: value === "all" ? null : value, page: null })}
-              aria-current={kind === value ? "page" : undefined}
-              scroll={false}
-              replace
-            >
-              {value === "all" ? "Tutti i tipi" : clientKindLabel[value]}
-            </Link>
-          ))}
-        </nav>
+        <label className="cl-kind">
+          <span className="visually-hidden">Filtra per tipo</span>
+          <select
+            value={kind}
+            onChange={(event) => router.replace(href({ kind: event.target.value === "all" ? null : event.target.value, page: null }), { scroll: false })}
+          >
+            <option value="all">Tutti i tipi</option>
+            <option value="azienda">{clientKindLabel.azienda}</option>
+            <option value="privato">{clientKindLabel.privato}</option>
+          </select>
+          <ListFilter size={16} aria-hidden="true" />
+        </label>
       </div>
 
       {selection.length > 0 && permissions.write ? (

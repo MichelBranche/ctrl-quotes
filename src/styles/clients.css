@@ -109,3 +109,75 @@
   .cl-book { padding: 14px; }
   .cl-table th:nth-child(3), .cl-table td:nth-child(3), .cl-table th:nth-child(6), .cl-table td:nth-child(6) { display: none; }
 }
+
+/* Follow-up: KPI icons in a soft brand square */
+.cl-kpi .ov-kpi-ico { background: color-mix(in srgb, var(--brand) 12%, white); color: var(--brand); box-shadow: none; }
+
+/* Type filter: a select with a filter icon, next to the search */
+.cl-kind { position: relative; display: inline-flex; align-items: center; flex-shrink: 0; }
+.cl-kind select {
+  appearance: none;
+  height: 40px;
+  padding: 0 38px 0 14px;
+  border: 1px solid var(--cq-border);
+  border-radius: 12px;
+  background: var(--cq-surface);
+  color: var(--cq-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cl-kind select:focus-visible { outline: none; border-color: var(--cq-accent-bright); box-shadow: 0 0 0 4px var(--cq-focus-glow); }
+.cl-kind svg { position: absolute; right: 12px; color: var(--brand); pointer-events: none; }
+
+/* Client card header: LineWaves on saturated brand (gradient fallback from .brand-fill) */
+.cl-hero { overflow: hidden; isolation: isolate; padding: 24px 56px 22px 22px; gap: 16px; align-items: center; min-height: 128px; flex-shrink: 0; }
+.cl-hero-waves { position: absolute; inset: 0; z-index: 0; pointer-events: none; animation: ov-fade-in 1s ease-out both; }
+.cl-hero > :not(.cl-hero-waves) { position: relative; z-index: 1; }
+.cl-hero .avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: color-mix(in srgb, white 14%, transparent);
+  box-shadow: inset 0 0 0 4px white, 0 8px 20px color-mix(in srgb, black 18%, transparent);
+  color: white;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.cl-hero .detail-title { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.cl-hero h2 { margin: 0; font-size: 24px; line-height: 1.15; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 12px color-mix(in srgb, var(--brand) 70%, black); }
+.cl-hero p { margin: 0; }
+.cl-hero .badge { margin-top: 4px; }
+.cl-hero > .menu { position: absolute; top: 14px; right: 14px; z-index: 2; }
+
+/* Tabs with icons, white active pill */
+.cl-tabs { flex-shrink: 0; align-self: flex-start; padding: 4px; border-radius: 14px; background: var(--cq-surface-sunken); gap: 2px; }
+.cl-tabs .tab { gap: 6px; border-radius: 10px; }
+.cl-tabs .tab[aria-selected="true"] { background: var(--cq-surface); color: var(--cq-ink); box-shadow: var(--cq-shadow-xs); }
+.cl-tabs .tab svg { color: currentColor; }
+
+/* Full height: address book and client card fill the page; table and card scroll inside */
+@media (min-width: 1024px) {
+  .clients-page { height: calc(var(--cq-page-h, 100dvh) - 48px); min-height: 680px; }
+  .clients-pane { flex: 1; min-height: 0; align-items: stretch; grid-template-rows: minmax(0, 1fr); }
+  .cl-book { min-height: 0; overflow: hidden; }
+  .cl-book .cl-table-wrap, .cl-book .cl-grid, .cl-book .list-empty { flex: 1; min-height: 0; overflow: auto; }
+  .cl-book .cl-grid { align-content: start; padding: 2px; }
+  .cl-book .pagination { margin-top: auto; flex-shrink: 0; padding-top: 10px; border-top: 1px solid var(--cq-border); }
+  .cl-table thead th { position: sticky; top: 0; z-index: 1; background: var(--cq-surface); }
+  .clients-pane .detail-pane { min-height: 0; }
+  .clients-pane .detail-stage { flex: 1; min-height: 0; }
+  .clients-pane .detail-stage-item { height: 100%; }
+  .clients-pane .detail-stage-item > .card { height: 100%; }
+  .clients-page .detail-card { min-height: 0; }
+  .clients-page .detail-card > .tab-panel { flex: 1; min-height: 0; overflow: auto; padding-bottom: 4px; }
+  .clients-page .detail-stage-item > .empty-illustrated { overflow: auto; justify-content: center; }
+}
+.cl-tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+@media (max-width: 1599px) {
+  .cl-tabs .tab { padding-left: 9px; padding-right: 9px; font-size: 13px; }
+  .cl-tabs .tab .count { display: none; }
+}
