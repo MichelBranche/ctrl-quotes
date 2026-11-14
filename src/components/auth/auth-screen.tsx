@@ -1,18 +1,26 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { AuthBackdrop } from "@/components/auth/auth-backdrop";
-import { Logo } from "@/components/logo";
+import { AuthWaves } from "@/components/auth/auth-waves";
+import { messages } from "@/i18n/it";
 
+/** Split auth card: brand panel with line waves on the left, white form panel on the right. */
 export function AuthScreen({ children }: { children: ReactNode }) {
   return (
     <main className="auth-screen">
-      <AuthBackdrop />
-      <section className="auth-card">
-        <Link href="/login" aria-label="CTRL Quotes">
-          <Logo />
-        </Link>
-        {children}
-      </section>
+      <div className="auth-split">
+        <aside className="auth-brand brand-fill">
+          <AuthWaves />
+          <Link href="/login" className="auth-mark" aria-label={messages.brand}>
+            <span className="auth-mark-tile">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/icon-compact.png" alt="" width={34} height={35} />
+            </span>
+            <span className="auth-mark-word">CTRL® Quotes</span>
+          </Link>
+          <p className="auth-brand-line">Preventivi chiari, inviati in pochi minuti.</p>
+        </aside>
+        <section className="auth-card">{children}</section>
+      </div>
     </main>
   );
 }
