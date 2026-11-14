@@ -11,6 +11,7 @@ import type { PlanId } from "@/domain/plans";
  */
 
 const LineWaves = dynamic(() => import("@/components/auth/line-waves"), { ssr: false, loading: () => null });
+const MoltenMetal = dynamic(() => import("@/components/billing/effects/molten-metal"), { ssr: false, loading: () => null });
 const Iridescence = dynamic(() => import("@/components/billing/effects/iridescence"), { ssr: false, loading: () => null });
 
 /** Fills the dark hero on /starter, /pro and /business (no 3D artwork there). Fallback: the CSS gradient of .bl-hero.is-<plan>. */
@@ -45,23 +46,21 @@ export function PlanHeroEffect({ plan }: { plan: PlanId }) {
           maxDevicePixelRatio={1.5}
         />
       ) : plan === "business" ? (
-        <Iridescence
-          color={[1, 1, 1]}
-          saturation={0}
-          brightness={1.55}
-          contrast={1.5}
-          speed={0.45}
-          scale={1.2}
-          detail={7}
-          warp={1}
-          mouseReact
-          amplitude={0.08}
-          stir={0.45}
-          sheen={0.3}
-          clickSwirl
-          fade={0}
-          opacity={0.9}
-          resolution={0.75}
+        <MoltenMetal
+          colors={["#456a17", "#91ff00"]}
+          coreColor="#fffffe"
+          speed={0.87}
+          scale={7}
+          detail={5.2}
+          glow={2.2}
+          thickness={1.23}
+          haze={0.75}
+          mouseInteraction
+          flareOnClick
+          turbulence={0.13}
+          brightness={1.75}
+          rotation={115}
+          drift={0.52}
         />
       ) : (
         <Iridescence

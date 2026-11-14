@@ -272,8 +272,6 @@
 }
 .bl-hero-fx { position: absolute; inset: 0; z-index: -1; isolation: isolate; pointer-events: none; animation: bl-fx-in 1.2s ease-out both; }
 .bl-hero-fx > * { position: absolute; inset: 0; }
-/* Business: high-contrast chrome Iridescence multiplied by the Business lime: bright folds read as neon lime, deep ones go dark green. */
-.bl-hero-fx.is-business::before { content: ""; position: absolute; inset: 0; z-index: 1; background: var(--cq-plan-business); mix-blend-mode: multiply; }
 /* Minimal veil behind the copy only (top-left), so the text stays readable. */
 .bl-hero-fx::after {
   content: "";
@@ -283,5 +281,5 @@
   background: linear-gradient(165deg, color-mix(in srgb, var(--cq-plan-hero) 80%, transparent) 0%, color-mix(in srgb, var(--cq-plan-hero) 55%, transparent) 38%, transparent 62%);
 }
 @keyframes bl-fx-in { from { opacity: 0; } to { opacity: 1; } }
-.iridescence-container { position: relative; width: 100%; height: 100%; overflow: hidden; }
-.iridescence-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.iridescence-container, .molten-metal-container { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.iridescence-canvas, .molten-metal-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
