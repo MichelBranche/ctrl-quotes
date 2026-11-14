@@ -269,10 +269,18 @@
 /* The 3D blocks render keep their dark backdrop: lighten lets the effect through it while the blocks stay on top. */
 .bl-hero:has(.bl-hero-fx) .bl-art { mix-blend-mode: lighten; }
 
-.bl-backdrop { position: absolute; inset: 0; z-index: 0; pointer-events: none; animation: bl-fx-in 1.2s ease-out both; }
+/* "Scegli il piano": one backdrop for the whole window, under every element (the shell goes transparent around its
+   cards). Scoped to html[data-bl-backdrop], set and removed by PlansBackdrop, so other pages never see these rules. */
+.bl-backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none; animation: bl-fx-in 1.2s ease-out both; }
 .bl-backdrop > * { position: absolute; inset: 0; }
-.bl-page > .bl-top,
-.bl-page > .bl-grid { position: relative; z-index: 1; }
+html[data-bl-backdrop] body,
+html[data-bl-backdrop] .shell { background: transparent; }
+html[data-bl-backdrop] { background: var(--cq-canvas); }
+html[data-bl-backdrop] .sidebar {
+  background: color-mix(in srgb, var(--cq-surface) 82%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
 @keyframes bl-fx-in { from { opacity: 0; } to { opacity: 1; } }
 .iridescence-container, .gradient-blinds-container { position: relative; width: 100%; height: 100%; overflow: hidden; }
 .iridescence-canvas, .gradient-blinds-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }

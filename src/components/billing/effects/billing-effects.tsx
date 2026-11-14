@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useWavesEnv, tint } from "@/components/waves/use-waves-env";
 import type { PlanId } from "@/domain/plans";
@@ -88,17 +89,31 @@ export function PlanHeroEffect({ plan }: { plan: PlanId }) {
   );
 }
 
-/** Light gradient blinds behind the whole content area of "Scegli il piano" (not the sidebar). */
+/**
+ * Light gradient blinds behind the whole window on "Scegli il piano", sidebar and topbar included.
+ * While it is mounted, <html data-bl-backdrop> lets the shell go transparent around its cards (billing.css). The
+ * attribute is removed on unmount and when Next hides this route in the background (effects are cleaned up then),
+ * so the normal layout comes back intact on every other page.
+ */
 export function PlansBackdrop() {
   const env = useWavesEnv();
   if (!env.ok) return null;
+  return <BlindsLayer brand={env.brand} mobile={env.mobile} />;
+}
+
+function BlindsLayer({ brand, mobile }: { brand: string; mobile: boolean }) {
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-bl-backdrop", "");
+    return () => root.removeAttribute("data-bl-backdrop");
+  }, []);
   return (
     <div className="bl-backdrop" aria-hidden="true">
       <GradientBlinds
-        gradientColors={[tint(env.brand, 0.38), tint(env.brand, 0.14), tint(env.brand, 0.55), tint(env.brand, 0.2)]}
+        gradientColors={[tint(brand, 0.38), tint(brand, 0.14), tint(brand, 0.55), tint(brand, 0.2)]}
         angle={20}
         noise={0.08}
-        blindCount={env.mobile ? 8 : 14}
+        blindCount={mobile ? 8 : 18}
         blindMinWidth={60}
         spotlightRadius={0.5}
         spotlightSoftness={1}
