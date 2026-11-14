@@ -36,7 +36,7 @@ import { insertionIndex } from "@/domain/document-ops";
 import { blockLabel, starterBlock, type BlockType, type QuoteBlock } from "@/domain/quote-document";
 import { asTemplateKey, headlineTotal, type QuoteSnapshot } from "@/domain/quote-snapshot";
 import { templateIdFor } from "@/domain/templates";
-import { quoteStatusLabel, quoteStatusTone } from "@/domain/quote-status";
+import { quoteStatusLabel, quoteStatusTone, sendLabel } from "@/domain/quote-status";
 import { createVersionAction, restoreVersionAction } from "@/server/actions/quotes";
 import type { ClientOption, QuotableItem, QuoteEditorData } from "@/server/quotes";
 import type { TemplateRow } from "@/server/templates";
@@ -50,6 +50,7 @@ import { useEditorMode } from "./mode";
 import { ModeToggle } from "./mode-toggle";
 import { VisualeView } from "./visuale/visuale-view";
 import { imagePlaceholder } from "./image-placeholder";
+import { SendDialog } from "./send-dialog";
 
 type Tab = "editor" | "details" | "versions";
 type Pane = "structure" | "content" | "preview";
@@ -66,6 +67,7 @@ export function QuoteEditor({
   defaults,
   logoUrl,
   visuale: visualeEnabled = false,
+  sending = false,
 }: {
   data: QuoteEditorData;
   clients: ClientOption[];
@@ -75,6 +77,8 @@ export function QuoteEditor({
   logoUrl: string | null;
   /** The editor visuale flag, read on the server. */
   visuale?: boolean;
+  /** Phase 4 sending flag, read on the server. */
+  sending?: boolean;
 }) {
   const router = useRouter();
   const readOnly = !data.canEdit;
@@ -99,6 +103,7 @@ export function QuoteEditor({
   const [restoreTarget, setRestoreTarget] = useState<number | null>(null);
   const versionAction = useAction();
   const restoreAction = useAction();
+  const [sendOpen, setSendOpen] = useState(false);
 
   const fiscal = data.snapshot.fiscal;
   const changeBlock = (block: QuoteBlock) => run({ kind: "replaceBlock", block }, { group: `block:${block.id}` });
@@ -219,16 +224,27 @@ export function QuoteEditor({
           >
             <Stamp size={16} aria-hidden="true" /> Salva versione
           </Button>
-          <span className="future-wrap" title="L'invio al cliente arriva con la pubblicazione, nella prossima fase.">
-            <button type="button" className="btn btn-primary" disabled aria-describedby="send-hint">
-              <Send size={16} aria-hidden="true" /> Invia
-            </button>
-            <span id="send-hint" className="visually-hidden">
-              L&apos;invio al cliente arriva con la pubblicazione, nella prossima fase.
+          {sending ? (
+            <Button
+              onClick={() => setSendOpen(true)}
+              disabled={!data.canSend}
+              title={!data.canSend ? (data.quote.status === "accepted" ? "Il preventivo è già stato accettato." : "Il tuo ruolo non permette l'invio.") : undefined}
+            >
+              <Send size={16} aria-hidden="true" /> {sendLabel(data.quote.sentVersionId)}
+            </Button>
+          ) : (
+            <span className="future-wrap" title="L'invio al cliente arriva con la pubblicazione, nella prossima fase.">
+              <button type="button" className="btn btn-primary" disabled aria-describedby="send-hint">
+                <Send size={16} aria-hidden="true" /> Invia
+              </button>
+              <span id="send-hint" className="visually-hidden">
+                L&apos;invio al cliente arriva con la pubblicazione, nella prossima fase.
+              </span>
             </span>
-          </span>
+          )}
         </div>
       </header>
+      {sending ? <SendDialog quoteId={data.quote.id} open={sendOpen} onClose={() => setSendOpen(false)} revision={revision} unsaved={unsaved} /> : null}
 
       {data.documentRecovered ? (
         <p className="alert" role="status">

@@ -8,3 +8,14 @@ import "server-only";
 export function editorVisualeEnabled(): boolean {
   return process.env.EDITOR_VISUALE === "1" || process.env.NEXT_PUBLIC_EDITOR_VISUALE === "1";
 }
+
+/**
+ * Phase 4 sending. On in development, tests and Vercel Preview; off in Production until the client
+ * page (PR F3) exists, so no real client receives a link that does not open yet.
+ * QUOTE_SENDING=1 turns it on anywhere, QUOTE_SENDING=0 turns it off anywhere.
+ */
+export function quoteSendingEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  if (env.QUOTE_SENDING === "1") return true;
+  if (env.QUOTE_SENDING === "0") return false;
+  return env.VERCEL_ENV !== "production";
+}

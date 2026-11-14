@@ -31,6 +31,7 @@ export default defineConfig({
       ENABLE_COMPONENT_CATALOG: "1",
       ENABLE_DEV_MAILBOX: "1",
       EDITOR_VISUALE: "1",
+      QUOTE_SENDING: "1",
     },
   },
   projects: [
@@ -159,6 +160,26 @@ export default defineConfig({
       name: "pannello-mobile",
       dependencies: ["pannello-desktop"],
       testMatch: /pannello\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 375, height: 812 },
+        storageState: "e2e/.auth/state.json",
+      },
+    },
+    {
+      name: "invio-desktop",
+      dependencies: ["pannello-mobile"],
+      testMatch: /invio\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
+        storageState: "e2e/.auth/state.json",
+      },
+    },
+    {
+      name: "invio-mobile",
+      dependencies: ["invio-desktop"],
+      testMatch: /invio\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 375, height: 812 },

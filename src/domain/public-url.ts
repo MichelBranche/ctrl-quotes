@@ -52,7 +52,9 @@ export function resolvePublicBaseUrl(env: PublicUrlEnv): string {
   if (env.VERCEL_ENV === "production") {
     throw new Error("Imposta PUBLIC_QUOTE_BASE_URL (o NEXT_PUBLIC_APP_URL) in produzione.");
   }
-  return fallbackBase;
+  // Vercel Preview without settings: the deployment's own address, so a preview link opens the preview.
+  const preview = env.VERCEL_ENV === "preview" ? normalizeBaseUrl(env.VERCEL_BRANCH_URL ? `https://${env.VERCEL_BRANCH_URL}` : env.VERCEL_URL ? `https://${env.VERCEL_URL}` : undefined) : null;
+  return preview ?? fallbackBase;
 }
 
 export function publicQuotePath(token: string): string {

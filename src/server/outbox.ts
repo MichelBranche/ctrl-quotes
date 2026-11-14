@@ -2,8 +2,11 @@ import { and, eq, lte } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { outboxJobs } from "@/db/schema";
 import { createId } from "@/domain/ids";
+import { redact } from "@/server/redact";
 
-export type JobHandler = (payload: unknown) => Promise<void>;
+/** `final` is true on the last attempt: handlers use it to mark their own records as failed. */
+export type JobAttempt = { attempt: number; final: boolean };
+export type JobHandler = (payload: unknown, attempt: JobAttempt) => Promise<void>;
 
 const backoffMs = [60_000, 300_000, 900_000, 3_600_000];
 
@@ -54,7 +57,7 @@ export async function processDueJobs(
     const handler = handlers[job.type];
     try {
       if (!handler) throw new Error(`Nessun handler per ${job.type}`);
-      await handler(JSON.parse(job.payload) as unknown);
+      await handler(JSON.parse(job.payload) as unknown, { attempt: job.attempts + 1, final: job.attempts + 1 >= job.maxAttempts });
       await db
         .update(outboxJobs)
         .set({ status: "succeeded", updatedAt: new Date() })
@@ -62,7 +65,7 @@ export async function processDueJobs(
       succeeded += 1;
     } catch (error) {
       const attempts = job.attempts + 1;
-      const message = error instanceof Error ? error.message : "Errore sconosciuto";
+      const message = redact(error instanceof Error ? error.message : "Errore sconosciuto").slice(0, 500);
       if (attempts >= job.maxAttempts) {
         await db
           .update(outboxJobs)

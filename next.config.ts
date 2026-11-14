@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
   // PDF fonts and template photos are read from disk at runtime: ship them with the function.
   outputFileTracingIncludes: {
     "/api/quotes/[quoteId]/pdf": ["./src/server/pdf/fonts/**", "./src/server/pdf/photos/**"],
+    // Phase 4: the send email can carry the PDF, rendered by the queue (cron) or right after the send action.
+    "/api/cron/outbox": ["./src/server/pdf/fonts/**", "./src/server/pdf/photos/**"],
+    "/app/quotes/[quoteId]": ["./src/server/pdf/fonts/**", "./src/server/pdf/photos/**"],
   },
   async headers() {
     return [

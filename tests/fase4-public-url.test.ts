@@ -11,6 +11,13 @@ describe("indirizzo base dei link pubblici", () => {
     expect(resolvePublicBaseUrl({})).toBe("http://localhost:3000");
   });
 
+  it("su una Preview senza impostazioni usa l'indirizzo della preview, mai in produzione", () => {
+    expect(resolvePublicBaseUrl({ VERCEL_ENV: "preview", VERCEL_BRANCH_URL: "ctrl-quotes-git-feat.vercel.app", VERCEL_URL: "ctrl-quotes-abc.vercel.app" })).toBe("https://ctrl-quotes-git-feat.vercel.app");
+    expect(resolvePublicBaseUrl({ VERCEL_ENV: "preview", VERCEL_URL: "ctrl-quotes-abc.vercel.app" })).toBe("https://ctrl-quotes-abc.vercel.app");
+    expect(resolvePublicBaseUrl({ VERCEL_ENV: "preview", VERCEL_URL: "x.vercel.app", BETTER_AUTH_URL: "https://ctrl-quotes.vercel.app" })).toBe("https://ctrl-quotes.vercel.app");
+    expect(() => resolvePublicBaseUrl({ VERCEL_ENV: "production", VERCEL_URL: "x.vercel.app" })).toThrow();
+  });
+
   it("tiene solo l'origine e ignora valori non validi", () => {
     expect(normalizeBaseUrl("https://Example.com/percorso?x=1")).toBe("https://example.com");
     expect(normalizeBaseUrl("ftp://example.com")).toBeNull();
