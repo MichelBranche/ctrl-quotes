@@ -54,6 +54,9 @@
   --cq-mail-muted: #6b635b;
   --cq-mail-rule: #eee7df;
   --cq-mail-paper: #ffffff;
+  /* Public client page (/q): warm Atelier paper. */
+  --cq-pub-bg: #f4f1ec;
+  --cq-pub-bg-deep: #efebe5;
   --cq-file-pdf-bg: #fde8e6;
   --cq-file-pdf-ink: #b42318;
   --cq-doc-shadow: 0 18px 48px rgba(16, 15, 20, 0.12);
