@@ -25,8 +25,8 @@ export const messages = {
     registerLink: "Registrati",
     loginLink: "Accedi",
     terms: "Accetto i termini e la privacy policy",
-    termsLink: "termini",
-    privacyLink: "privacy policy",
+    termsLink: "Termini di servizio",
+    privacyLink: "Privacy policy",
     forgotTitle: "Reimposta la password",
     forgotSubtitle: "Ti inviamo un link se l'indirizzo è registrato.",
     sendLink: "Invia il link",
@@ -221,7 +221,8 @@ export const messages = {
   legal: {
     termsTitle: "Termini di servizio",
     privacyTitle: "Privacy policy",
-    draft: "Bozza non vincolante. Un legale deve rivederla prima del lancio. Non è un contratto.",
+    cookieLink: "Cookie",
+    review: "Questo testo è una bozza operativa. Deve essere rivisto da un professionista prima di considerarlo vincolante.",
   },
   catalogPage: {
     title: "Catalogo componenti",

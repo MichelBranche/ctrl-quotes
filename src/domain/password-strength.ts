@@ -3,7 +3,7 @@
 export type StrengthLabel = "debole" | "discreta" | "buona" | "ottima";
 
 export type PasswordStrength = {
-  /** 0 when empty, otherwise 1–4 filled segments. */
+  /** 0 when empty, otherwise 1-4 filled segments. */
   level: 0 | 1 | 2 | 3 | 4;
   label: StrengthLabel | null;
   hint: string | null;

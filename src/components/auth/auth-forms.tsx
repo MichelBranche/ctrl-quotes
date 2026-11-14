@@ -76,7 +76,15 @@ export function AuthSessionForm({
         <>
           <h1>{messages.auth.registerTitle}</h1>
           <p className="lede">{messages.auth.registerSubtitle}</p>
-          {ui.google ? <GoogleSignIn note="Continuando con Google accetti i termini e la privacy policy." /> : null}
+          {ui.google ? (
+            <GoogleSignIn
+              note={
+                <>
+                  Continuando con Google accetti i <Link href="/termini">{messages.auth.termsLink}</Link> e la <Link href="/privacy">{messages.auth.privacyLink}</Link>.
+                </>
+              }
+            />
+          ) : null}
           {registerState.error ? <p className="alert" role="alert">{registerState.error}</p> : null}
           <TextField label={messages.auth.name} name="name" autoComplete="name" required placeholder={messages.auth.namePlaceholder} icon="user" value={name} onChange={(event) => setName(event.target.value)} error={registerState.fieldErrors?.name || undefined} />
           <TextField label={messages.auth.email} name="email" type="email" autoComplete="email" required placeholder={messages.auth.emailPlaceholder} icon="mail" value={email} onChange={(event) => setEmail(event.target.value)} error={registerState.fieldErrors?.email || undefined} />
@@ -85,7 +93,7 @@ export function AuthSessionForm({
           <label className="checkline">
             <input type="checkbox" name="terms" required={tab === "register"} />
             <span>
-              Accetto i <Link href="/terms">{messages.auth.termsLink}</Link> e la <Link href="/privacy">{messages.auth.privacyLink}</Link>
+              Accetto i <Link href="/termini">{messages.auth.termsLink}</Link> e la <Link href="/privacy">{messages.auth.privacyLink}</Link>
             </span>
           </label>
           {registerState.fieldErrors?.terms ? <p className="field-error">{registerState.fieldErrors.terms}</p> : null}

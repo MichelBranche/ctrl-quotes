@@ -6,6 +6,7 @@ import { ArrowRight, Building2, CreditCard, FileText, Hash, Layers, Palette, Per
 import { SectionLink, useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { cn } from "@/lib/cn";
 import { messages } from "@/i18n/it";
+import { LegalLinks } from "@/components/legal/legal-links";
 
 /*
  * Impostazioni home: header, dark hero and five cards linking to the real settings pages. Cards build up from
@@ -76,6 +77,7 @@ export function SettingsHome() {
           <Bars />
         </Card>
       </motion.div>
+      <LegalLinks className="st-legal" />
     </div>
   );
 }

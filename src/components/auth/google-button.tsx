@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { createAuthClient } from "better-auth/react";
 import { messages } from "@/i18n/it";
 
@@ -18,7 +18,7 @@ function GoogleMark() {
 }
 
 /** "Continua con Google" + "oppure" divider, above the email form. Rendered only when Google env is set. */
-export function GoogleSignIn({ note }: { note?: string }) {
+export function GoogleSignIn({ note }: { note?: ReactNode }) {
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
   return (

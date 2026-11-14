@@ -9,6 +9,7 @@ import { ensureMigrated, getDb } from "@/db/client";
 import { headlineTotal, logoSrc } from "@/domain/quote-snapshot";
 import { loadPublicQuote, type PublicQuoteView } from "@/server/public-quote";
 import { clientIp } from "@/server/request-meta";
+import { LegalLinks } from "@/components/legal/legal-links";
 import { ViewBeacon } from "./view-beacon";
 
 export const metadata: Metadata = {
@@ -143,6 +144,7 @@ async function PublicQuoteContent({ params }: { params: Params }) {
           <Download size={16} aria-hidden="true" /> PDF
         </a>
       </div>
+      <LegalLinks className="pq-legal" />
     </div>
   );
 }
@@ -173,6 +175,7 @@ function StatePage({ view }: { view: Exclude<PublicQuoteView, { kind: "active" }
           </a>
         ) : null}
       </section>
+      <LegalLinks className="pq-legal" />
     </div>
   );
 }
