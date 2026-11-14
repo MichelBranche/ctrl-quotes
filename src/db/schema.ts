@@ -827,6 +827,25 @@ export const redeemCodeUses = sqliteTable(
   ],
 );
 
+
+export const quoteSendDailyCounts = sqliteTable(
+  "quote_send_daily_counts",
+  {
+    /** Calendar day in Europe/Rome, YYYY-MM-DD. */
+    day: text("day").notNull(),
+    /** `user` is per sender; `global` is the app-wide Resend safety cap. */
+    kind: text("kind").notNull(),
+    /** Sender id for `user` rows; empty string for the single `global` row of that day. */
+    userId: text("user_id").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.day, table.kind, table.userId] }),
+    check("quote_send_daily_kind_chk", sql`${table.kind} in ('user', 'global')`),
+    check("quote_send_daily_count_chk", sql`${table.count} >= 0`),
+  ],
+);
+
 export const schema = {
   user,
   session,
@@ -868,4 +887,5 @@ export const schema = {
   rateLimits,
   redeemCodes,
   redeemCodeUses,
+  quoteSendDailyCounts,
 };

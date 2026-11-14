@@ -11,6 +11,7 @@ import type { EmailDriver } from "@/server/email/types";
 import type { JobAttempt, JobHandler } from "@/server/outbox";
 import { revealPublicLinkUrl } from "@/server/public-links";
 import { QUOTE_SEND_JOB } from "@/server/quote-send";
+import { releaseQuoteSend } from "@/server/quote-send-quota";
 import { redact } from "@/server/redact";
 
 const payloadSchema = z.object({
@@ -26,6 +27,9 @@ const payloadSchema = z.object({
   attachPdf: z.boolean(),
   replyTo: z.string().nullable(),
   isUpdate: z.boolean(),
+  countsTowardQuota: z.boolean().optional(),
+  quotaDay: z.string().nullable().optional(),
+  quotaUserId: z.string().nullable().optional(),
 });
 
 const longDate = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Rome" });
@@ -96,6 +100,9 @@ export async function deliverQuoteEmail(
   } catch (error) {
     const message = redact(error instanceof Error ? error.message : "Errore sconosciuto").slice(0, 300);
     await markDelivery(db, payload.deliveryId, attempt.final ? "failed" : "retrying", message);
+    if (attempt.final && payload.countsTowardQuota && payload.quotaDay && payload.quotaUserId) {
+      await releaseQuoteSend(db, { userId: payload.quotaUserId, day: payload.quotaDay });
+    }
     throw error;
   }
 }

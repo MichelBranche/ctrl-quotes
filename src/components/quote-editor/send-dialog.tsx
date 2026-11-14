@@ -4,7 +4,9 @@ import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { AlertTriangle, Check, ChevronRight, Clock, Copy, Eye, Link2, Lock, Mail, RefreshCw, Send, ShieldCheck, Unlink, X } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { BILLING_PATH, quoteSendQuotaLabel } from "@/domain/plans";
 import { buttonColor, defaultMessage, defaultSubject, EMAIL_LIMITS, emailFooterLines, emailHeading, firstName } from "@/domain/quote-email";
 import { copyQuoteLinkAction, getSendContextAction, regenerateQuoteLinkAction, revokeQuoteLinkAction, sendQuoteAction } from "@/server/actions/send";
 import type { SendContext, SendResult } from "@/server/quote-send";
@@ -161,6 +163,19 @@ function SendSkeleton() {
   );
 }
 
+
+function QuotaOrText({ message, billing }: { message: string; billing: boolean }) {
+  if (!billing) return message;
+  return (
+    <>
+      {message}{" "}
+      <Link href={BILLING_PATH} className="send-error-link">
+        Abbonamenti
+      </Link>
+    </>
+  );
+}
+
 function SendForm({
   quoteId,
   context,
@@ -197,7 +212,8 @@ function SendForm({
   const first = firstName(context.recipient.email && to.trim().toLowerCase() === context.recipient.email.toLowerCase() ? context.recipient.name : null);
   const emailReady = toValid && ccValid && subject.trim().length > 0 && message.trim().length > 0;
   const blocked = context.blockedReason ?? (unsaved ? "Attendi il salvataggio automatico della bozza." : null);
-  const canSubmit = !blocked && !pending && (mode === "link" || emailReady);
+  const quotaBlocked = mode === "email" && (context.quota.reached || context.quota.globalBlocked);
+  const canSubmit = !blocked && !quotaBlocked && !pending && (mode === "link" || emailReady);
   const nextVersion = context.nextVersionNo;
 
   const primaryLabel =
@@ -410,11 +426,20 @@ function SendForm({
       <footer className="send-foot">
         <div className="send-foot-msg" aria-live="polite">
           {error ? (
-            <span id={ids.error} className="send-error" role="alert">{error}</span>
+            <span id={ids.error} className="send-error" role="alert">
+              <QuotaOrText message={error} billing={error === context.quota.message && !context.quota.globalBlocked} />
+            </span>
           ) : blocked ? (
             <span className="send-error">{blocked}</span>
+          ) : quotaBlocked && context.quota.message ? (
+            <span className="send-error" role="alert">
+              <QuotaOrText message={context.quota.message} billing={!context.quota.globalBlocked} />
+            </span>
           ) : mode === "email" ? (
-            <span>Le risposte all&apos;email arrivano a te, non a CTRL Quotes.</span>
+            <span>
+              <span className="send-quota">{quoteSendQuotaLabel(context.quota.used, context.quota.limit)}</span>
+              {" · "}Le risposte all&apos;email arrivano a te, non a CTRL Quotes.
+            </span>
           ) : (
             <span>Nessuna email parte: il link lo condividi tu.</span>
           )}

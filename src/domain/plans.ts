@@ -105,6 +105,57 @@ export function formatPlanPrice(cents: number): string {
   return `€ ${(cents / 100).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+/** Daily client-email sends allowed for the sender, by effective plan. `null` = unlimited (Business). */
+export const quoteSendDailyLimits: Record<PlanId, number | null> = {
+  starter: 3,
+  pro: 15,
+  business: null,
+};
+
+export const DEFAULT_QUOTE_SEND_GLOBAL_DAILY_CAP = 90;
+export const BILLING_PATH = "/app/settings/billing";
+
+/**
+ * Plan that governs limits and features. An active redeem override wins; otherwise the workspace
+ * row is mapped onto starter/pro/business (`free` and unknown values are the standard Starter plan).
+ */
+export function effectivePlanId(plan: string, override: PlanId | null = null): PlanId {
+  if (override) return override;
+  if (plan === "pro") return "pro";
+  if (plan === "studio") return "business";
+  return "starter";
+}
+
+export function quoteSendDailyLimit(planId: PlanId): number | null {
+  return quoteSendDailyLimits[planId];
+}
+
+/** Calendar day in Europe/Rome, YYYY-MM-DD. The send quota resets at Rome midnight. */
+export function romeCalendarDay(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}
+
+export function globalQuoteSendDailyCap(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.QUOTE_SEND_GLOBAL_DAILY_CAP;
+  if (raw === undefined || raw === "") return DEFAULT_QUOTE_SEND_GLOBAL_DAILY_CAP;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) return DEFAULT_QUOTE_SEND_GLOBAL_DAILY_CAP;
+  return value;
+}
+
+export const QUOTE_SEND_GLOBAL_CAP_MESSAGE = "Invio temporaneamente non disponibile, riprova domani.";
+
+export function quoteSendLimitReachedMessage(planId: PlanId): string {
+  if (planId === "starter") return "Hai raggiunto il limite di 3 invii al giorno del piano Starter. Passa a Pro per inviarne fino a 15.";
+  if (planId === "pro") return "Hai raggiunto il limite di 15 invii al giorno del piano Pro. Passa a Business per invii illimitati.";
+  return "Hai raggiunto il limite di invii giornalieri.";
+}
+
+export function quoteSendQuotaLabel(used: number, limit: number | null): string {
+  if (limit === null) return "Illimitati";
+  return `Invii oggi: ${used} di ${limit}`;
+}
+
 /** Label for the workspace's current plan. A plan unlocked by a redeem code wins; "free" is shown as a trial. */
 export function currentPlanLabel(plan: string, override: PlanId | null = null): string {
   if (override) return plans[override].name;

@@ -377,6 +377,14 @@ textarea.send-input:focus {
 
 .send-foot-msg { flex: 1; min-width: 0; font-size: var(--cq-font-size-xs); color: var(--cq-muted); }
 .send-error { color: var(--cq-danger); font-weight: 550; }
+.send-error-link {
+  color: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.send-error-link:hover { color: var(--cq-ink); }
+.send-quota { font-weight: 550; color: var(--cq-ink-soft); }
 .send-foot-actions { display: flex; gap: 10px; flex-shrink: 0; }
 .send-state { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
 

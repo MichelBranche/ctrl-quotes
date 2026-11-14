@@ -5,11 +5,13 @@ import type { AppDatabase } from "@/db/client";
 import { clientContacts, clients, emailDeliveries, quoteEvents, quotePublicLinks, quoteVersions, quotes, user } from "@/db/schema";
 import { createId } from "@/domain/ids";
 import { defaultMessage, defaultSubject, EMAIL_LIMITS } from "@/domain/quote-email";
+import { effectivePlanId, romeCalendarDay } from "@/domain/plans";
 import { headlineTotal } from "@/domain/quote-snapshot";
 import { asQuoteStatus, nextQuoteStatus, type QuoteStatus } from "@/domain/quote-status";
 import { authorize, conflict, invalid, notFound, ok, type Actor, type Result } from "@/server/access";
 import { writeAuditLog } from "@/server/audit";
 import { emailDeliveryLive } from "@/server/email";
+import { getQuoteSendQuota, releaseQuoteSend, reserveQuoteSend, type QuoteSendQuota } from "@/server/quote-send-quota";
 import { enqueueJob } from "@/server/outbox";
 import { createPublicLink, regeneratePublicLink, revealPublicLinkUrl, revokePublicLink } from "@/server/public-links";
 import { createVersion, findDraft, findQuote, getDraftSnapshot } from "@/server/quotes";
@@ -23,14 +25,10 @@ export const QUOTE_SEND_JOB = "quote.send_email";
 
 const longDate = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Rome" });
 
-function romeDay(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
-}
-
 /** First instant after the validity day, in Rome time. The link works for the whole last day. */
 export function linkExpiryFor(validUntil: Date | null): Date | null {
   if (!validUntil) return null;
-  const [y, m, d] = romeDay(validUntil).split("-").map(Number) as [number, number, number];
+  const [y, m, d] = romeCalendarDay(validUntil).split("-").map(Number) as [number, number, number];
   const noon = new Date(Date.UTC(y, m - 1, d + 1, 12));
   const romeHour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Rome", hour: "2-digit", hourCycle: "h23" }).format(noon));
   return new Date(Date.UTC(y, m - 1, d + 1, 0) - (romeHour - 12) * 3_600_000);
@@ -58,6 +56,8 @@ export type SendContext = {
   pdfFilename: string;
   /** False while EMAIL_DRIVER is console or file: emails are only logged. */
   emailLive: boolean;
+  /** Daily client-email quota for this sender. Link-only sends do not use it. */
+  quota: QuoteSendQuota;
 };
 
 async function activeLink(db: AppDatabase, workspaceId: string, quoteId: string) {
@@ -162,6 +162,7 @@ export async function getSendContext(db: AppDatabase, actor: Actor, quoteId: str
     link: link ? { id: link.id, url: await revealPublicLinkUrl(db, actor.workspaceId, link.id), hint: link.tokenHint, expiresAt: link.expiresAt } : null,
     emailLive: emailDeliveryLive(),
     pdfFilename: `${(quote.number ?? "preventivo").replace(/[^\w.-]+/g, "-")}-v${versionNo}.pdf`,
+    quota: await getQuoteSendQuota(db, { userId: actor.userId, planId: effectivePlanId(access.value.plan, access.value.planOverride), now }),
   });
 }
 
@@ -228,6 +229,40 @@ export async function sendQuote(db: AppDatabase, actor: Actor, quoteId: string, 
   if (!draft) return notFound("Bozza non trovata.");
   if (draft.revision !== input.revision) return conflict("Ci sono modifiche non ancora salvate o arrivate da un'altra scheda. Attendi il salvataggio e riprova.");
 
+  let reservedDay: string | null = null;
+  if (input.mode === "email") {
+    const reserved = await reserveQuoteSend(db, {
+      userId: actor.userId,
+      planId: effectivePlanId(access.value.plan, access.value.planOverride),
+      now,
+    });
+    if (!reserved.ok) return conflict(reserved.message);
+    reservedDay = reserved.day;
+  }
+
+  let result: Result<SendResult>;
+  try {
+    result = await performSendQuote(db, actor, quoteId, input, quote, from, to, draft, reservedDay, now);
+  } catch (error) {
+    if (reservedDay) await releaseQuoteSend(db, { userId: actor.userId, day: reservedDay });
+    throw error;
+  }
+  if (!result.ok && reservedDay) await releaseQuoteSend(db, { userId: actor.userId, day: reservedDay });
+  return result;
+}
+
+async function performSendQuote(
+  db: AppDatabase,
+  actor: Actor,
+  quoteId: string,
+  input: z.infer<typeof sendInputSchema>,
+  quote: NonNullable<Awaited<ReturnType<typeof findQuote>>>,
+  from: QuoteStatus,
+  to: QuoteStatus,
+  draft: NonNullable<Awaited<ReturnType<typeof findDraft>>>,
+  reservedDay: string | null,
+  now: Date,
+): Promise<Result<SendResult>> {
   let latest = await latestVersion(db, actor.workspaceId, quoteId);
   let createdVersion = false;
   if (!latest || draft.updatedAt.getTime() > latest.createdAt.getTime()) {
@@ -271,6 +306,7 @@ export async function sendQuote(db: AppDatabase, actor: Actor, quoteId: string, 
     if (input.copyMe && sender.email) deliveries.push({ to: sender.email, cc: [], subject: `Copia: ${input.subject}`.slice(0, EMAIL_LIMITS.subject + 7), kind: "quote_send_copy" });
     for (const delivery of deliveries) {
       const deliveryId = createId();
+      const countsTowardQuota = delivery.kind === "quote_send";
       await db.insert(emailDeliveries).values({
         id: deliveryId,
         workspaceId: actor.workspaceId,
@@ -301,6 +337,9 @@ export async function sendQuote(db: AppDatabase, actor: Actor, quoteId: string, 
           attachPdf: input.attachPdf,
           replyTo: sender.email,
           isUpdate,
+          countsTowardQuota,
+          quotaDay: countsTowardQuota ? reservedDay : null,
+          quotaUserId: countsTowardQuota ? actor.userId : null,
         },
       });
     }
