@@ -43,16 +43,22 @@ test("il login si legge a 1440, 1280, 1024 e 390 senza avviso Google", async ({ 
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByText("Accesso con Google non è ancora configurato")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Google/i })).toHaveCount(0);
-    if (viewport.width >= 768) {
-      await page.waitForFunction(() => {
-        const images = Array.from(document.querySelectorAll(".auth-backdrop img")) as HTMLImageElement[];
-        return images.some((image) => image.currentSrc && !image.currentSrc.startsWith("data:") && image.naturalWidth > 16);
-      });
-    }
+    await expect(page.getByRole("tab", { name: "Accedi" })).toHaveAttribute("aria-selected", "true");
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     expect(overflow).toBeLessThanOrEqual(1);
     await page.screenshot({ path: `qa/screenshots/login-${viewport.name}.png`, fullPage: true });
   }
+});
+
+test("le schede Accedi e Registrati cambiano modulo e indirizzo", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("tab", { name: "Registrati" }).click();
+  await expect(page).toHaveURL(/\/register$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Crea il tuo account" })).toBeVisible();
+  await expect(page.getByLabel("Nome e cognome")).toBeVisible();
+  await page.getByRole("tab", { name: "Accedi" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Accedi a CTRL® Quotes" })).toBeVisible();
 });
