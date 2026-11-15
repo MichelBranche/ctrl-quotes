@@ -258,3 +258,35 @@
 @keyframes pt-out { to { opacity: 0; transform: translate(var(--pt-x, 0px), var(--pt-y, 40px)) scale(0.97); } }
 .main-col > .page:has(.pt-leaving) { overflow: hidden; }
 .pt-wait { min-height: 60vh; }
+
+.pro-card {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.pro-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--brand) 42%, transparent);
+}
+.pro-btn {
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 200ms ease;
+}
+.pro-btn:active {
+  transform: scale(0.96);
+  transition-duration: 80ms;
+  transition-timing-function: ease;
+}
+.pro-mini {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.pro-mini:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--brand) 42%, transparent);
+}
+.pro-mini:active {
+  transform: scale(0.94);
+  transition-duration: 80ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pro-card, .pro-btn, .pro-mini { transition: none; }
+  .pro-card:hover, .pro-mini:hover { transform: none; }
+  .pro-btn:active, .pro-mini:active { transform: none; }
+}
