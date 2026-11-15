@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { redeemCodes, redeemCodeUses, workspaces } from "@/db/schema";
+import { createHash } from "node:crypto";
 import { createId } from "@/domain/ids";
 import type { PlanId } from "@/domain/plans";
 import {
@@ -13,7 +14,13 @@ import {
   type RedeemSuccess,
 } from "@/domain/redeem";
 import { hasRole } from "@/domain/roles";
+import { writeAuditLog } from "@/server/audit";
 import { getWorkspaceForUser } from "@/server/workspaces";
+
+/** SHA-256 hex of a normalized redeem code. The plaintext is never stored. */
+export function hashRedeemCode(normalized: string): string {
+  return createHash("sha256").update(normalized, "utf8").digest("hex");
+}
 
 export type RedeemResult = { ok: true; value: RedeemSuccess } | { ok: false; error: RedeemError };
 
@@ -33,7 +40,8 @@ export async function redeemCode(
 
   const code = normalizeRedeemCode(input.code);
   if (!code) return { ok: false, error: "invalid" };
-  const [row] = await db.select().from(redeemCodes).where(eq(redeemCodes.code, code)).limit(1);
+  const digest = hashRedeemCode(code);
+  const [row] = await db.select().from(redeemCodes).where(eq(redeemCodes.code, digest)).limit(1);
   if (!row || !isPlanId(row.plan) || (row.kind !== "free_month" && row.kind !== "lifetime")) return { ok: false, error: "invalid" };
   const kind: RedeemKind = row.kind;
   const plan: PlanId = row.plan;
@@ -69,7 +77,17 @@ export async function redeemCode(
       .where(and(eq(workspaces.id, workspace.id), sql`exists (select 1 from ${redeemCodeUses} where ${redeemCodeUses.id} = ${useId})`)),
   ]);
 
-  if (claim.rowsAffected === 1) return { ok: true, value: { plan, kind, days: row.days, until: next.until } };
+  if (claim.rowsAffected === 1) {
+    await writeAuditLog(db, {
+      workspaceId: workspace.id,
+      actorUserId: input.userId,
+      action: "billing.code_redeemed",
+      entityType: "redeem_code",
+      entityId: row.id,
+      meta: { plan, kind, days: row.days ?? 0 },
+    });
+    return { ok: true, value: { plan, kind, days: row.days, until: next.until } };
+  }
 
   // Not claimed: explain why (read after the fact, only for the message).
   const [fresh] = await db.select().from(redeemCodes).where(eq(redeemCodes.id, row.id));
@@ -91,7 +109,7 @@ export async function createRedeemCode(db: AppDatabase, input: NewRedeemCode, no
   const days = input.kind === "lifetime" ? null : input.days ?? 30;
   const [row] = await db
     .insert(redeemCodes)
-    .values({ id: createId(), code, kind: input.kind, plan: input.plan, days, maxUses: input.maxUses, expiresAt: input.expiresAt, createdAt: now })
+    .values({ id: createId(), code: hashRedeemCode(code), kind: input.kind, plan: input.plan, days, maxUses: input.maxUses, expiresAt: input.expiresAt, createdAt: now })
     .returning();
   return row;
 }

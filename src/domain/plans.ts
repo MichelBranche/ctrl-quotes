@@ -7,6 +7,53 @@
 export const planIds = ["starter", "pro", "business"] as const;
 export type PlanId = (typeof planIds)[number];
 
+/** Plan whose limits apply during the card-free trial. Change here if the trial offer changes. */
+export const TRIAL_PLAN_ID: PlanId = "pro";
+/** Length of the free trial, in 24-hour days from the moment it starts. */
+export const TRIAL_DURATION_DAYS = 7;
+/** Show the in-app banner and send the reminder email when this many days (or fewer) remain. */
+export const TRIAL_REMINDER_DAYS_LEFT = 2;
+const DAY_MS = 86_400_000;
+
+export function trialDurationMs(days = TRIAL_DURATION_DAYS): number {
+  return days * DAY_MS;
+}
+
+export function trialEndFrom(start: Date, days = TRIAL_DURATION_DAYS): Date {
+  return new Date(start.getTime() + trialDurationMs(days));
+}
+
+/** Whole days still to run, rounded up. 0 once the trial has ended. Uses 24-hour periods, not calendar midnights. */
+export function trialDaysRemaining(endsAt: Date, now = new Date()): number {
+  const ms = endsAt.getTime() - now.getTime();
+  if (ms <= 0) return 0;
+  return Math.ceil(ms / DAY_MS);
+}
+
+export function trialDaysRemainingLabel(days: number): string {
+  if (days <= 0) return "Prova terminata";
+  if (days === 1) return "Prova gratuita, 1 giorno rimasto";
+  return `Prova gratuita, ${days} giorni rimasti`;
+}
+
+export function trialReminderDue(endsAt: Date, now = new Date(), reminderDays = TRIAL_REMINDER_DAYS_LEFT): boolean {
+  const left = trialDaysRemaining(endsAt, now);
+  return left > 0 && left <= reminderDays;
+}
+
+export const TRIAL_EXPIRED_WRITE_MESSAGE =
+  "La prova gratuita è terminata. Attiva un abbonamento per continuare a modificare i dati.";
+
+const STRIPE_TRIAL_END_BUFFER_MS = 60_000;
+
+/** Unix seconds for Stripe `subscription_data.trial_end`, or undefined when the trial is already over or too close. */
+export function stripeSubscriptionTrialEnd(endsAt: Date | null, now = new Date()): number | undefined {
+  if (!endsAt) return undefined;
+  if (endsAt.getTime() - now.getTime() <= STRIPE_TRIAL_END_BUFFER_MS) return undefined;
+  return Math.floor(endsAt.getTime() / 1000);
+}
+
+
 export type PlanIcon = "layers" | "user" | "users" | "chart" | "grid" | "headset" | "shield" | "send";
 
 export type PlanFeature = { label: string; icon: PlanIcon; soon: boolean };
@@ -44,7 +91,7 @@ export const teamSeatLimits: Record<PlanId, number | null> = {
  */
 export function workspaceTeamSeatLimit(plan: string, override: PlanId | null = null): number | null {
   if (override) return teamSeatLimits[override];
-  if (plan === "free") return teamSeatLimits.pro;
+  if (plan === "free") return teamSeatLimits[TRIAL_PLAN_ID];
   return teamSeatLimits[effectivePlanId(plan, override)];
 }
 
@@ -230,6 +277,9 @@ export const yearlySavingsLabel = `Risparmi ${YEARLY_SAVINGS_PERCENT}%`;
 
 export const DEFAULT_QUOTE_SEND_GLOBAL_DAILY_CAP = 90;
 export const BILLING_PATH = "/app/settings/billing";
+
+  "La prova gratuita è terminata. Attiva un abbonamento per continuare a modificare i dati.";
+
 
 /**
  * Plan that governs limits and features. An active redeem override wins; otherwise the workspace

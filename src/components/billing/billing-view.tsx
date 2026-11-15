@@ -237,7 +237,19 @@ export function BillingView({
           Checkout annullato. Nessun addebito è stato effettuato.
         </p>
       ) : null}
-      {checkoutEnabled && billing && billing.status !== "trial" ? (
+      {billing?.status === "trial" && billing.trialEndsLabel ? (
+        <p className="bl-banner" role="status">
+          Prova gratuita fino al {billing.trialEndsLabel}
+          {billing.trialDaysLeft != null ? ` (${billing.trialDaysLeft === 1 ? "1 giorno rimasto" : `${billing.trialDaysLeft} giorni rimasti`}).` : "."}
+          {" "}Se attivi un piano ora, il primo addebito arriva alla fine della prova. Dopo la scadenza i dati restano al sicuro, in sola lettura, finché non attivi un abbonamento.
+        </p>
+      ) : null}
+      {billing?.status === "trial_expired" ? (
+        <p className="bl-banner is-warn" role="status">
+          La prova gratuita è terminata. Puoi consultare i dati già salvati. Attiva un piano per tornare a modificare e inviare.
+        </p>
+      ) : null}
+      {checkoutEnabled && billing && billing.status !== "trial" && billing.status !== "trial_expired" ? (
         <p className={cn("bl-banner", billing.status === "past_due" && "is-warn", billing.status === "active" && "is-ok")} role="status">
           {billing.planLabel}: {billing.statusLabel}
           {billing.isOwner && billing.hasSubscription ? (

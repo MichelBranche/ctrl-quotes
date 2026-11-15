@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { AppDatabase } from "@/db/client";
-import { redeemCodes, redeemCodeUses } from "@/db/schema";
+import { auditLogs, redeemCodes, redeemCodeUses } from "@/db/schema";
 import { activePlanOverride, nextOverride, normalizeRedeemCode } from "@/domain/redeem";
 import { currentPlanLabel } from "@/domain/plans";
-import { createRedeemCode, redeemCode } from "@/server/redeem";
+import { createRedeemCode, hashRedeemCode, redeemCode } from "@/server/redeem";
 import { listWorkspaces } from "@/server/workspaces";
 import { joinAs, makeUser, ownerWithWorkspace } from "./helpers/actors";
 import { createTestDb } from "./helpers/db";
@@ -87,7 +87,7 @@ describe("codici di riscatto", () => {
     const results = await Promise.all(owners.map((item) => redeemCode(db, { ...item, code: "TRE-POSTI" }, t0)));
     expect(results.filter((item) => item.ok)).toHaveLength(3);
     expect(results.filter((item) => !item.ok && item.error === "exhausted")).toHaveLength(7);
-    const [code] = await db.select().from(redeemCodes).where(eq(redeemCodes.code, "TRE-POSTI"));
+    const [code] = await db.select().from(redeemCodes).where(eq(redeemCodes.code, hashRedeemCode("TRE-POSTI")));
     expect(code?.usedCount).toBe(3);
     expect(await db.select().from(redeemCodeUses)).toHaveLength(3);
   });
@@ -108,6 +108,22 @@ describe("codici di riscatto", () => {
     await make("MESE");
     expect((await redeemCode(db, { ...owner, code: "A-VITA" }, t0)).ok).toBe(true);
     expect(await redeemCode(db, { ...owner, code: "MESE" }, t0)).toEqual({ ok: false, error: "lifetime_active" });
+  });
+
+  it("salva solo l'hash del codice, mai il testo in chiaro", async () => {
+    await make("SEGRETO-PRO");
+    const [row] = await db.select().from(redeemCodes);
+    expect(row?.code).toBe(hashRedeemCode("SEGRETO-PRO"));
+    expect(row?.code).not.toBe("SEGRETO-PRO");
+  });
+
+  it("un riscatto riuscito lascia una riga di audit senza il codice in chiaro", async () => {
+    await make("AUDIT-PRO");
+    expect((await redeemCode(db, { ...owner, code: "AUDIT-PRO" }, t0)).ok).toBe(true);
+    const [log] = await db.select().from(auditLogs);
+    expect(log?.action).toBe("billing.code_redeemed");
+    expect(log?.workspaceId).toBe(owner.workspaceId);
+    expect(JSON.stringify(log)).not.toMatch(/AUDIT-PRO/i);
   });
 
   it("un override scaduto non conta più", () => {

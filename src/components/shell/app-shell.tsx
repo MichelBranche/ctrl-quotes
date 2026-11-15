@@ -8,7 +8,7 @@ import { SectionTransitionProvider } from "@/components/motion/section-transitio
 import { AnchoredPopover } from "@/components/ui/anchored-popover";
 import { Drawer } from "@/components/ui/overlays";
 import { SideNav } from "@/components/shell/nav";
-import { currentPlanLabel, type PlanId } from "@/domain/plans";
+import { BILLING_PATH, currentPlanLabel, trialDaysRemainingLabel } from "@/domain/plans";
 import type { ShellData } from "@/components/shell/types";
 import { messages } from "@/i18n/it";
 import { cn } from "@/lib/cn";
@@ -73,7 +73,7 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
           </div>
           <SideNav compact={collapsed} />
           <div className="sb-foot">
-            <PlanCard plan={data.workspace.plan} override={data.workspace.planOverride} />
+            <PlanCard workspace={data.workspace} />
             <Link className="btn-new" href="/app/quotes/new" title={collapsed ? messages.quotes.action : undefined}>
               <Plus size={18} aria-hidden="true" />
               <span>{messages.quotes.action}</span>
@@ -163,13 +163,14 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
             </AnchoredPopover>
           </header>
           <main id="content" tabIndex={-1} className="page">
+            <TrialBanner workspace={data.workspace} />
             <PageTransition>{children}</PageTransition>
           </main>
         </div>
         <Drawer open={menuOpen} title={messages.shell.openMenu} onClose={() => setMenuOpen(false)}>
           <SideNav onNavigate={() => setMenuOpen(false)} />
           <div className="sb-foot">
-            <PlanCard plan={data.workspace.plan} override={data.workspace.planOverride} />
+            <PlanCard workspace={data.workspace} />
             <Link className="btn-new" href="/app/quotes/new" onClick={() => setMenuOpen(false)}>
               <Plus size={18} aria-hidden="true" />
               <span>{messages.quotes.action}</span>
@@ -182,25 +183,63 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
   );
 }
 
-function PlanCard({ plan, override }: { plan: string; override: PlanId | null }) {
-  const title = currentPlanLabel(plan, override);
+function PlanCard({ workspace }: { workspace: ShellData["workspace"] }) {
+  const title = workspace.trialExpired
+    ? "Prova terminata"
+    : workspace.trialActive
+      ? trialDaysRemainingLabel(workspace.trialDaysLeft)
+      : currentPlanLabel(workspace.plan, workspace.planOverride);
+  const body = workspace.trialExpired
+    ? "Attiva un abbonamento per tornare a modificare i dati."
+    : workspace.trialActive
+      ? "Limiti del piano Pro, senza carta. I dati restano al sicuro dopo la scadenza."
+      : messages.shell.planBody;
+  const progress = workspace.trialActive || workspace.trialExpired
+    ? Math.max(0, Math.min(1, 1 - workspace.trialDaysLeft / 7))
+    : null;
   return (
     <>
       <section className="pro-card brand-fill">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="pro-quote" src="/brand/quote-marks.png" alt="" width={54} height={32} />
         <strong className="pro-title">{title}</strong>
-        <p className="pro-text">{messages.shell.planBody}</p>
-        <Link className="pro-btn" href="/app/settings/billing">
-          {messages.shell.managePlan} <ArrowRight size={16} aria-hidden="true" />
+        <p className="pro-text">{body}</p>
+        {progress != null ? (
+          <div className="pro-meter" aria-hidden="true">
+            <span style={{ transform: `scaleX(${progress})` }} />
+          </div>
+        ) : null}
+        <Link className="pro-btn" href={BILLING_PATH}>
+          {workspace.trialExpired ? "Attiva un piano" : messages.shell.managePlan} <ArrowRight size={16} aria-hidden="true" />
         </Link>
       </section>
-      <Link className="pro-mini brand-fill" href="/app/settings/billing" aria-label={title} title={title}>
+      <Link className="pro-mini brand-fill" href={BILLING_PATH} aria-label={title} title={title}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/quote-marks.png" alt="" width={22} height={13} />
       </Link>
     </>
   );
+}
+
+function TrialBanner({ workspace }: { workspace: ShellData["workspace"] }) {
+  if (workspace.trialExpired) {
+    return (
+      <p className="trial-banner is-expired" role="status">
+        <span>La prova gratuita è terminata. Puoi consultare i dati già salvati. Per modificare e inviare, attiva un abbonamento.</span>
+        <Link href={BILLING_PATH}>Vai all&apos;abbonamento</Link>
+      </p>
+    );
+  }
+  if (workspace.showReminderBanner) {
+    const left = workspace.trialDaysLeft === 1 ? "1 giorno" : `${workspace.trialDaysLeft} giorni`;
+    return (
+      <p className="trial-banner is-warn" role="status">
+        <span>La prova gratuita termina tra {left}. Attiva un piano per non interrompere il lavoro.</span>
+        <Link href={BILLING_PATH}>Vai all&apos;abbonamento</Link>
+      </p>
+    );
+  }
+  return null;
 }
 
 

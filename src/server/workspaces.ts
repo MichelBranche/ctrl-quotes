@@ -37,7 +37,8 @@ import {
 import { assertWorkspaceId, createId, slugify } from "@/domain/ids";
 import { hasRole, isRole, type Role } from "@/domain/roles";
 import type { TaxProfile } from "@/domain/pricing";
-import type { PlanId } from "@/domain/plans";
+import { TRIAL_EXPIRED_WRITE_MESSAGE, trialEndFrom, type PlanId } from "@/domain/plans";
+import { loadWorkspaceEntitlement } from "@/server/entitlement";
 import { activePlanOverride } from "@/domain/redeem";
 
 export type WorkspaceSummary = {
@@ -51,6 +52,9 @@ export type WorkspaceSummary = {
   planOverrideUntil: number | null;
   taxProfile: TaxProfile;
   role: Role;
+  trialEndsAt: number | null;
+  onboardingCompletedAt: number | null;
+  onboardingStep: number;
 };
 
 export type AccessFailure = "not_found" | "forbidden";
@@ -92,7 +96,15 @@ async function uniqueSlug(db: AppDatabase, name: string, excludeId?: string): Pr
 
 export async function createWorkspace(
   db: AppDatabase,
-  input: { userId: string; name: string; taxProfile: TaxProfile },
+  input: {
+    userId: string;
+    name: string;
+    taxProfile: TaxProfile;
+    /** Start the 7-day trial now. Default true for a workspace created from the switcher. */
+    startTrial?: boolean;
+    /** Skip the guided setup (existing users adding a workspace). */
+    skipOnboarding?: boolean;
+  },
 ): Promise<WorkspaceSummary> {
   const name = input.name.trim();
   if (name.length < 2 || name.length > 80) {
@@ -101,6 +113,10 @@ export async function createWorkspace(
   const now = new Date();
   const id = createId();
   const slug = await uniqueSlug(db, name);
+  const startTrial = input.startTrial !== false;
+  const skipOnboarding = input.skipOnboarding !== false;
+  const trialEndsAt = startTrial ? trialEndFrom(now) : null;
+  const onboardingCompletedAt = skipOnboarding ? now : null;
   await db.insert(workspaces).values({
     id,
     name,
@@ -110,6 +126,9 @@ export async function createWorkspace(
     currency: "EUR",
     createdAt: now,
     updatedAt: now,
+    trialEndsAt,
+    onboardingCompletedAt,
+    onboardingStep: 0,
   });
   await db.insert(workspaceMemberships).values({
     workspaceId: id,
@@ -117,7 +136,19 @@ export async function createWorkspace(
     role: "owner",
     createdAt: now,
   });
-  return { id, name, slug, plan: "free", planOverride: null, planOverrideUntil: null, taxProfile: input.taxProfile, role: "owner" };
+  return {
+    id,
+    name,
+    slug,
+    plan: "free",
+    planOverride: null,
+    planOverrideUntil: null,
+    taxProfile: input.taxProfile,
+    role: "owner",
+    trialEndsAt: trialEndsAt ? trialEndsAt.getTime() : null,
+    onboardingCompletedAt: onboardingCompletedAt ? onboardingCompletedAt.getTime() : null,
+    onboardingStep: 0,
+  };
 }
 
 export async function listWorkspaces(db: AppDatabase, userId: string): Promise<WorkspaceSummary[]> {
@@ -131,6 +162,9 @@ export async function listWorkspaces(db: AppDatabase, userId: string): Promise<W
       overrideUntil: workspaces.planOverrideUntil,
       taxProfile: workspaces.taxProfile,
       role: workspaceMemberships.role,
+      trialEndsAt: workspaces.trialEndsAt,
+      onboardingCompletedAt: workspaces.onboardingCompletedAt,
+      onboardingStep: workspaces.onboardingStep,
     })
     .from(workspaceMemberships)
     .innerJoin(workspaces, eq(workspaces.id, workspaceMemberships.workspaceId))
@@ -138,10 +172,20 @@ export async function listWorkspaces(db: AppDatabase, userId: string): Promise<W
 
   return rows.flatMap((row) => {
     if (!isPlan(row.plan) || !isTaxProfile(row.taxProfile) || !isRole(row.role)) return [];
-    const { overridePlan, overrideUntil, ...rest } = row;
+    const { overridePlan, overrideUntil, trialEndsAt, onboardingCompletedAt, onboardingStep, ...rest } = row;
     const until = overrideUntil ? overrideUntil.getTime() : null;
     const planOverride = activePlanOverride(overridePlan, until);
-    return [{ ...rest, plan: row.plan, planOverride, planOverrideUntil: planOverride ? until : null, taxProfile: row.taxProfile, role: row.role }];
+    return [{
+      ...rest,
+      plan: row.plan,
+      planOverride,
+      planOverrideUntil: planOverride ? until : null,
+      taxProfile: row.taxProfile,
+      role: row.role,
+      trialEndsAt: row.trialEndsAt ? row.trialEndsAt.getTime() : null,
+      onboardingCompletedAt: row.onboardingCompletedAt ? row.onboardingCompletedAt.getTime() : null,
+      onboardingStep: row.onboardingStep ?? 0,
+    }];
   });
 }
 
@@ -162,6 +206,8 @@ export async function updateWorkspace(
   const current = await getWorkspaceForUser(db, input.userId, input.workspaceId);
   if (!current) return { ok: false, error: "not_found" };
   if (!hasRole(current.role, "admin")) return { ok: false, error: "forbidden" };
+  const access = await loadWorkspaceEntitlement(db, current);
+  if (access.readOnly) throw new Error(TRIAL_EXPIRED_WRITE_MESSAGE);
   const name = input.name.trim();
   if (name.length < 2 || name.length > 80) {
     throw new Error("Il nome del workspace deve avere tra 2 e 80 caratteri.");

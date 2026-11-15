@@ -71,6 +71,13 @@
       "when": 1794740400000,
       "tag": "0009_pagamenti_preventivi",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1794744000000,
+      "tag": "0010_prova_gratuita",
+      "breakpoints": true
     }
   ]
 }

@@ -21,7 +21,7 @@ export const redeemErrorMessages: Record<RedeemError, string> = {
 
 const MAX_CODE_LENGTH = 40;
 
-/** Case-insensitive: codes are stored and compared uppercased, without spaces. Null when clearly not a code. */
+/** Case-insensitive: the raw code is uppercased and stripped of spaces, then hashed before storage or lookup. Null when clearly not a code. */
 export function normalizeRedeemCode(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const code = input.replace(/\s+/g, "").toUpperCase();

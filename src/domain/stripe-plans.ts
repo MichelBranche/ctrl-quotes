@@ -61,7 +61,7 @@ export function stripeProductName(planId: PaidCheckoutPlanId): string {
   return plans[planId].name;
 }
 
-export type BillingStatus = "trial" | "active" | "canceling" | "past_due";
+export type BillingStatus = "trial" | "trial_expired" | "active" | "canceling" | "past_due";
 
 export function billingStatusLabel(status: BillingStatus, periodEndLabel?: string | null): string {
   switch (status) {
@@ -71,6 +71,8 @@ export function billingStatusLabel(status: BillingStatus, periodEndLabel?: strin
       return periodEndLabel ? `In scadenza il ${periodEndLabel}` : "In scadenza";
     case "past_due":
       return "Pagamento fallito";
+    case "trial_expired":
+      return "Prova terminata";
     default:
       return "Piano di prova";
   }
@@ -97,4 +99,8 @@ export type BillingClientState = {
   periodEndLabel: string | null;
   overSeatCap: boolean;
   hasSubscription: boolean;
+  trialEndsAt: string | null;
+  trialEndsLabel: string | null;
+  trialDaysLeft: number | null;
+  trialExpired: boolean;
 };

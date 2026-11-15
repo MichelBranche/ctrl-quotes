@@ -4,6 +4,7 @@ import { processDueJobs } from "@/server/outbox";
 import { ownerNoticeHandlers } from "@/server/notifications";
 import { quoteJobHandlers } from "@/server/quote-send-job";
 import { pruneRateLimits } from "@/server/rate-limit";
+import { enqueueDueTrialNotices } from "@/server/trial-notices";
 
 export async function GET(request: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
@@ -11,11 +12,12 @@ export async function GET(request: Request): Promise<Response> {
     return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
   }
   await ensureMigrated();
+  const trialNotices = await enqueueDueTrialNotices(getDb());
   const result = await processDueJobs(getDb(), {
     "email.test": async () => undefined,
     ...quoteJobHandlers(getDb()),
     ...ownerNoticeHandlers(getDb()),
   });
   const prunedRateLimits = await pruneRateLimits(getDb());
-  return NextResponse.json({ ...result, prunedRateLimits });
+  return NextResponse.json({ ...result, prunedRateLimits, trialNotices });
 }

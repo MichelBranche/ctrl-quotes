@@ -3,7 +3,8 @@ import { eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { subscriptions, user } from "@/db/schema";
 import { createId } from "@/domain/ids";
-import { BILLING_PATH, isBillingInterval, type BillingInterval } from "@/domain/plans";
+import { BILLING_PATH, isBillingInterval, stripeSubscriptionTrialEnd, type BillingInterval } from "@/domain/plans";
+import { loadWorkspaceEntitlement } from "@/server/entitlement";
 import { isPaidCheckoutPlan, type PaidCheckoutPlanId } from "@/domain/stripe-plans";
 import { authorize, invalid, type Actor, type Result } from "@/server/access";
 import { writeAuditLog } from "@/server/audit";
@@ -43,9 +44,7 @@ export async function createCheckoutSession(
     allow_promotion_codes: true,
     billing_address_collection: "auto",
     metadata: stripeAppMetadata({ workspace_id: actor.workspaceId, plan: planId, interval: cycle }),
-    subscription_data: {
-      metadata: stripeAppMetadata({ workspace_id: actor.workspaceId, plan: planId, interval: cycle }),
-    },
+    subscription_data: await subscriptionDataForCheckout(db, access.value, { workspace_id: actor.workspaceId, plan: planId, interval: cycle }),
   });
   if (!session.url) return invalid("Stripe non ha restituito un indirizzo di pagamento. Riprova.");
 
@@ -59,6 +58,23 @@ export async function createCheckoutSession(
   });
 
   return { ok: true, value: { url: session.url } };
+}
+
+
+async function subscriptionDataForCheckout(
+  db: AppDatabase,
+  workspace: Parameters<typeof loadWorkspaceEntitlement>[1],
+  metadata: { workspace_id: string; plan: string; interval: string },
+) {
+  const data: { metadata: ReturnType<typeof stripeAppMetadata>; trial_end?: number } = {
+    metadata: stripeAppMetadata(metadata),
+  };
+  const access = await loadWorkspaceEntitlement(db, workspace);
+  if (access.trialActive) {
+    const trialEnd = stripeSubscriptionTrialEnd(access.trialEndsAt);
+    if (trialEnd) data.trial_end = trialEnd;
+  }
+  return data;
 }
 
 export async function createPortalSession(

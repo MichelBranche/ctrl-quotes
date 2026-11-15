@@ -95,6 +95,13 @@ export const workspaces = sqliteTable(
     /** Plan unlocked by a redeem code (starter/pro/business, validated in code: a CHECK here would rebuild the table). Null = none. With planOverrideUntil null it is lifetime. */
     planOverride: text("plan_override"),
     planOverrideUntil: timestamp("plan_override_until"),
+    /** When the card-free trial ends. Null = not started (or a test row). */
+    trialEndsAt: timestamp("trial_ends_at"),
+    /** Set when the guided setup is finished or skipped (existing workspaces are marked in the migration). */
+    onboardingCompletedAt: timestamp("onboarding_completed_at"),
+    onboardingStep: integer("onboarding_step").notNull().default(0),
+    trialReminderSentAt: timestamp("trial_reminder_sent_at"),
+    trialExpiredSentAt: timestamp("trial_expired_sent_at"),
   },
   (table) => [
     check("workspaces_plan_chk", sql`${table.plan} in ('free', 'pro', 'studio')`),

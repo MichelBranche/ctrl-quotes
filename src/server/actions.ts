@@ -13,7 +13,8 @@ import { writeAuditLog } from "@/server/audit";
 import { clientIp } from "@/server/request-meta";
 import { previewAutoVerifyEmail } from "@/server/preview-auth";
 import { passesCaptcha } from "@/server/turnstile";
-import { requireUser, workspaceCookieOptions } from "@/server/session";
+import { requireUser, readSession, workspaceCookieOptions } from "@/server/session";
+import { pathAfterAuth } from "@/server/onboarding-path";
 import { safeInvitePath } from "@/domain/invite-path";
 import { readInviteCookiePath, resolveInviteNext } from "@/server/invite-cookie";
 import {
@@ -21,6 +22,7 @@ import {
   deleteWorkspace,
   deleteWorkspaceMessages,
   getWorkspaceForUser,
+  listWorkspaces,
   updateWorkspace,
 } from "@/server/workspaces";
 
@@ -63,7 +65,9 @@ export async function loginAction(_state: FormState, formData: FormData): Promis
 
 async function postAuthPath(formData: FormData): Promise<string> {
   const next = resolveInviteNext(String(formData.get("next") ?? ""), await readInviteCookiePath());
-  return next ?? "/app/overview";
+  const session = await readSession();
+  if (!session) return next ?? "/login";
+  return pathAfterAuth(session.user.id, next);
 }
 
 export async function registerAction(_state: FormState, formData: FormData): Promise<FormState> {
@@ -200,10 +204,14 @@ export async function createWorkspaceAction(_state: FormState, formData: FormDat
     })
     .safeParse({ name: formData.get("name"), taxProfile: formData.get("taxProfile") });
   if (!parsed.success) return { error: messages.auth.invalidForm };
+  const existing = await listWorkspaces(getDb(), session.user.id);
+  const isFirst = existing.length === 0;
   const workspace = await createWorkspace(getDb(), {
     userId: session.user.id,
     name: parsed.data.name,
     taxProfile: parsed.data.taxProfile,
+    startTrial: true,
+    skipOnboarding: !isFirst,
   });
   await writeAuditLog(getDb(), {
     workspaceId: workspace.id,
@@ -214,7 +222,7 @@ export async function createWorkspaceAction(_state: FormState, formData: FormDat
   });
   const jar = await cookies();
   jar.set("cq_workspace", workspace.id, await workspaceCookieOptions());
-  redirect("/app/overview");
+  redirect(isFirst ? "/onboarding/setup" : "/app/overview");
 }
 
 const switchNextPaths = new Set(["/app/overview", "/app/workspace", "/app/settings/profile"]);

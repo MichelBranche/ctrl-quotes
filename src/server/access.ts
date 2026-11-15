@@ -1,5 +1,7 @@
 import type { AppDatabase } from "@/db/client";
+import { TRIAL_EXPIRED_WRITE_MESSAGE } from "@/domain/plans";
 import { can, permissionDeniedMessage, type Permission } from "@/domain/permissions";
+import { loadWorkspaceEntitlement } from "@/server/entitlement";
 import { getWorkspaceForUser, type WorkspaceSummary } from "@/server/workspaces";
 
 export type Actor = { userId: string; workspaceId: string };
@@ -36,6 +38,11 @@ export async function authorize(
   if (!workspace) return notFound("Workspace non trovato.");
   if (!can(workspace.role, permission)) {
     return { ok: false, error: "forbidden", message: permissionDeniedMessage[workspace.role] };
+  }
+  const writeBlocked = permission !== "billing.manage" && !permission.endsWith(".read");
+  if (writeBlocked) {
+    const access = await loadWorkspaceEntitlement(db, workspace);
+    if (access.readOnly) return invalid(TRIAL_EXPIRED_WRITE_MESSAGE);
   }
   return ok(workspace);
 }

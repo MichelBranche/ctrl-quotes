@@ -68,7 +68,7 @@ export const defaultSettings: WorkspaceSettings = {
   defaultTemplateId: null,
 };
 
-async function loadBrand(db: AppDatabase, workspaceId: string): Promise<BrandKit> {
+export async function loadBrand(db: AppDatabase, workspaceId: string): Promise<BrandKit> {
   const rows = await db.select().from(brandKits).where(eq(brandKits.workspaceId, workspaceId));
   const row = rows[0];
   if (!row) return { ...defaultBrand, logo: null };

@@ -7,6 +7,12 @@ Checkout e portale cliente si accendono solo se `STRIPE_SECRET_KEY` è impostata
 - Piani **Pro** e **Business**, mensili o annuali, importi da `src/domain/plans.ts` in EUR.
 - L'annuale è dodici mesi meno il 20% (Pro 182,40 EUR, Business 470,40 EUR). Lo Starter non si acquista.
 
+## Prova gratuita
+
+Ogni workspace ha sette giorni di prova, senza carta, con i limiti del piano Pro (`TRIAL_PLAN_ID` e `TRIAL_DURATION_DAYS` in `src/domain/plans.ts`). La prova parte quando l'utente accetta dalla schermata di onboarding, non alla sola creazione dell'account. I workspace già esistenti ricevono la stessa scadenza di sette giorni al momento della migration.
+
+Se si sottoscrive durante la prova, Checkout imposta `subscription_data.trial_end` alla fine della prova del workspace: il primo addebito arriva in quella data. Dopo la scadenza, Checkout parte subito. A prova terminata, senza abbonamento o codice a vita, il workspace è in sola lettura (i link pubblici `/q/` restano utilizzabili). Un codice lifetime Business sblocca il piano senza sottoscrizione Stripe.
+
 ## Variabili
 
 - `STRIPE_SECRET_KEY` (obbligatoria per accendere i pagamenti)

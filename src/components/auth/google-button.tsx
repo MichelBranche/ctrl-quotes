@@ -32,7 +32,7 @@ export function GoogleSignIn({ note, callbackURL, newUserCallbackURL }: { note?:
           setPending(true);
           setFailed(false);
           const result = await authClient.signIn
-            .social({ provider: "google", callbackURL: callbackURL ?? "/app/overview", newUserCallbackURL: newUserCallbackURL ?? callbackURL ?? "/onboarding", errorCallbackURL: "/login" })
+            .social({ provider: "google", callbackURL: callbackURL ?? "/app/overview", newUserCallbackURL: newUserCallbackURL ?? callbackURL ?? "/onboarding/trial", errorCallbackURL: "/login" })
             .catch(() => ({ error: true }));
           if (result && "error" in result && result.error) {
             setPending(false);

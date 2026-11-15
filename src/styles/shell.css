@@ -333,3 +333,45 @@
 @media (prefers-reduced-motion: reduce) {
   .nav-pill { transition: none; }
 }
+
+.pro-meter {
+  margin-top: 10px;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, white 22%, transparent);
+  overflow: hidden;
+}
+.pro-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: white;
+  transform-origin: left center;
+  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.trial-banner {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--brand) 12%, white);
+  color: var(--cq-ink);
+  font-size: 14px;
+  line-height: 1.45;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.trial-banner.is-warn {
+  background: color-mix(in srgb, #b45309 12%, white);
+}
+.trial-banner.is-expired {
+  background: color-mix(in srgb, #b91c1c 10%, white);
+}
+.trial-banner a {
+  font-weight: 700;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pro-meter > span { transition: none; }
+}

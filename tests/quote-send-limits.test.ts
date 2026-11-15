@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppDatabase } from "@/db/client";
 import { outboxJobs, workspaces } from "@/db/schema";
-import { quoteSendLimitReachedMessage, QUOTE_SEND_GLOBAL_CAP_MESSAGE, quoteSendQuotaLabel } from "@/domain/plans";
+import { quoteSendLimitReachedMessage, QUOTE_SEND_GLOBAL_CAP_MESSAGE, quoteSendQuotaLabel, TRIAL_EXPIRED_WRITE_MESSAGE } from "@/domain/plans";
 import type { PlanId } from "@/domain/plans";
 import { createCatalogItem } from "@/server/catalog";
 import { createClient } from "@/server/clients";
@@ -45,21 +45,23 @@ describe("limite giornaliero di invio preventivi", () => {
     await db.update(workspaces).set({ planOverride: plan, planOverrideUntil: null }).where(eq(workspaces.id, alpha.workspaceId));
   }
 
-  it("sul piano Starter (standard) ammette 3 invii e blocca il quarto", async () => {
+  it("durante la prova gratuita usa i limiti Pro (15 invii al giorno)", async () => {
     const context = must(await getSendContext(db, alpha, quoteId, noonRome));
-    expect(context.quota).toMatchObject({ used: 0, limit: 3, planId: "starter", reached: false, globalBlocked: false });
+    expect(context.quota).toMatchObject({ used: 0, limit: 15, planId: "pro", reached: false, globalBlocked: false });
+    expect(quoteSendQuotaLabel(context.quota.used, context.quota.limit)).toBe("Invii oggi: 0 di 15");
+  });
+
+  it("un override Starter resta a 3 invii al giorno", async () => {
+    await setOverride("starter");
+    const context = must(await getSendContext(db, alpha, quoteId, noonRome));
+    expect(context.quota).toMatchObject({ used: 0, limit: 3, planId: "starter", reached: false });
     expect(quoteSendQuotaLabel(context.quota.used, context.quota.limit)).toBe("Invii oggi: 0 di 3");
+  });
 
-    for (let i = 0; i < 3; i += 1) {
-      expect(must(await sendQuote(db, alpha, quoteId, await emailInput(), noonRome)).emailQueued).toBe(true);
-    }
-    const after = must(await getSendContext(db, alpha, quoteId, noonRome));
-    expect(after.quota).toMatchObject({ used: 3, limit: 3, reached: true });
-    expect(after.quota.message).toBe(quoteSendLimitReachedMessage("starter"));
-
+  it("a prova scaduta non si può più inviare", async () => {
+    await db.update(workspaces).set({ trialEndsAt: new Date("2026-01-01T00:00:00.000Z") }).where(eq(workspaces.id, alpha.workspaceId));
     const blocked = await sendQuote(db, alpha, quoteId, await emailInput(), noonRome);
-    expect(blocked).toMatchObject({ ok: false, message: quoteSendLimitReachedMessage("starter") });
-    expect(must(await getSendContext(db, alpha, quoteId, noonRome)).quota.used).toBe(3);
+    expect(blocked).toMatchObject({ ok: false, message: TRIAL_EXPIRED_WRITE_MESSAGE });
   });
 
   it("sul piano Pro ammette 15 invii al giorno", async () => {

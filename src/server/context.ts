@@ -15,6 +15,6 @@ export async function requireContext(): Promise<Context> {
   const workspaces = await listWorkspaces(db, session.user.id);
   const requested = (await cookies()).get("cq_workspace")?.value;
   const workspace = workspaces.find((item) => item.id === requested) ?? workspaces[0];
-  if (!workspace) redirect("/onboarding");
+  if (!workspace) redirect("/onboarding/trial");
   return { db, actor: { userId: session.user.id, workspaceId: workspace.id }, workspace, userName: session.user.name };
 }

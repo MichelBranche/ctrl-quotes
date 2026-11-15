@@ -2,7 +2,8 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { subscriptions } from "@/db/schema";
-import { currentPlanLabel, effectivePlanId, workspaceTeamSeatLimit } from "@/domain/plans";
+import { currentPlanLabel, workspaceTeamSeatLimit } from "@/domain/plans";
+import { workspaceEntitlement } from "@/domain/entitlement";
 import {
   billingStatusLabel,
   intervalFromPriceId,
@@ -33,22 +34,34 @@ export async function loadBillingState(
 ): Promise<BillingClientState> {
   const workspace = await getWorkspaceForUser(db, actor.userId, actor.workspaceId);
   const role = workspace?.role ?? "member";
+  const [sub] = workspace
+    ? await db.select().from(subscriptions).where(eq(subscriptions.workspaceId, workspace.id)).limit(1)
+    : [];
+  const access = workspaceEntitlement({
+    plan: workspace?.plan ?? "free",
+    planOverride: workspace?.planOverride ?? null,
+    planOverrideUntil: workspace?.planOverrideUntil ?? null,
+    trialEndsAt: workspace?.trialEndsAt ?? null,
+    subscriptionStatus: sub?.status ?? null,
+  }, now);
   const override = workspace
     ? activePlanOverride(workspace.planOverride, workspace.planOverrideUntil, now.getTime())
     : null;
   const plan = workspace?.plan ?? "free";
-  const planId = effectivePlanId(plan, override);
-  const planLabel = currentPlanLabel(plan, override);
-  const [sub] = workspace
-    ? await db.select().from(subscriptions).where(eq(subscriptions.workspaceId, workspace.id)).limit(1)
-    : [];
+  const planId = access.planId;
+  const planLabel = access.trialExpired
+    ? "Prova terminata"
+    : access.trialActive
+      ? currentPlanLabel("free", override)
+      : currentPlanLabel(plan, override);
 
   let status: BillingStatus = "trial";
   if (sub && (sub.status === "past_due" || sub.status === "unpaid")) status = "past_due";
   else if (sub && sub.cancelAtPeriodEnd && (sub.status === "active" || sub.status === "trialing")) status = "canceling";
   else if (sub && (sub.status === "active" || sub.status === "trialing")) status = "active";
-  else if (!override && plan === "free") status = "trial";
-  else if (paidPlanFromWorkspacePlan(plan) || override) status = "active";
+  else if (access.hasPaidAccess) status = "active";
+  else if (access.trialExpired) status = "trial_expired";
+  else status = "trial";
 
   const periodEnd = sub?.periodEnd ? sub.periodEnd.toISOString() : null;
   const periodEndLabel = sub?.periodEnd ? periodFormat.format(sub.periodEnd) : null;
@@ -72,5 +85,9 @@ export async function loadBillingState(
     periodEndLabel,
     overSeatCap,
     hasSubscription: Boolean(sub?.stripeSubscriptionId) && sub?.status !== "canceled" && sub?.status !== "none",
+    trialEndsAt: access.trialEndsAt ? access.trialEndsAt.toISOString() : null,
+    trialEndsLabel: access.trialEndsAt ? periodFormat.format(access.trialEndsAt) : null,
+    trialDaysLeft: access.trialActive || access.trialExpired ? access.daysLeft : null,
+    trialExpired: access.trialExpired,
   };
 }

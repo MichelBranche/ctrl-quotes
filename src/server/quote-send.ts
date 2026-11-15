@@ -5,7 +5,8 @@ import type { AppDatabase } from "@/db/client";
 import { clientContacts, clients, emailDeliveries, quoteEvents, quotePublicLinks, quoteVersions, quotes, user } from "@/db/schema";
 import { createId } from "@/domain/ids";
 import { defaultMessage, defaultSubject, EMAIL_LIMITS } from "@/domain/quote-email";
-import { effectivePlanId, romeCalendarDay } from "@/domain/plans";
+import { romeCalendarDay } from "@/domain/plans";
+import { loadWorkspaceEntitlement } from "@/server/entitlement";
 import { headlineTotal } from "@/domain/quote-snapshot";
 import { asQuoteStatus, nextQuoteStatus, type QuoteStatus } from "@/domain/quote-status";
 import { authorize, conflict, invalid, notFound, ok, type Actor, type Result } from "@/server/access";
@@ -163,7 +164,7 @@ export async function getSendContext(db: AppDatabase, actor: Actor, quoteId: str
     link: link ? { id: link.id, url: await revealPublicLinkUrl(db, actor.workspaceId, link.id), hint: link.tokenHint, expiresAt: link.expiresAt } : null,
     emailLive: emailDeliveryLive(),
     pdfFilename: `${(quote.number ?? "preventivo").replace(/[^\w.-]+/g, "-")}-v${versionNo}.pdf`,
-    quota: await getQuoteSendQuota(db, { userId: actor.userId, planId: effectivePlanId(access.value.plan, access.value.planOverride), now }),
+    quota: await getQuoteSendQuota(db, { userId: actor.userId, planId: (await loadWorkspaceEntitlement(db, access.value, now)).planId, now }),
   });
 }
 
@@ -234,7 +235,7 @@ export async function sendQuote(db: AppDatabase, actor: Actor, quoteId: string, 
   if (input.mode === "email") {
     const reserved = await reserveQuoteSend(db, {
       userId: actor.userId,
-      planId: effectivePlanId(access.value.plan, access.value.planOverride),
+      planId: (await loadWorkspaceEntitlement(db, access.value, now)).planId,
       now,
     });
     if (!reserved.ok) return conflict(reserved.message);
