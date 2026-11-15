@@ -3,7 +3,6 @@ import { ensureMigrated, getDb } from "@/db/client";
 import { getStripe, stripeConfigured, webhookSecretConfigured } from "@/server/stripe/client";
 import { applyStripeEvent } from "@/server/stripe/webhook";
 
-export const runtime = "nodejs";
 
 export async function POST(request: Request): Promise<Response> {
   if (!stripeConfigured() || !webhookSecretConfigured()) {

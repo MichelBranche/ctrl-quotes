@@ -1,4 +1,4 @@
-import { plans, type PlanId } from "@/domain/plans";
+import { plans, type PlanId } from "./plans";
 
 /** Metadata `app` on every Stripe object this product creates, so a shared account can later host other CTRL apps. */
 export const STRIPE_APP = "ctrl-quotes";
