@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useReducedMotion } from "motion/react";
@@ -27,6 +27,21 @@ function isCurrent(pathname: string, href: string): boolean {
   return pathname === href || (href !== "/app/overview" && pathname.startsWith(href));
 }
 
+export type NavBox = { x: number; y: number; w: number; h: number };
+
+/** Item box relative to the nav container, including padding, border and scroll. */
+export function measureRelativeBox(el: HTMLElement, container: HTMLElement): NavBox | null {
+  const c = container.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  if (r.width < 2 || r.height < 2 || c.width < 2) return null;
+  return {
+    x: r.left - c.left + container.scrollLeft - container.clientLeft,
+    y: r.top - c.top + container.scrollTop - container.clientTop,
+    w: r.width,
+    h: r.height,
+  };
+}
+
 type Spring = { value: number; v: number };
 
 function stepSpring(state: Spring, target: number, dt: number, stiffness: number, damping: number): void {
@@ -39,17 +54,21 @@ function settled(state: Spring, target: number): boolean {
   return Math.abs(state.value - target) < 0.15 && Math.abs(state.v) < 8;
 }
 
+function snap(state: Spring, value: number): void {
+  state.value = value;
+  state.v = 0;
+}
+
 /**
- * A single purple pill that glides between sidebar items. The leading edge
- * stretches toward the target, then the trailing edge catches up; a slight
- * squash lands it. GPU transforms only.
+ * Shared purple pill. During motion it stretches with a spring; at rest it
+ * matches the active item box exactly (scale 1, real width/height/radius).
  */
-function NavPill({
+export function NavIndicator({
   rootRef,
   activeHref,
   compact,
 }: {
-  rootRef: RefObject<HTMLDivElement | null>;
+  rootRef: RefObject<HTMLElement | null>;
   activeHref: string | undefined;
   compact: boolean;
 }) {
@@ -60,63 +79,69 @@ function NavPill({
   const bottom = useRef<Spring>({ value: 0, v: 0 });
   const left = useRef<Spring>({ value: 0, v: 0 });
   const width = useRef<Spring>({ value: 0, v: 0 });
-  const squash = useRef<Spring>({ value: 1, v: 0 });
-  const target = useRef({ x: 0, y: 0, w: 0, h: 0, down: true });
-  const landing = useRef(false);
+  const base = useRef({ w: 1, h: 1 });
+  const target = useRef<NavBox & { down: boolean }>({ x: 0, y: 0, w: 0, h: 0, down: true });
   const raf = useRef(0);
-  const [follow, setFollow] = useState(0);
+  const [tick, setTick] = useState(0);
 
-  const paint = () => {
+  const measure = (): NavBox | null => {
+    const root = rootRef.current;
+    if (!root || !activeHref) return null;
+    const item = root.querySelector<HTMLElement>(`a[data-nav="${CSS.escape(activeHref)}"]`);
+    if (!item) return null;
+    return measureRelativeBox(item, root);
+  };
+
+  /** Resting paint: real box, no scale, radius of the nav link. */
+  const paintRest = (box: NavBox) => {
+    const el = pillRef.current;
+    if (!el) return;
+    snap(top.current, box.y);
+    snap(bottom.current, box.y + box.h);
+    snap(left.current, box.x);
+    snap(width.current, box.w);
+    base.current = { w: box.w, h: box.h };
+    target.current = { ...box, down: target.current.down };
+    el.style.width = `${box.w}px`;
+    el.style.height = `${box.h}px`;
+    el.style.borderRadius = "12px";
+    el.style.transform = `translate3d(${box.x}px, ${box.y}px, 0)`;
+    el.style.transformOrigin = "0 0";
+    el.classList.add("is-ready");
+    ready.current = true;
+  };
+
+  /** In-flight paint: scale from the last rest size so only the motion stretches. */
+  const paintMotion = () => {
     const el = pillRef.current;
     if (!el) return;
     const y = top.current.value;
     const h = Math.max(1, bottom.current.value - top.current.value);
     const x = left.current.value;
     const w = Math.max(1, width.current.value);
-    const s = squash.current.value;
-    el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${w}, ${h * s})`;
-    el.style.borderRadius = `${12 / w}px / ${12 / (h * s)}px`;
-    el.style.opacity = target.current.w > 0 ? "1" : "0";
+    const bw = base.current.w || w;
+    const bh = base.current.h || h;
+    el.style.width = `${bw}px`;
+    el.style.height = `${bh}px`;
+    el.style.borderRadius = "12px";
+    el.style.transformOrigin = "0 0";
+    el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${w / bw}, ${h / bh})`;
   };
 
-  useEffect(() => {
-    const root = rootRef.current;
-    const measure = () => {
-      if (!root || !activeHref) return null;
-      const item = root.querySelector<HTMLElement>(`a[data-nav="${CSS.escape(activeHref)}"]`);
-      if (!item) return null;
-      const a = root.getBoundingClientRect();
-      const b = item.getBoundingClientRect();
-      if (a.width < 2 || b.width < 2) return null;
-      return { x: b.left - a.left, y: b.top - a.top, w: b.width, h: b.height };
-    };
-
-    const jump = (box: { x: number; y: number; w: number; h: number }) => {
-      top.current = { value: box.y, v: 0 };
-      bottom.current = { value: box.y + box.h, v: 0 };
-      left.current = { value: box.x, v: 0 };
-      width.current = { value: box.w, v: 0 };
-      squash.current = { value: 1, v: 0 };
-      target.current = { ...box, down: true };
-      ready.current = true;
-      landing.current = false;
-      paint();
-    };
-
+  useLayoutEffect(() => {
     const box = measure();
     if (!box) return;
     if (reduced || !ready.current) {
-      jump(box);
+      paintRest(box);
       return;
     }
 
     const mid = (top.current.value + bottom.current.value) / 2;
     target.current = { ...box, down: box.y + box.h / 2 >= mid };
-    landing.current = false;
     cancelAnimationFrame(raf.current);
 
     let last = performance.now();
-    const tick = (now: number) => {
+    const loop = (now: number) => {
       const dt = Math.min(0.032, (now - last) / 1000);
       last = now;
       const goal = target.current;
@@ -139,49 +164,56 @@ function NavPill({
         settled(left.current, goal.x) &&
         settled(width.current, goal.w);
 
-      if (done && !landing.current) {
-        landing.current = true;
-        squash.current = { value: 0.94, v: 0 };
+      if (done) {
+        paintRest({ x: goal.x, y: goal.y, w: goal.w, h: goal.h });
+        return;
       }
-      if (landing.current) stepSpring(squash.current, 1, dt, 680, 22);
-
-      paint();
-      const squashDone = !landing.current || settled(squash.current, 1);
-      if (!(done && squashDone)) raf.current = requestAnimationFrame(tick);
+      paintMotion();
+      raf.current = requestAnimationFrame(loop);
     };
-    raf.current = requestAnimationFrame(tick);
+    raf.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf.current);
-  }, [activeHref, compact, reduced, rootRef, follow]);
+    // measure/paint are stable enough for this layout effect; tick retriggers on resize/fonts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHref, compact, reduced, tick]);
+
+  // cacheComponents can skip useLayoutEffect on the first hydration of a
+  // segment. useEffect still runs and snaps the pill to the item box.
+  useEffect(() => {
+    if (ready.current) return;
+    const box = measure();
+    if (box) {
+      paintRest(box);
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      const next = measure();
+      if (next && !ready.current) paintRest(next);
+    });
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHref, compact, reduced, tick]);
 
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const ro = new ResizeObserver(() => {
-      const item = activeHref ? root.querySelector<HTMLElement>(`a[data-nav="${CSS.escape(activeHref)}"]`) : null;
-      if (!item) return;
-      const a = root.getBoundingClientRect();
-      const b = item.getBoundingClientRect();
-      if (a.width < 2 || b.width < 2) return;
-      const next = { x: b.left - a.left, y: b.top - a.top, w: b.width, h: b.height };
-      const prev = target.current;
-      const moved = Math.abs(next.x - prev.x) > 0.5 || Math.abs(next.y - prev.y) > 0.5 || Math.abs(next.w - prev.w) > 0.5 || Math.abs(next.h - prev.h) > 0.5;
-      if (!moved) return;
-      target.current = { ...next, down: prev.down };
-      if (reduced) {
-        top.current = { value: next.y, v: 0 };
-        bottom.current = { value: next.y + next.h, v: 0 };
-        left.current = { value: next.x, v: 0 };
-        width.current = { value: next.w, v: 0 };
-        paint();
-      } else {
-        setFollow((value) => value + 1);
-      }
-    });
+    const bump = () => setTick((value) => value + 1);
+    const ro = new ResizeObserver(bump);
     ro.observe(root);
-    return () => ro.disconnect();
-  }, [activeHref, reduced, rootRef]);
+    const item = activeHref ? root.querySelector<HTMLElement>(`a[data-nav="${CSS.escape(activeHref)}"]`) : null;
+    if (item) ro.observe(item);
+    window.addEventListener("resize", bump);
+    const fonts = document.fonts;
+    fonts?.ready.then(bump).catch(() => undefined);
+    if (fonts?.addEventListener) fonts.addEventListener("loadingdone", bump);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", bump);
+      if (fonts?.removeEventListener) fonts.removeEventListener("loadingdone", bump);
+    };
+  }, [activeHref, rootRef]);
 
-  return <span ref={pillRef} className="nav-pill" aria-hidden="true" />;
+  return <span ref={pillRef} className="nav-pill" aria-hidden="true" data-nav-pill="" />;
 }
 
 export function SideNav({ onNavigate, compact = false }: { onNavigate?: () => void; compact?: boolean }) {
@@ -190,7 +222,7 @@ export function SideNav({ onNavigate, compact = false }: { onNavigate?: () => vo
   const rootRef = useRef<HTMLDivElement>(null);
   const activeHref = allItems.find((item) => isCurrent(pendingHref ?? pathname, item.href))?.href;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (pendingHref && isCurrent(pathname, pendingHref)) setPendingHref(null);
   }, [pathname, pendingHref]);
 
@@ -223,7 +255,7 @@ export function SideNav({ onNavigate, compact = false }: { onNavigate?: () => vo
 
   return (
     <div className="side-nav" ref={rootRef}>
-      <NavPill rootRef={rootRef} activeHref={activeHref} compact={compact} />
+      <NavIndicator rootRef={rootRef} activeHref={activeHref} compact={compact} />
       <nav aria-label={messages.shell.primaryNav}>{list(primary)}</nav>
       <hr className="nav-rule" />
       <nav aria-label={messages.shell.secondaryNav}>{list(secondary)}</nav>

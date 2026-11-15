@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const publicQuoteHeaders = ["/q/:path*", "/api/q/:path*"];
+const dev = process.env.NODE_ENV === "development";
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
@@ -41,9 +42,10 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob:",
               "style-src 'self' 'unsafe-inline'",
               // Cloudflare Turnstile: script and challenge iframe (auth pages; harmless elsewhere).
-              "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+              // React dev needs eval(); production React never does.
+              `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""} https://challenges.cloudflare.com`,
               "frame-src https://challenges.cloudflare.com",
-              "connect-src 'self' https://challenges.cloudflare.com",
+              `connect-src 'self' https://challenges.cloudflare.com${dev ? " ws: wss:" : ""}`,
               "font-src 'self'",
               "frame-ancestors 'none'",
               "base-uri 'self'",

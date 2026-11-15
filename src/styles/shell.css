@@ -297,8 +297,9 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 1px;
-  height: 1px;
+  width: 0;
+  height: 0;
+  border-radius: 12px;
   background: var(--brand);
   box-shadow: 0 6px 16px color-mix(in srgb, var(--brand) 35%, transparent);
   pointer-events: none;
@@ -308,18 +309,25 @@
   backface-visibility: hidden;
   opacity: 0;
 }
+.nav-pill.is-ready { opacity: 1; }
 .side-nav .nav-list { position: relative; z-index: 1; }
 .side-nav .nav-link { position: relative; z-index: 1; }
-.side-nav .nav-link[aria-current="page"],
-.side-nav .nav-link.is-active {
+.side-nav:has(.nav-pill.is-ready) .nav-link[aria-current="page"],
+.side-nav:has(.nav-pill.is-ready) .nav-link.is-active {
   background: transparent;
   box-shadow: none;
   color: white;
   font-weight: 650;
 }
-.side-nav .nav-link[aria-current="page"]:hover,
-.side-nav .nav-link.is-active:hover {
+.side-nav:has(.nav-pill.is-ready) .nav-link[aria-current="page"]:hover,
+.side-nav:has(.nav-pill.is-ready) .nav-link.is-active:hover {
   background: transparent;
+}
+.side-nav:has(.nav-pill.is-ready) .nav-link[aria-current="page"] svg { color: white; }
+.side-nav .nav-link[aria-current="page"],
+.side-nav .nav-link.is-active {
+  color: white;
+  font-weight: 650;
 }
 .side-nav .nav-link[aria-current="page"] svg { color: white; }
 @media (prefers-reduced-motion: reduce) {
