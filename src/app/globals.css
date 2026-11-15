@@ -19,6 +19,7 @@
 @import "../styles/workspace.css";
 @import "../styles/catalog.css";
 @import "../styles/legal.css";
+@import "../styles/landing.css";
 
 @theme inline {
   --color-ink: var(--cq-ink);
