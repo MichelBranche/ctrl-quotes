@@ -2,13 +2,17 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import { ArrowUpRight, Check, FileDown, GripVertical, Mail, MousePointer2, Bell, Eye, Wallet } from "lucide-react";
 import {
+  PLAN_VAT_NOTE,
+  PLAN_VAT_PERCENT,
   TRIAL_DURATION_DAYS,
-  YEARLY_SAVINGS_PERCENT,
+  YEARLY_LAUNCH_LINE,
+  maxYearlyDiscountPercent,
+  planYearlyPriceCents,
+  yearlySavingsLabel,
   plans,
   quoteSendDailyLimitLabel,
   teamSeatLimitLabel,
   teamSeatLimits,
-  yearlyPriceCents,
   yearlyUndiscountedCents,
   type PlanId,
 } from "@/domain/plans";
@@ -208,7 +212,7 @@ function HeroStage() {
           <PayChip brand="paypal" label="PayPal" className="is-b" />
           <PayChip brand="iban" label="IBAN" className="is-c" />
         </div>
-        <Badge text="PREVENTIVI CHE CHIUDONO ✺ CTRL® QUOTES ✺ " className="lp-badge-hero" />
+        <Badge text="PREVENTIVI CHE CONVINCONO ✺ CTRL® QUOTES ✺ " className="lp-badge-hero" />
       </div>
     </div>
   );
@@ -225,7 +229,7 @@ function landingPlans(): LandingPlan[] {
       name: plan.name.replace(/^Piano /, ""),
       line: plan.pickerLine,
       monthlyCents: plan.priceCents,
-      yearlyCents: yearlyPriceCents(plan.priceCents),
+      yearlyCents: planYearlyPriceCents(id),
       yearlyFullCents: yearlyUndiscountedCents(plan.priceCents),
       limits: [quoteSendDailyLimitLabel(id), teamSeatLimitLabel(id)],
       includes: plan.includes
@@ -265,8 +269,12 @@ const faqs = [
     a: `Sì. Inviti le persone nel workspace: ${teamSeatLimits.starter} posto con Starter, fino a ${teamSeatLimits.pro} con Pro e posti illimitati con Business.`,
   },
   {
+    q: "I prezzi includono l'IVA?",
+    a: `No, i prezzi dei piani sono IVA esclusa. L'IVA al ${PLAN_VAT_PERCENT}% si aggiunge al momento del pagamento e la trovi in fattura. Se hai una partita IVA puoi inserirla durante il pagamento.`,
+  },
+  {
     q: "Posso disdire quando voglio?",
-    a: `Sì. Gestisci, cambi o annulli l'abbonamento da Impostazioni, Abbonamento. Con l'annuale risparmi il ${YEARLY_SAVINGS_PERCENT}% rispetto a dodici mesi pagati uno per uno.`,
+    a: `Sì. Gestisci, cambi o annulli l'abbonamento da Impostazioni, Abbonamento. Con l'annuale c'è lo sconto di lancio: risparmi fino al ${maxYearlyDiscountPercent()}% rispetto a dodici mesi pagati uno per uno.`,
   },
 ];
 
@@ -348,7 +356,7 @@ export function Landing() {
                 </span>
                 <span className="lp-line lp-line-mark">
                   <span>
-                    <span className="lp-mark">chiudono</span>
+                    <span className="lp-mark">convincono</span>
                   </span>
                 </span>
               </h1>
@@ -721,8 +729,9 @@ export function Landing() {
             </div>
             <PricingPlans
               plans={pricingPlans}
-              savingsLabel={`-${YEARLY_SAVINGS_PERCENT}%`}
-              trialLine={`Ogni account parte con ${TRIAL} ai limiti del Piano Starter. Nessuna carta per iniziare, l'abbonamento parte solo se lo attivi.`}
+              savingsLabel={yearlySavingsLabel}
+              launchLine={YEARLY_LAUNCH_LINE}
+              trialLine={`Ogni account parte con ${TRIAL} ai limiti del Piano Starter. Nessuna carta per iniziare, l'abbonamento parte solo se lo attivi. ${PLAN_VAT_NOTE}`}
               ctas={{
                 starter: <StartCta label="Prova gratis" className="lp-btn lp-btn-dark lp-btn-block" />,
                 pro: <StartCta label="Inizia con Pro" className="lp-btn lp-btn-dark lp-btn-block" />,
@@ -769,7 +778,7 @@ export function Landing() {
           <div className="lp-wrap lp-final-inner">
             <Sticker className="lp-sticker-final">Pronto in pochi minuti</Sticker>
             <h2 id="lp-final-title" className="lp-display is-xl" data-split="">
-              <Lines lines={["Il prossimo", <>preventivo <span className="lp-pill is-violet">chiude</span></>]} />
+              <Lines lines={["Il prossimo", <>preventivo <span className="lp-pill is-violet">convince</span></>]} />
             </h2>
             <p>
               Prova CTRL® Quotes per {TRIAL}, con i limiti del Piano Starter. Senza carta.

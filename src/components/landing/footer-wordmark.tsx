@@ -52,16 +52,16 @@ export function FooterWordmark() {
           />
         ) : null}
       </div>
-      <svg className="lp-footer-word-mask" viewBox="0 0 1000 156" preserveAspectRatio="none">
+      <svg className="lp-footer-word-mask" viewBox="0 0 1000 118" preserveAspectRatio="none">
         <defs>
-          <mask id="lp-footer-knockout" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="156">
-            <rect width="1000" height="156" fill="#fff" />
-            <text x="500" y="140" textAnchor="middle" textLength="972" lengthAdjust="spacingAndGlyphs" fill="#000">
+          <mask id="lp-footer-knockout" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="118">
+            <rect width="1000" height="118" fill="#fff" />
+            <text x="500" y="108" textAnchor="middle" textLength="992" lengthAdjust="spacingAndGlyphs" fill="#000">
               CTRL® QUOTES
             </text>
           </mask>
         </defs>
-        <rect width="1000" height="156" mask="url(#lp-footer-knockout)" />
+        <rect width="1000" height="118" mask="url(#lp-footer-knockout)" />
       </svg>
     </div>
   );

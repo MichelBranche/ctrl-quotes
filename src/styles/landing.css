@@ -583,8 +583,15 @@ html.lp-motion .lp-page {
   }
 }
 
+/* The headline is sized from its own column (container units), so its longest line always fits the column and
+   never runs under the mock, whatever the viewport or the font metrics. */
+.lp-hero-copy {
+  container-type: inline-size;
+  min-width: 0;
+}
+
 .lp-hero h1 {
-  font-size: clamp(56px, 8.4vw, 124px);
+  font-size: min(124px, 13cqw);
 }
 
 .lp-line-mark {
@@ -2306,12 +2313,27 @@ html.lp-motion .lp-page {
   color: var(--lp-ink);
 }
 
+/* Launch offer sticker riding on the Annuale button, so the toggle keeps two equal halves. */
 .lp-price-save {
-  padding: 3px 8px;
+  position: absolute;
+  top: -22px;
+  right: -26px;
+  padding: 5px 11px;
   border-radius: 999px;
   background: var(--lp-orange);
   color: var(--lp-white);
   font-size: 12px;
+  white-space: nowrap;
+  rotate: 5deg;
+  box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.5);
+}
+
+.lp-price-launch {
+  margin: -30px auto 40px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .lp-price-thumb {
@@ -2789,11 +2811,13 @@ html.lp-motion .lp-page {
 }
 
 /* Giant wordmark: liquid (or static lime) shows through letters knocked out of an ink rectangle. */
+/* Spans the whole viewport: font size and textLength are matched to the viewBox, so the glyphs keep their shape and the
+   final S always sits inside. */
 .lp-footer-word {
   position: relative;
-  width: var(--lp-wrap);
-  margin: 40px auto 0;
-  aspect-ratio: 1000 / 156;
+  width: calc(100% - 2.4vw);
+  margin: 40px auto 1.2vw;
+  aspect-ratio: 1000 / 118;
   overflow: hidden;
 }
 
@@ -2816,7 +2840,7 @@ html.lp-motion .lp-page {
 
 .lp-footer-word-mask text {
   font-family: var(--font-sans);
-  font-size: 168px;
+  font-size: 138px;
   font-weight: 900;
   letter-spacing: -0.02em;
 }
@@ -2904,10 +2928,6 @@ html.lp-motion .lp-page {
     grid-template-columns: 1fr;
     padding-block: 36px 90px;
     gap: 20px;
-  }
-
-  .lp-hero h1 {
-    font-size: clamp(46px, 14.6vw, 96px);
   }
 
   .lp-hero-stage {
@@ -3108,6 +3128,11 @@ html.lp-motion .lp-page {
 
   .lp-price-thumb[data-yearly] {
     transform: translateX(150px);
+  }
+
+  .lp-price-save {
+    right: -4px;
+    top: -24px;
   }
 
   .lp-faq-grid {

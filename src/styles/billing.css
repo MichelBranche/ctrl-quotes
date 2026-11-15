@@ -465,3 +465,7 @@
 @media (prefers-reduced-motion: reduce) {
   .bl-switch-year, .bl-switch-year:hover:not(:disabled) { transition: none; transform: none; }
 }
+
+/* Net prices: VAT added at checkout */
+.bl-price .bl-price-vat { font-size: var(--cq-font-size-sm); font-weight: 600; opacity: 0.7; }
+.bl-vat-note { margin: 6px 0 0; font-size: var(--cq-font-size-sm); color: var(--cq-text-muted, currentColor); opacity: 0.8; }

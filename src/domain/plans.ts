@@ -62,6 +62,8 @@ export type Plan = {
   id: PlanId;
   name: string;
   priceCents: number;
+  /** Launch offer on the yearly price, in percent. Single source: change it here, per plan. */
+  yearlyDiscountPercent: number;
   /** Line under the price on "Scegli il piano". */
   pickerLine: string;
   /** Line under the name on "Confronta i piani" (Pro and Business only in the mockup). */
@@ -139,6 +141,7 @@ export const plans: Record<PlanId, Plan> = {
     id: "starter",
     name: "Piano Starter",
     priceCents: 900,
+    yearlyDiscountPercent: 20,
     pickerLine: "L’essenziale per creare preventivi professionali.",
     compareLine: "L’essenziale per creare preventivi professionali.",
     eyebrow: "Piano Starter",
@@ -160,6 +163,7 @@ export const plans: Record<PlanId, Plan> = {
     id: "pro",
     name: "Piano Pro",
     priceCents: 1900,
+    yearlyDiscountPercent: 20,
     pickerLine: "Più invii al giorno e funzionalità per lavorare meglio.",
     compareLine: "Più funzionalità per professionisti e freelancer.",
     eyebrow: "Piano Pro",
@@ -182,6 +186,7 @@ export const plans: Record<PlanId, Plan> = {
     id: "business",
     name: "Piano Business",
     priceCents: 4900,
+    yearlyDiscountPercent: 20,
     pickerLine: "La soluzione completa per team e aziende in crescita.",
     compareLine: "La soluzione completa per team e aziende in crescita.",
     eyebrow: "Piano Business",
@@ -241,6 +246,11 @@ export const compareRows: CompareRow[] = [
   { label: "Supporto prioritario", icon: "headset", included: { starter: false, pro: false, business: true }, soon: true },
 ];
 
+/** Plan prices are net: Italian VAT is added on top at checkout (Stripe Tax Rate "IVA 22%", exclusive). */
+export const PLAN_VAT_PERCENT = 22;
+export const PLAN_VAT_SUFFIX = "+ IVA";
+export const PLAN_VAT_NOTE = `Prezzi IVA esclusa: l'IVA al ${PLAN_VAT_PERCENT}% si aggiunge al pagamento.`;
+
 export function formatPlanPrice(cents: number): string {
   return `€ ${(cents / 100).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -258,8 +268,14 @@ export function billingIntervalLabel(interval: BillingInterval): string {
 }
 
 /** Yearly total in cents: twelve monthly payments minus 20%, exact integer arithmetic. */
-export function yearlyPriceCents(monthlyCents: number): number {
-  return (monthlyCents * 12 * 4) / 5;
+/** Twelve months minus the yearly discount (default: the launch offer shared by every plan). */
+export function yearlyPriceCents(monthlyCents: number, discountPercent: number = YEARLY_SAVINGS_PERCENT): number {
+  return Math.round((monthlyCents * 12 * (100 - discountPercent)) / 100);
+}
+
+/** Yearly price of a plan, with that plan's own launch discount. */
+export function planYearlyPriceCents(id: PlanId): number {
+  return yearlyPriceCents(plans[id].priceCents, plans[id].yearlyDiscountPercent);
 }
 
 /** Twelve months at the monthly price, before the yearly discount. */
@@ -269,11 +285,24 @@ export function yearlyUndiscountedCents(monthlyCents: number): number {
 
 /** Per-month equivalent of a yearly total (yearly cents are always divisible by 12). */
 export function yearlyMonthlyEquivalentCents(yearlyCents: number): number {
-  return yearlyCents / 12;
+  return Math.round(yearlyCents / 12);
 }
 
+/** Default launch discount; each plan can override it with `yearlyDiscountPercent`. */
 export const YEARLY_SAVINGS_PERCENT = 20;
-export const yearlySavingsLabel = `Risparmi ${YEARLY_SAVINGS_PERCENT}%`;
+const yearlyDiscounts = () => planIds.map((id) => plans[id].yearlyDiscountPercent);
+/** Highest yearly discount across plans, for the Mensile/Annuale toggle. */
+export function maxYearlyDiscountPercent(): number {
+  return Math.max(...yearlyDiscounts());
+}
+function discountBadge(): string {
+  const all = yearlyDiscounts();
+  return all.every((value) => value === all[0]) ? `-${all[0]}%` : `fino a -${maxYearlyDiscountPercent()}%`;
+}
+/** Badge on the Annuale toggle (landing, billing, compare). */
+export const yearlySavingsLabel = `Offerta di lancio ${discountBadge()}`;
+/** Short line next to the toggle. */
+export const YEARLY_LAUNCH_LINE = "Sconto di lancio sui piani annuali";
 
 export const DEFAULT_QUOTE_SEND_GLOBAL_DAILY_CAP = 90;
 export const BILLING_PATH = "/app/settings/billing";

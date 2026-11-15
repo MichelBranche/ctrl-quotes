@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { PLAN_VAT_SUFFIX } from "@/domain/plans";
 
 export type LandingPlan = {
   id: "starter" | "pro" | "business";
@@ -42,7 +43,7 @@ function AnimatedPrice({ cents }: { cents: number }) {
   return <>{euro(shown)}</>;
 }
 
-export function PricingPlans({ plans, ctas, trialLine, savingsLabel }: { plans: LandingPlan[]; ctas: Record<LandingPlan["id"], ReactNode>; trialLine: string; savingsLabel: string }) {
+export function PricingPlans({ plans, ctas, trialLine, savingsLabel, launchLine }: { plans: LandingPlan[]; ctas: Record<LandingPlan["id"], ReactNode>; trialLine: string; savingsLabel: string; launchLine: string }) {
   const [yearly, setYearly] = useState(false);
   return (
     <>
@@ -55,10 +56,11 @@ export function PricingPlans({ plans, ctas, trialLine, savingsLabel }: { plans: 
         </button>
         <span className="lp-price-thumb" data-yearly={yearly ? "" : undefined} aria-hidden="true" />
       </div>
+      <p className="lp-price-launch">{launchLine}</p>
       <div className="lp-plans">
         {plans.map((plan) => {
           const showYearly = yearly && plan.yearlyCents != null;
-          const perMonth = showYearly ? plan.yearlyCents! / 12 : plan.monthlyCents;
+          const perMonth = showYearly ? Math.round(plan.yearlyCents! / 12) : plan.monthlyCents;
           return (
             <article key={plan.id} className={cn("lp-plan", `is-${plan.id}`)} data-reveal="">
               <div className="lp-plan-art" aria-hidden="true" />
@@ -74,12 +76,12 @@ export function PricingPlans({ plans, ctas, trialLine, savingsLabel }: { plans: 
                 <strong>
                   <AnimatedPrice cents={perMonth} />
                 </strong>
-                <span className="lp-plan-per">/ mese</span>
+                <span className="lp-plan-per">/ mese {PLAN_VAT_SUFFIX}</span>
               </div>
               <p className="lp-plan-year">
                 {showYearly ? (
                   <>
-                    <s>€ {euro(plan.yearlyFullCents!)}</s> € {euro(plan.yearlyCents!)} all&apos;anno
+                    <s>€ {euro(plan.yearlyFullCents!)}</s> € {euro(plan.yearlyCents!)} all&apos;anno {PLAN_VAT_SUFFIX}
                   </>
                 ) : (
                   "Pagamento mensile, disdici quando vuoi"

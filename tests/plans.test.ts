@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { compareRows, avatarPlanRing, avatarPlanTooltip, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, planIds, plans, quoteSendDailyLimitLabel, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, teamSeatLimitLabel, teamSeatLimitLabelFromCap, teamSeatLimits, teamSeatQuotaLabel, upcomingFeatures, workspaceTeamSeatLimit, yearlyMonthlyEquivalentCents, yearlyPriceCents, yearlySavingsLabel, yearlyUndiscountedCents, type PlanId } from "@/domain/plans";
+import { compareRows, avatarPlanRing, avatarPlanTooltip, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, planIds, plans, quoteSendDailyLimitLabel, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, teamSeatLimitLabel, teamSeatLimitLabelFromCap, teamSeatLimits, teamSeatQuotaLabel, upcomingFeatures, workspaceTeamSeatLimit, planYearlyPriceCents, maxYearlyDiscountPercent, PLAN_VAT_NOTE, yearlyMonthlyEquivalentCents, yearlyPriceCents, yearlySavingsLabel, yearlyUndiscountedCents, type PlanId } from "@/domain/plans";
 
 describe("subscription plans", () => {
   it("formats prices the Italian way", () => {
@@ -19,8 +19,19 @@ describe("subscription plans", () => {
     expect(formatPlanPrice(1_520)).toBe("€ 15,20");
     expect(formatPlanPrice(18_240)).toBe("€ 182,40");
     expect(formatPlanPrice(22_800)).toBe("€ 228,00");
-    expect(yearlySavingsLabel).toBe("Risparmi 20%");
+    expect(yearlySavingsLabel).toBe("Offerta di lancio -20%");
     expect(yearlyPriceCents(plans.pro.priceCents)).toBe((plans.pro.priceCents * 12 * 4) / 5);
+  });
+
+  it("reads the yearly launch discount per plan from plans.ts", () => {
+    for (const id of planIds) {
+      expect(plans[id].yearlyDiscountPercent).toBe(20);
+      expect(planYearlyPriceCents(id)).toBe(yearlyPriceCents(plans[id].priceCents, plans[id].yearlyDiscountPercent));
+    }
+    expect(planYearlyPriceCents("starter")).toBe(8_640);
+    expect(yearlyPriceCents(1_900, 30)).toBe(15_960);
+    expect(maxYearlyDiscountPercent()).toBe(20);
+    expect(PLAN_VAT_NOTE).toContain("IVA esclusa");
   });
 
   it("shows the free plan as a trial", () => {

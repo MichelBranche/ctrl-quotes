@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
 import { SectionLink, useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { PlanHeroEffect } from "@/components/billing/effects/billing-effects";
 import { RedeemButton } from "@/components/billing/redeem-dialog";
-import { compareRows, formatPlanPrice, planIds, plans, quoteSendDailyLimitLabel, teamSeatLimitLabel, yearlyMonthlyEquivalentCents, yearlyPriceCents, yearlySavingsLabel, yearlyUndiscountedCents, type BillingInterval, type PlanIcon, type PlanId } from "@/domain/plans";
+import { PLAN_VAT_SUFFIX, compareRows, formatPlanPrice, planIds, plans, quoteSendDailyLimitLabel, teamSeatLimitLabel, planYearlyPriceCents, yearlyMonthlyEquivalentCents, yearlySavingsLabel, yearlyUndiscountedCents, type BillingInterval, type PlanIcon, type PlanId } from "@/domain/plans";
 import { isPaidCheckoutPlan, overSeatCapMessage, type BillingClientState } from "@/domain/stripe-plans";
 import { startCheckoutAction, startPortalAction } from "@/server/actions/billing";
 
@@ -371,20 +371,20 @@ function Price({ planId }: { planId: PlanId }) {
   const { interval } = useContext(CycleContext);
   const monthly = plans[planId].priceCents;
   const showYearly = interval === "yearly";
-  const main = showYearly ? yearlyMonthlyEquivalentCents(yearlyPriceCents(monthly)) : monthly;
-  const yearly = yearlyPriceCents(monthly);
+  const yearly = planYearlyPriceCents(planId);
+  const main = showYearly ? yearlyMonthlyEquivalentCents(yearly) : monthly;
   const fullYear = yearlyUndiscountedCents(monthly);
   return (
     <p className="bl-price">
       <strong>
         <AnimatedCents cents={main} />
       </strong>{" "}
-      <span>/ mese</span>
+      <span>/ mese</span> <span className="bl-price-vat">{PLAN_VAT_SUFFIX}</span>
       {showYearly ? (
         <span className="bl-price-year">
           <s className="bl-price-was">{formatPlanPrice(fullYear)}</s>
           <span>
-            {formatPlanPrice(yearly)} all&apos;anno
+            {formatPlanPrice(yearly)} all&apos;anno {PLAN_VAT_SUFFIX}
           </span>
         </span>
       ) : null}

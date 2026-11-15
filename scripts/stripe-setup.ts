@@ -9,7 +9,7 @@
  * Requires STRIPE_SECRET_KEY. Yearly totals are twelve months minus 20%.
  */
 import Stripe from "stripe";
-import { plans, yearlyPriceCents, type BillingInterval } from "../src/domain/plans.ts";
+import { planYearlyPriceCents, plans, type BillingInterval } from "../src/domain/plans.ts";
 
 /** Keep these in sync with src/domain/stripe-plans.ts. The script cannot import that file: Node does not resolve the app path alias. */
 const STRIPE_APP = "ctrl-quotes";
@@ -66,7 +66,7 @@ async function ensurePrice(
   interval: BillingInterval,
 ): Promise<{ id: string; created: boolean; lookup: string; amount: number }> {
   const lookup_key = stripePriceLookupKeys[planId][interval];
-  const unit_amount = interval === "yearly" ? yearlyPriceCents(plans[planId].priceCents) : plans[planId].priceCents;
+  const unit_amount = interval === "yearly" ? planYearlyPriceCents(planId) : plans[planId].priceCents;
   const listed = await stripe.prices.list({ lookup_keys: [lookup_key], limit: 1 });
   const found = listed.data[0];
   const stripeInterval = interval === "yearly" ? "year" : "month";
@@ -90,6 +90,23 @@ async function ensurePrice(
     metadata: { app: STRIPE_APP, plan: planId, interval },
   });
   return { id: created.id, created: true, lookup: lookup_key, amount: unit_amount };
+}
+
+async function ensureTaxRate(): Promise<{ id: string; created: boolean }> {
+  for await (const rate of stripe.taxRates.list({ active: true, limit: 100 })) {
+    if (rate.metadata?.app === STRIPE_APP && rate.percentage === 22 && !rate.inclusive && rate.country === "IT") return { id: rate.id, created: false };
+  }
+  const created = await stripe.taxRates.create({
+    display_name: "IVA 22%",
+    description: "IVA ordinaria italiana, aggiunta al prezzo netto dei piani CTRL Quotes",
+    percentage: 22,
+    inclusive: false,
+    country: "IT",
+    jurisdiction: "IT",
+    tax_type: "vat",
+    metadata: { app: STRIPE_APP },
+  });
+  return { id: created.id, created: true };
 }
 
 async function ensurePortal(priceIds: string[]): Promise<string> {
@@ -148,6 +165,8 @@ for (const planId of paidCheckoutPlanIds) {
   }
 }
 
+const taxRate = await ensureTaxRate();
+
 let portalId = "";
 try {
   portalId = await ensurePortal(priceIds);
@@ -161,6 +180,7 @@ for (const row of summary) {
   console.log(`${row.plan} ${row.interval}: ${row.lookup} ${row.priceId} ${row.amount} cents (${row.created ? "creato" : "già presente"})`);
 }
 if (portalId) console.log(`portale: ${portalId}`);
+console.log(`IVA 22%: ${taxRate.id} (${taxRate.created ? "creata" : "già presente"})`);
 console.log("Variabili da impostare:");
 const idOf = (plan: PaidCheckoutPlanId, interval: BillingInterval) => summary.find((row) => row.plan === plan && row.interval === interval)?.priceId;
 console.log(`STRIPE_PRICE_STARTER_MONTHLY=${idOf("starter", "monthly")}`);
@@ -169,3 +189,4 @@ console.log(`STRIPE_PRICE_PRO_MONTHLY=${idOf("pro", "monthly")}`);
 console.log(`STRIPE_PRICE_PRO_YEARLY=${idOf("pro", "yearly")}`);
 console.log(`STRIPE_PRICE_BUSINESS_MONTHLY=${idOf("business", "monthly")}`);
 console.log(`STRIPE_PRICE_BUSINESS_YEARLY=${idOf("business", "yearly")}`);
+console.log(`STRIPE_TAX_RATE_IVA=${taxRate.id}`);

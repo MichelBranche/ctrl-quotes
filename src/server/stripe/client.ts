@@ -3,6 +3,12 @@ import Stripe from "stripe";
 import type { BillingInterval } from "@/domain/plans";
 import { STRIPE_APP, stripePriceEnvNames, stripePriceLookupKeys, type PaidCheckoutPlanId } from "@/domain/stripe-plans";
 
+/** Exclusive Stripe Tax Rate "IVA 22%" (created by scripts/stripe-setup.ts). Applied to every plan subscription. */
+export function vatTaxRateId(env: Record<string, string | undefined> = process.env): string | undefined {
+  const id = env.STRIPE_TAX_RATE_IVA?.trim();
+  return id ? id : undefined;
+}
+
 export function stripeConfigured(env: Record<string, string | undefined> = process.env): boolean {
   return Boolean(env.STRIPE_SECRET_KEY?.trim());
 }

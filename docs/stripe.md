@@ -18,6 +18,7 @@ Se si sottoscrive durante la prova, Checkout imposta `subscription_data.trial_en
 - `STRIPE_SECRET_KEY` (obbligatoria per accendere i pagamenti)
 - `STRIPE_WEBHOOK_SECRET` (obbligatoria per i webhook)
 - `STRIPE_PRICE_STARTER_MONTHLY`, `STRIPE_PRICE_STARTER_YEARLY`, `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`, `STRIPE_PRICE_BUSINESS_MONTHLY`, `STRIPE_PRICE_BUSINESS_YEARLY` (facoltative se esistono i lookup key)
+- `STRIPE_TAX_RATE_IVA`: Tax Rate "IVA 22%" (inclusive=false, IT), creata da `npm run stripe:setup`. Il checkout la mette in `subscription_data.default_tax_rates`, quindi resta sui rinnovi e sui cambi di piano dal portale. I prezzi dei piani sono netti. Niente Stripe Tax automatico (a pagamento). Il checkout raccoglie indirizzo di fatturazione e partita IVA (`tax_id_collection`, gratuito).
 
 Lookup key: `ctrl_quotes_pro_monthly`, `ctrl_quotes_pro_yearly`, `ctrl_quotes_business_monthly`, `ctrl_quotes_business_yearly`.
 

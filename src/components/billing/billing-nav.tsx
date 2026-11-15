@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import { SectionLink } from "@/components/motion/section-transition";
 import { BillingCycleToggle, billingHref, useBillingCycle, type BillingViewId } from "@/components/billing/billing-view";
+import { PLAN_VAT_NOTE, YEARLY_LAUNCH_LINE } from "@/domain/plans";
 import { useAction } from "@/components/data/use-action";
 import { startPortalAction } from "@/server/actions/billing";
 
@@ -66,6 +67,9 @@ export function BillingNav({
         </nav>
         <BillingCycleToggle />
       </div>
+      <p className="bl-vat-note">
+        {YEARLY_LAUNCH_LINE}. {PLAN_VAT_NOTE}
+      </p>
       <p className="bl-current">
         Piano attuale: <strong>{planLabel}</strong>
         {intervalLabel ? <span className="bl-current-interval">{intervalLabel}</span> : null}

@@ -9,7 +9,7 @@ import { isPaidCheckoutPlan, type PaidCheckoutPlanId } from "@/domain/stripe-pla
 import { authorize, invalid, type Actor, type Result } from "@/server/access";
 import { writeAuditLog } from "@/server/audit";
 import { createRateLimiter, rateRules } from "@/server/rate-limit";
-import { getStripe, resolvePriceId, stripeAppMetadata, stripeConfigured } from "@/server/stripe/client";
+import { getStripe, resolvePriceId, stripeAppMetadata, stripeConfigured, vatTaxRateId } from "@/server/stripe/client";
 
 export async function createCheckoutSession(
   db: AppDatabase,
@@ -22,7 +22,10 @@ export async function createCheckoutSession(
   const access = await authorize(db, actor, "billing.manage");
   if (!access.ok) return access;
   if (!stripeConfigured(env)) return invalid("I pagamenti non sono ancora attivi.");
-  if (!isPaidCheckoutPlan(planId)) return invalid("Puoi attivare il Piano Pro o il Piano Business.");
+  if (!isPaidCheckoutPlan(planId)) return invalid("Puoi attivare il Piano Starter, Pro o Business.");
+  // Prices are net: without the VAT rate the charge would be wrong, so checkout stays closed.
+  const taxRateId = vatTaxRateId(env);
+  if (!taxRateId) return invalid("L'IVA non è ancora configurata per i pagamenti. Riprova più tardi.");
   const cycle: BillingInterval = isBillingInterval(interval) ? interval : "monthly";
 
   const limited = await createRateLimiter(db, env).hit(rateRules.checkout, actor.userId);
@@ -42,9 +45,11 @@ export async function createCheckoutSession(
     cancel_url: `${base}${BILLING_PATH}?checkout=cancel`,
     line_items: [{ price: priceId, quantity: 1 }],
     allow_promotion_codes: true,
-    billing_address_collection: "auto",
+    billing_address_collection: "required",
+    tax_id_collection: { enabled: true },
+    customer_update: { name: "auto", address: "auto" },
     metadata: stripeAppMetadata({ workspace_id: actor.workspaceId, plan: planId, interval: cycle }),
-    subscription_data: await subscriptionDataForCheckout(db, access.value, { workspace_id: actor.workspaceId, plan: planId, interval: cycle }),
+    subscription_data: await subscriptionDataForCheckout(db, access.value, { workspace_id: actor.workspaceId, plan: planId, interval: cycle }, taxRateId),
   });
   if (!session.url) return invalid("Stripe non ha restituito un indirizzo di pagamento. Riprova.");
 
@@ -65,9 +70,12 @@ async function subscriptionDataForCheckout(
   db: AppDatabase,
   workspace: Parameters<typeof loadWorkspaceEntitlement>[1],
   metadata: { workspace_id: string; plan: string; interval: string },
+  taxRateId: string,
 ) {
-  const data: { metadata: ReturnType<typeof stripeAppMetadata>; trial_end?: number } = {
+  // default_tax_rates live on the subscription, so VAT stays on every renewal and on plan changes from the portal.
+  const data: { metadata: ReturnType<typeof stripeAppMetadata>; default_tax_rates: string[]; trial_end?: number } = {
     metadata: stripeAppMetadata(metadata),
+    default_tax_rates: [taxRateId],
   };
   const access = await loadWorkspaceEntitlement(db, workspace);
   if (access.trialActive) {

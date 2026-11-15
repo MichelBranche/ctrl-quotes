@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Landing } from "@/components/landing/landing";
 import { SITE_URL } from "@/domain/site";
 
-const title = "CTRL® Quotes · Preventivi che chiudono";
+const title = "CTRL® Quotes · Preventivi che convincono";
 const description =
   "Crea preventivi con il tuo brand, mandali con un link e lascia che il cliente li legga, li accetti e li paghi online. 7 giorni gratis, senza carta.";
 
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     siteName: "CTRL® Quotes",
     title,
     description,
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "CTRL® Quotes, preventivi che chiudono" }],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "CTRL® Quotes, preventivi che convincono" }],
   },
   twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
   robots: { index: true, follow: true },
