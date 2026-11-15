@@ -6,6 +6,7 @@ import { Banknote, Check, ChevronLeft, FileText, Hash, Layers, Lock, Palette, Pe
 import { SectionLink, useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { Status } from "@/components/ui/async-status";
 
 /*
  * Shared frame of every Impostazioni sub-page: breadcrumb back to Impostazioni, title + subtitle, a coloured hero
@@ -124,11 +125,7 @@ export function SettingsFrame({
               (canEdit ? (
                 <div className="save-area">
                   <span className="save-status" aria-live="polite">
-                    {pending ? "Salvataggio…" : dirty ? "Modifiche non salvate" : saved ? (
-                      <>
-                        <Check size={14} aria-hidden="true" /> Modifiche salvate
-                      </>
-                    ) : null}
+                    {pending ? <Status status="running" label="Salvataggio…" /> : dirty ? "Modifiche non salvate" : saved ? <Status status="done" label="Modifiche salvate" /> : null}
                   </span>
                   <Button type="submit" loading={pending} disabled={!dirty}>
                     <Check size={16} aria-hidden="true" /> Salva modifiche

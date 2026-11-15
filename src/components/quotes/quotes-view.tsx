@@ -20,6 +20,7 @@ import { formatEuro } from "@/domain/money";
 import { quoteStatusLabel, quoteStatusTone, type QuoteFilter } from "@/domain/quote-status";
 import { deleteQuoteAction, duplicateQuoteAction } from "@/server/actions/quotes";
 import type { QuoteList, QuoteRow } from "@/server/quotes";
+import { HoldDelete } from "@/components/ui/destructive";
 
 const dateFormat = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Rome" });
 
@@ -168,22 +169,19 @@ export function QuotesView({ list, filter, canWrite }: { list: QuoteList; filter
       </motion.section>
       <Dialog open={confirming !== null} title="Eliminare il preventivo?" onClose={() => setConfirming(null)}>
         <p>
-          {confirming?.number ?? "Il preventivo"} sparirà dall&apos;elenco e dallo storico del cliente. Il numero non verrà riutilizzato.
+          {confirming?.number ?? "Il preventivo"} sparirà per sempre dall&apos;elenco e dallo storico del cliente. Il numero non verrà riutilizzato.
         </p>
         <div className="dialog-actions">
           <Button variant="secondary" onClick={() => setConfirming(null)} autoFocus>
             Annulla
           </Button>
-          <Button
-            className="btn-danger"
-            loading={pending}
-            onClick={() => {
+          <HoldDelete
+            disabled={pending}
+            onHold={() => {
               const target = confirming;
               if (target) run(() => deleteQuoteAction(target.id), () => setConfirming(null));
             }}
-          >
-            Elimina
-          </Button>
+          />
         </div>
       </Dialog>
     </motion.div>

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Dialog } from "@/components/ui/overlays";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/fields";
+import { HoldDelete } from "@/components/ui/destructive";
 import { messages } from "@/i18n/it";
 import { deleteWorkspaceAction } from "@/server/actions";
 
@@ -20,10 +21,13 @@ export function DeleteWorkspaceDialog({
   const [error, setError] = useState<string>();
   const [pending, start] = useTransition();
 
-  useEffect(() => {
+  const [forId, setForId] = useState(target?.id);
+  if (forId !== target?.id) {
+    // A new target starts from an empty confirmation.
+    setForId(target?.id);
     setConfirmName("");
     setError(undefined);
-  }, [target?.id]);
+  }
 
   const matches = target ? confirmName.trim() === target.name : false;
 
@@ -52,20 +56,17 @@ export function DeleteWorkspaceDialog({
         <Button variant="secondary" onClick={onClose} disabled={pending}>
           {messages.workspace.deleteCancel}
         </Button>
-        <button
-          type="button"
-          className="btn btn-danger"
+        <HoldDelete
+          label={matches ? "Tieni premuto per eliminare" : "Scrivi il nome per sbloccare"}
           disabled={!matches || pending || !target}
-          onClick={() => {
+          onHold={() => {
             if (!target) return;
             start(async () => {
               const result = await deleteWorkspaceAction({ workspaceId: target.id, confirmName });
               if (result && !result.ok) setError(result.message);
             });
           }}
-        >
-          {pending ? "Eliminazione..." : messages.workspace.deleteConfirm}
-        </button>
+        />
       </div>
     </Dialog>
   );

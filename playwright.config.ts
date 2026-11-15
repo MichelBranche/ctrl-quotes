@@ -47,6 +47,16 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], viewport: { width: 375, height: 812 } },
     },
     {
+      name: "testo-desktop",
+      dependencies: ["setup"],
+      testMatch: /testo\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
+        storageState: "e2e/.auth/state.json",
+      },
+    },
+    {
       name: "app-desktop",
       dependencies: ["setup"],
       testMatch: /app\.spec\.ts/,

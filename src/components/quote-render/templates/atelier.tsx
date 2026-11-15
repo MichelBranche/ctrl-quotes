@@ -130,6 +130,11 @@ function Intro({ k, m, s }: { k: Kit; m: DocModel; s: Extract<Section, { kind: "
   const body = s.body.split(/\n{2,}/)[0] ?? "";
   const more = s.body.split(/\n{2,}/).slice(1).join("\n\n");
   const [cap, beside, after] = dropCapSplit(body, 92);
+  // Where each printed piece starts in the stored body, for the inline formatting.
+  const bodyAnchor = anchor(s.id, "body", "multiline");
+  const capAt = s.body.indexOf(body.trim());
+  const afterAt = after ? s.body.indexOf(after, capAt + 1 + beside.length) : -1;
+  const moreAt = more ? s.body.indexOf(more, Math.max(capAt, afterAt)) : -1;
   const lead = s.lead || "Racconta qui, in una frase, il cuore del progetto.";
   return (
     <k.V>
@@ -144,10 +149,10 @@ function Intro({ k, m, s }: { k: Kit; m: DocModel; s: Extract<Section, { kind: "
                 <k.T decorative style={{ fontFamily: serif, fontSize: 50, lineHeight: 0.86, color: m.accentText(c.paper), width: 31, marginTop: 1 }}>
                   {cap}
                 </k.T>
-                <k.T style={{ ...t.body, flexGrow: 1, flexBasis: 0 }}>{beside}</k.T>
+                <k.T rich={bodyAnchor ? { anchor: bodyAnchor, offset: capAt + 1 } : undefined} style={{ ...t.body, flexGrow: 1, flexBasis: 0 }}>{beside}</k.T>
               </k.V>
-              {after ? <k.T style={t.body}>{after}</k.T> : null}
-              {more ? <Paras k={k} text={more} style={{ ...t.body, marginTop: 6 }} /> : null}
+              {after ? <k.T rich={bodyAnchor && afterAt >= 0 ? { anchor: bodyAnchor, offset: afterAt } : undefined} style={t.body}>{after}</k.T> : null}
+              {more ? <Paras k={k} text={more} within={bodyAnchor && moreAt >= 0 ? { anchor: bodyAnchor, offset: moreAt } : undefined} style={{ ...t.body, marginTop: 6 }} /> : null}
             </k.V>
           ) : (
             <k.T edit={anchor(s.id, "body", "multiline")} style={{ ...t.body, color: c.rule }}>Descrivi qui il progetto e gli obiettivi del cliente.</k.T>

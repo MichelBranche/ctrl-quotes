@@ -1,13 +1,50 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Reorder, useDragControls, useReducedMotion } from "motion/react";
-import { CheckCircle2, Columns2, Columns3, Eye, EyeOff, GripVertical, LoaderCircle, Lock, LockOpen, Pin, Plus, Trash2 } from "lucide-react";
+import type { IconSvgElement } from "@hugeicons/react";
+import {
+  Analytics01Icon,
+  BookOpen01Icon,
+  Calendar03Icon,
+  ChartBarLineIcon,
+  ContactBookIcon,
+  CreditCardIcon,
+  Image01Icon,
+  Invoice01Icon,
+  Layout01Icon,
+  ListViewIcon,
+  Note01Icon,
+  PieChartIcon,
+  PlusSignSquareIcon,
+  StarIcon,
+  TextIcon,
+} from "@hugeicons/core-free-icons";
+import { Eye, EyeOff, Lock, LockOpen, Plus, Trash2 } from "lucide-react";
 import { spanLabel, unitsOf } from "@/domain/columns";
-import { blockLabel, type QuoteBlock } from "@/domain/quote-document";
+import { blockLabel, type BlockType, type QuoteBlock } from "@/domain/quote-document";
 import { cn } from "@/lib/cn";
+import { BranchedMenu } from "@/components/ui/branched-menu";
+import { Status } from "@/components/ui/async-status";
 import { CountUp } from "./count-up";
-import { blockIcon, blockTitle } from "../block-list";
+import { blockTitle } from "../block-list";
+
+/** One Hugeicons glyph per block type, for the structure tree. */
+export const blockTreeIcon: Record<BlockType, IconSvgElement> = {
+  cover: Layout01Icon,
+  intro: BookOpen01Icon,
+  text: TextIcon,
+  image: Image01Icon,
+  services: ListViewIcon,
+  options: PlusSignSquareIcon,
+  highlights: StarIcon,
+  summary: Invoice01Icon,
+  timeline: Calendar03Icon,
+  terms: Note01Icon,
+  contacts: ContactBookIcon,
+  chartCosts: PieChartIcon,
+  chartBars: ChartBarLineIcon,
+  chartTimeline: Analytics01Icon,
+  chartPayments: CreditCardIcon,
+};
 
 export type OutlineGroup = { key: "cover" | "content" | "summary"; label: string; blocks: QuoteBlock[] };
 
@@ -73,7 +110,12 @@ export function Outline({
   fromServer,
   onReorder,
   onAdd,
-  ...actions
+  onSelect,
+  onToggle,
+  onLock,
+  onRemove,
+  onMove,
+  onMenu,
 }: RowActions & {
   blocks: QuoteBlock[];
   selectedId: string | null;
@@ -87,246 +129,126 @@ export function Outline({
   onReorder: (ids: string[], movedId: string) => boolean;
   onAdd: () => void;
 }) {
-  const [live, setLive] = useState<string[] | null>(null);
-  const liveRef = useRef<string[] | null>(null);
-  const [held, setHeld] = useState<string | null>(null);
+  const groups = outlineGroups(blocks);
+  const columns = columnInfo(blocks);
   const byId = new Map(blocks.map((block) => [block.id, block]));
-  const ids = live ?? blocks.map((block) => block.id);
-  const ordered = ids.map((id) => byId.get(id)).filter((block): block is QuoteBlock => Boolean(block));
-  const coverId = blocks.find((block) => block.type === "cover")?.id ?? null;
-  const columns = columnInfo(ordered);
-  const labelOf = new Map<string, string>();
-  for (const group of outlineGroups(ordered)) {
-    const first = group.blocks.find((block) => block.id !== held);
-    if (first) labelOf.set(first.id, group.label);
-  }
-
-  const settleRef = useRef<(id: string) => void>(() => {});
-  const settle = (id: string) => {
-    const next = liveRef.current;
-    liveRef.current = null;
-    setHeld(null);
-    if (next && next.join() !== blocks.map((block) => block.id).join()) onReorder(next, id);
-    setLive(null);
-  };
-
-  // A press on the grip that never turns into a drag ends with no drag event: release it here.
-  useEffect(() => {
-    if (!held) return;
-    const id = held;
-    let timer = 0;
-    const onUp = () => {
-      timer = window.setTimeout(() => settleRef.current(id), 60);
-    };
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-    };
-  }, [held]);
-  useEffect(() => {
-    settleRef.current = settle;
-  });
-
+  // Pages are the groups, blocks branch off them; a block in a row shows its width.
+  const items = groups.map((group) => ({
+    label: group.label,
+    value: `page:${group.key}`,
+    children: group.blocks.map((block) => {
+      const column = columns.get(block.id);
+      return {
+        value: block.id,
+        label: blockTitle(block),
+        icon: blockTreeIcon[block.type],
+        meta: column ? `Col. ${spanLabel(column.span)}` : undefined,
+        muted: !block.visible,
+        fixed: block.type === "cover" || readOnly || Boolean(draggingId),
+        title: `${blockLabel[block.type]}${block.visible ? "" : " · nascosto"}${block.locked ? " · bloccato" : ""}`,
+      };
+    }),
+  }));
   return (
     <aside className="ve-outline" aria-label="Struttura del preventivo">
       <div className="ve-outline-head">
         <h2>Struttura</h2>
         <span className="muted small">{blocks.length} blocchi</span>
       </div>
-      <nav className="ve-outline-list">
-        <Reorder.Group
-          as="ul"
-          axis="y"
-          values={ids}
-          onReorder={(next: string[]) => {
-            // The cover stays in opening position: an order that moves it is ignored.
-            if (coverId && next[0] !== coverId) return;
-            liveRef.current = next;
-            setLive(next);
+      <div className="ve-outline-list">
+        <BranchedMenu
+          aria-label="Pagine e blocchi"
+          items={items}
+          defaultOpen={items.map((_, index) => index)}
+          active={selectedId}
+          width="100%"
+          rowHeight={34}
+          indent={34}
+          trunk={10}
+          radius={9}
+          fontSize={13}
+          onSelect={(value) => {
+            if (byId.has(value)) onSelect(value);
           }}
-        >
-          {ordered.map((block, index) => (
-            <OutlineRow
-              key={block.id}
-              block={block}
-              label={labelOf.get(block.id) ?? null}
-              column={columns.get(block.id) ?? null}
-              selected={selectedId === block.id}
-              dragging={draggingId === block.id || held === block.id}
-              canDrag={!readOnly && !draggingId && block.type !== "cover"}
-              readOnly={readOnly}
-              first={index === 0 || (index === 1 && Boolean(coverId))}
-              last={index === ordered.length - 1}
-              onHold={() => {
-                liveRef.current = ids;
-                setHeld(block.id);
-              }}
-              onDrop={() => settle(block.id)}
-              {...actions}
-            />
-          ))}
-        </Reorder.Group>
+          onChildContextMenu={(child, event) => {
+            if (!onMenu || event.shiftKey || readOnly) return;
+            event.preventDefault();
+            onMenu(child.value, event.clientX, event.clientY);
+          }}
+          onMove={readOnly ? undefined : (id, delta) => onMove(id, delta)}
+          onReorder={
+            readOnly
+              ? undefined
+              : (groupIndex, values, moved) => {
+                  // The group's new order replaces its slice of the document order.
+                  const group = groups[groupIndex];
+                  if (!group) return;
+                  const inGroup = new Set(group.blocks.map((block) => block.id));
+                  const queue = [...values];
+                  const ids = blocks.map((block) => (inGroup.has(block.id) ? (queue.shift() ?? block.id) : block.id));
+                  onReorder(ids, moved);
+                }
+          }
+          renderActions={
+            readOnly
+              ? undefined
+              : (child) => {
+                  const block = byId.get(child.value);
+                  if (!block) return null;
+                  const title = blockTitle(block);
+                  const locked = Boolean(block.locked);
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        className="ve-outline-act"
+                        aria-label={block.visible ? `Nascondi ${title}` : `Mostra ${title}`}
+                        title={block.visible ? "Nascondi nel documento" : "Mostra nel documento"}
+                        aria-pressed={!block.visible}
+                        data-on={!block.visible || undefined}
+                        onClick={() => onToggle(block.id)}
+                      >
+                        {block.visible ? <Eye size={13} aria-hidden="true" /> : <EyeOff size={13} aria-hidden="true" />}
+                      </button>
+                      <button
+                        type="button"
+                        className="ve-outline-act"
+                        aria-label={locked ? `Sblocca ${title}` : `Blocca ${title}`}
+                        title={locked ? "Contenuto bloccato: clic per sbloccare" : "Blocca il contenuto contro le modifiche"}
+                        aria-pressed={locked}
+                        data-on={locked || undefined}
+                        onClick={() => onLock(block.id, !locked)}
+                      >
+                        {locked ? <Lock size={13} aria-hidden="true" /> : <LockOpen size={13} aria-hidden="true" />}
+                      </button>
+                      <button
+                        type="button"
+                        className="ve-outline-act is-danger"
+                        aria-label={`Elimina ${title}`}
+                        title={locked ? "Sblocca il blocco per eliminarlo" : "Elimina (Ctrl+Z per annullare)"}
+                        disabled={locked}
+                        onClick={() => onRemove(block.id)}
+                      >
+                        <Trash2 size={13} aria-hidden="true" />
+                      </button>
+                    </>
+                  );
+                }
+          }
+        />
         {readOnly ? null : (
           <button type="button" className="ve-outline-add" onClick={onAdd}>
             <Plus size={14} aria-hidden="true" /> Aggiungi blocco
           </button>
         )}
-      </nav>
+      </div>
       <div className="ve-total" aria-live="polite">
         <span className="muted small">{totalLabel}</span>
         <CountUp key={total.suffix} cents={total.cents} suffix={total.suffix} />
         <span className={cn("ve-total-source small", fromServer && "is-server")}>
-          {fromServer ? <CheckCircle2 size={13} aria-hidden="true" /> : <LoaderCircle size={13} aria-hidden="true" className="spin" />}
-          {fromServer ? "Calcolato dal server" : "Verifica in corso"}
+          <Status status={fromServer ? "done" : "running"} size={14} fontSize={12} label={fromServer ? "Calcolato dal server" : "Verifica in corso"} className="muted" />
         </span>
       </div>
     </aside>
-  );
-}
-
-function OutlineRow({
-  block,
-  label,
-  selected,
-  dragging,
-  canDrag,
-  readOnly,
-  first,
-  last,
-  onHold,
-  onDrop,
-  onSelect,
-  onToggle,
-  onLock,
-  onRemove,
-  onMove,
-  onMenu,
-  column,
-}: RowActions & {
-  block: QuoteBlock;
-  label: string | null;
-  column: ColumnInfo | null;
-  selected: boolean;
-  dragging: boolean;
-  canDrag: boolean;
-  readOnly: boolean;
-  first: boolean;
-  last: boolean;
-  onHold: () => void;
-  onDrop: () => void;
-}) {
-  const controls = useDragControls();
-  const reduced = useReducedMotion();
-  const Icon = blockIcon[block.type];
-  const title = blockTitle(block);
-  const cover = block.type === "cover";
-  const locked = Boolean(block.locked);
-  return (
-    <Reorder.Item
-      as="li"
-      value={block.id}
-      dragListener={false}
-      dragControls={controls}
-      layout="position"
-      transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 560, damping: 44 }}
-      whileDrag={reduced ? undefined : { scale: 1.03, boxShadow: "0 12px 28px -10px rgb(30 20 80 / 0.32), 0 2px 6px rgb(15 15 30 / 0.08)", zIndex: 3 }}
-      onDragEnd={onDrop}
-      className="ve-outline-row"
-      data-block-id={block.id}
-    >
-      {label ? <p className="ve-outline-page">{label}</p> : null}
-      {column?.position === "first" ? (
-        <p className="ve-outline-rowhead" title="I blocchi di una riga stanno affiancati. Trascina una colonna fuori dal gruppo per separarla.">
-          {column.count === 3 ? <Columns3 size={12} aria-hidden="true" /> : <Columns2 size={12} aria-hidden="true" />}
-          {`Riga · ${column.count} colonne`}
-        </p>
-      ) : null}
-      <div
-        className={cn("ve-outline-item", selected && "is-selected", !block.visible && "is-hidden", locked && "is-locked", dragging && "is-dragging", column && "in-row")}
-        data-col={column?.position}
-        onContextMenu={(event) => {
-          if (!onMenu || event.shiftKey || readOnly) return;
-          event.preventDefault();
-          onMenu(block.id, event.clientX, event.clientY);
-        }}
-      >
-        {cover ? (
-          <span className="ve-outline-pin" title="La copertina resta sempre in apertura: non si sposta.">
-            <Pin size={12} aria-hidden="true" />
-            <span className="visually-hidden">Posizione fissa</span>
-          </span>
-        ) : (
-          <button
-            type="button"
-            className="ve-outline-grip"
-            aria-label={`Sposta ${title}: trascina, oppure frecce su e giù`}
-            title="Trascina per riordinare"
-            disabled={!canDrag}
-            onPointerDown={(event) => {
-              if (!canDrag) return;
-              event.preventDefault();
-              onHold();
-              controls.start(event);
-            }}
-            onKeyDown={(event) => {
-              if (!canDrag) return;
-              if (event.key === "ArrowUp" && !first) {
-                event.preventDefault();
-                onMove(block.id, -1);
-              } else if (event.key === "ArrowDown" && !last) {
-                event.preventDefault();
-                onMove(block.id, 1);
-              }
-            }}
-          >
-            <GripVertical size={13} aria-hidden="true" />
-          </button>
-        )}
-        <button type="button" className="ve-outline-select" aria-current={selected || undefined} onClick={() => onSelect(block.id)} title={blockLabel[block.type]}>
-          <Icon size={14} aria-hidden="true" />
-          <span className="clamp-1">{title}</span>
-          {column ? <span className="ve-outline-span">{spanLabel(column.span)}</span> : null}
-        </button>
-        {readOnly ? null : (
-          <span className="ve-outline-actions">
-            <button
-              type="button"
-              className="ve-outline-act"
-              aria-label={block.visible ? `Nascondi ${title}` : `Mostra ${title}`}
-              title={block.visible ? "Nascondi nel documento" : "Mostra nel documento"}
-              aria-pressed={!block.visible}
-              data-on={!block.visible || undefined}
-              onClick={() => onToggle(block.id)}
-            >
-              {block.visible ? <Eye size={13} aria-hidden="true" /> : <EyeOff size={13} aria-hidden="true" />}
-            </button>
-            <button
-              type="button"
-              className="ve-outline-act"
-              aria-label={locked ? `Sblocca ${title}` : `Blocca ${title}`}
-              title={locked ? "Contenuto bloccato: clic per sbloccare" : "Blocca il contenuto contro le modifiche"}
-              aria-pressed={locked}
-              data-on={locked || undefined}
-              onClick={() => onLock(block.id, !locked)}
-            >
-              {locked ? <Lock size={13} aria-hidden="true" /> : <LockOpen size={13} aria-hidden="true" />}
-            </button>
-            <button
-              type="button"
-              className="ve-outline-act is-danger"
-              aria-label={`Elimina ${title}`}
-              title={locked ? "Sblocca il blocco per eliminarlo" : "Elimina"}
-              disabled={locked}
-              onClick={() => onRemove(block.id)}
-            >
-              <Trash2 size={13} aria-hidden="true" />
-            </button>
-          </span>
-        )}
-      </div>
-    </Reorder.Item>
   );
 }

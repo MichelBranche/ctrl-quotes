@@ -56,6 +56,7 @@ import { statusTone, type ClientPermissions } from "@/components/clients/clients
 import { QuoteAmount } from "@/components/quotes/quotes-view";
 import { quoteStatusLabel, quoteStatusTone } from "@/domain/quote-status";
 import type { QuoteRow } from "@/server/quotes";
+import { FuseAction, HoldDelete } from "@/components/ui/destructive";
 
 const dateFormat = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Rome" });
 
@@ -100,6 +101,7 @@ export function ClientDetailPanel({
           </p>
           <StatusBadge tone={statusTone[client.status]}>{clientStatusLabel[client.status]}</StatusBadge>
         </div>
+        {!archived && permissions.write ? <FuseAction kind="archive" disabled={pending} onCommit={() => run(() => archiveClientAction(client.id, true))} /> : null}
         <ActionMenu
           label={`Azioni per ${client.name}`}
           items={[
@@ -109,12 +111,16 @@ export function ClientDetailPanel({
               onSelect: () => setEditing(true),
               disabledReason: permissions.write ? undefined : permissionDeniedMessage.member,
             },
-            {
-              label: archived ? "Ripristina" : "Archivia",
-              icon: archived ? <ArchiveRestore size={16} aria-hidden="true" /> : <Archive size={16} aria-hidden="true" />,
-              onSelect: () => run(() => archiveClientAction(client.id, !archived)),
-              disabledReason: permissions.write ? undefined : permissionDeniedMessage.member,
-            },
+            ...(archived || !permissions.write
+              ? [
+                  {
+                    label: archived ? "Ripristina" : "Archivia",
+                    icon: archived ? <ArchiveRestore size={16} aria-hidden="true" /> : <Archive size={16} aria-hidden="true" />,
+                    onSelect: () => run(() => archiveClientAction(client.id, !archived)),
+                    disabledReason: permissions.write ? undefined : permissionDeniedMessage.member,
+                  },
+                ]
+              : []),
             {
               label: "Elimina",
               icon: <Trash2 size={16} aria-hidden="true" />,
@@ -204,10 +210,9 @@ export function ClientDetailPanel({
           <Button variant="secondary" onClick={() => setConfirmDelete(false)} autoFocus>
             Annulla
           </Button>
-          <Button
-            className="btn-danger"
-            loading={pending}
-            onClick={() =>
+          <HoldDelete
+            disabled={pending}
+            onHold={() =>
               run(
                 () => deleteClientAction(client.id),
                 () => {
@@ -216,9 +221,7 @@ export function ClientDetailPanel({
                 },
               )
             }
-          >
-            Elimina
-          </Button>
+          />
         </div>
       </Dialog>
     </article>

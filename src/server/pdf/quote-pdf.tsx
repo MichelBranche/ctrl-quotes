@@ -7,6 +7,11 @@ import { renderers } from "@/components/quote-render/templates";
 import type { QuoteSnapshot } from "@/domain/quote-snapshot";
 import { emptyPlan, improves, nextStep, pageEdges, readPages, tallTags, withTall, type LayoutNode, type PrintPage, type PrintPlan } from "./fit";
 import { pdfKit } from "./kit-pdf";
+import { prepareLibraryFonts } from "./library-fonts";
+import { brandFontRef, formatContext, withFormats } from "@/components/quote-render/format";
+import { fontsInFormats } from "@/domain/text-format";
+import type { FontRef } from "@/domain/fonts";
+import type { Kit } from "@/components/quote-render/kit";
 import { prepareLogo } from "./logo";
 
 /**
@@ -22,7 +27,12 @@ function registerFonts() {
   if (registered) return;
   Font.register({
     family: "CQInter",
-    fonts: [300, 400, 500, 600, 700, 800, 900].map((weight) => ({ src: path.join(fontDir, `inter-latin-${weight}-normal.woff`), fontWeight: weight })),
+    fonts: [
+      ...[300, 400, 500, 600, 700, 800, 900].map((weight) => ({ src: path.join(fontDir, `inter-latin-${weight}-normal.woff`), fontWeight: weight })),
+      // Italic words (editor formatting) need an italic face, or react-pdf refuses the text.
+      { src: path.join(fontDir, "inter-latin-400-italic.woff"), fontWeight: 400, fontStyle: "italic" as const },
+      { src: path.join(fontDir, "inter-latin-700-italic.woff"), fontWeight: 700, fontStyle: "italic" as const },
+    ],
   });
   Font.register({
     family: "CQCormorant",
@@ -35,8 +45,21 @@ function registerFonts() {
     ],
   });
   // Lining figures for big serif amounts (Cormorant only ships old-style digits).
-  Font.register({ family: "CQFigures", fonts: [{ src: path.join(fontDir, "instrument-serif-latin-400-normal.woff"), fontWeight: 400 }] });
-  Font.register({ family: "CQArchivo", fonts: [{ src: path.join(fontDir, "archivo-black-latin-400-normal.woff"), fontWeight: 400 }] });
+  Font.register({
+    family: "CQFigures",
+    fonts: [
+      { src: path.join(fontDir, "instrument-serif-latin-400-normal.woff"), fontWeight: 400 },
+      { src: path.join(fontDir, "instrument-serif-latin-400-italic.woff"), fontWeight: 400, fontStyle: "italic" },
+    ],
+  });
+  // Archivo Black has no italic: the upright stands in, so formatting never breaks the PDF.
+  Font.register({
+    family: "CQArchivo",
+    fonts: [
+      { src: path.join(fontDir, "archivo-black-latin-400-normal.woff"), fontWeight: 400 },
+      { src: path.join(fontDir, "archivo-black-latin-400-normal.woff"), fontWeight: 400, fontStyle: "italic" },
+    ],
+  });
   // Italian text is not hyphenated by the PDF engine: words wrap whole.
   Font.registerHyphenationCallback((word) => [word]);
   registered = true;
@@ -72,6 +95,12 @@ export async function renderQuotePdfPlan(snapshot: QuoteSnapshot, options: PdfOp
     versionLabel: options.versionLabel ?? (options.watermark ? "Bozza" : null),
   };
   const renderer = renderers[snapshot.template] ?? renderers.minimal;
+  const wanted = [
+    ...fontsInFormats(snapshot.document.blocks.map((block) => block.fmt)),
+    ...[brandFontRef(snapshot.brand.fontHeading), brandFontRef(snapshot.brand.fontBody)].filter((ref): ref is FontRef => ref !== null),
+  ];
+  const usable = wanted.length ? await prepareLibraryFonts(wanted) : new Set<FontRef>();
+  let kit: Kit = withFormats(pdfKit, formatContext(snapshot.document, snapshot.brand, (ref) => usable.has(ref)));
   const title = [snapshot.quote.number, snapshot.quote.title].filter(Boolean).join(" · ");
   const pass = async (plan: PrintPlan): Promise<Pass> => {
     const model = buildModel(snapshot, resources, renderer.numbering, plan);
@@ -82,7 +111,7 @@ export async function renderQuotePdfPlan(snapshot: QuoteSnapshot, options: PdfOp
     };
     const doc = (
       <Document title={title} author={snapshot.issuer.displayName} subject="Preventivo" creator="CTRL Quotes" producer="CTRL Quotes" language="it-IT" onRender={onRender as never}>
-        {renderer.render(pdfKit, model)}
+        {renderer.render(kit, model)}
       </Document>
     );
     const watch = { overflow: false };
@@ -95,7 +124,15 @@ export async function renderQuotePdfPlan(snapshot: QuoteSnapshot, options: PdfOp
       return { buffer: null, pages: [], overflow: true };
     }
   };
-  const result = await fitPages(pass, { edges: renderer.edges === true });
+  let result: Awaited<ReturnType<typeof fitPages<Pass>>>;
+  try {
+    result = await fitPages(pass, { edges: renderer.edges === true });
+  } catch (error) {
+    // A library font that fails to load mid-render: print with the template fonts instead.
+    if (!usable.size) throw error;
+    kit = withFormats(pdfKit, formatContext(snapshot.document, snapshot.brand, () => false));
+    result = await fitPages(pass, { edges: renderer.edges === true });
+  }
   if (!result.buffer) throw new Error("PDF non generato");
   return { buffer: result.buffer, plan: result.plan, pages: result.pages };
 }

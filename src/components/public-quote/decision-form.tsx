@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Check, X } from "lucide-react";
 import { ACCEPT_CONSENT } from "@/domain/quote-consent";
 import { decidePublicQuoteAction } from "@/server/actions/public-decision";
+import { BusyMark } from "@/components/ui/async-status";
 
 const longDate = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Rome" });
 
@@ -101,7 +102,7 @@ export function PublicDecisionForm({
             disabled={pending || (decision === "accepted" && !consent)}
             onClick={() => submit(decision)}
           >
-            {pending ? "Invio in corso..." : decision === "accepted" ? "Conferma accettazione" : "Conferma rifiuto"}
+            {pending ? <><BusyMark /> Invio in corso…</> : decision === "accepted" ? "Conferma accettazione" : "Conferma rifiuto"}
           </button>
           <button type="button" className="pq-decision-cancel" disabled={pending} onClick={() => setDecision(null)}>
             Annulla

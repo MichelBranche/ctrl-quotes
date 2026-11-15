@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 const shotsDir = process.env.QA_SHOTS_DIR ?? "qa/screenshots/fase2";
@@ -96,9 +96,9 @@ test("clienti: crea, cerca, referenti, note, archivia e ripristina", async ({ pa
   await edit.getByRole("button", { name: "Salva modifiche" }).click();
   await expect(page.locator(".detail-card .badge").getByText("Prospect")).toBeVisible();
 
-  await page.getByRole("button", { name: `Azioni per ${name}` }).click();
-  await page.getByRole("menuitem", { name: /Archivia/ }).click();
-  await expect(page.locator(".detail-card .badge").getByText("Archiviato")).toBeVisible();
+  // Archive is reversible: a fuse with "Annulla" runs for a few seconds, then it commits.
+  await page.getByRole("button", { name: "Archivia", exact: true }).click();
+  await expect(page.locator(".detail-card .badge").getByText("Archiviato")).toBeVisible({ timeout: 10_000 });
   await page.goto("/app/clients?filter=archived");
   await expect(page.getByRole("link", { name: new RegExp(name) })).toBeVisible();
   await page.goto("/app/clients");
@@ -202,7 +202,7 @@ test("catalogo: categorie, servizio, pacchetto, duplica ed elimina", async ({ pa
   await expect(page.getByRole("heading", { level: 2, name: `Pacchetto Web ${suffix} (copia)` })).toBeVisible();
   await page.getByRole("button", { name: `Azioni per Pacchetto Web ${suffix} (copia)` }).click();
   await page.getByRole("menuitem", { name: /Elimina/ }).click();
-  await page.getByRole("dialog", { name: "Eliminare l'elemento?" }).getByRole("button", { name: "Elimina" }).click();
+  await holdToDelete(page, page.getByRole("dialog", { name: "Eliminare l'elemento?" }).getByRole("button", { name: /Tieni premuto per eliminare/ }));
   await expect(page.getByRole("heading", { level: 2, name: `Pacchetto Web ${suffix} (copia)` })).toHaveCount(0);
 
   await page.goto(`/app/catalog?q=${encodeURIComponent(`Design UX/UI ${suffix}`)}`);
@@ -282,7 +282,11 @@ test("brand kit: logo, colori, dati aziendali salvati", async ({ page }, testInf
 
   await page.getByLabel("Nome azienda").fill(`Studio Esempio ${suffix}`);
   await page.getByLabel("Secondario", { exact: true }).fill("#2563EB");
-  await page.getByLabel("Titoli").selectOption("Instrument Serif");
+  // Heading font from the free library (Google Fonts / Fontshare).
+  await page.getByRole("button", { name: /^Titoli/ }).click();
+  await page.locator(".fp").getByLabel("Cerca un font").fill("Instrument Serif");
+  await page.locator(".fp").getByRole("option", { name: /^Instrument Serif/ }).first().click();
+  await expect(page.getByRole("button", { name: /^Titoli/ })).toContainText("Instrument Serif");
   await expect(page.getByText("Modifiche non salvate")).toBeVisible();
   await page.getByRole("button", { name: "Salva modifiche" }).click();
   await expect(page.getByText("Modifiche salvate")).toBeVisible();
@@ -356,3 +360,14 @@ test("isolamento: un altro workspace non legge il logo né i clienti", async ({ 
   await expect(otherPage.getByText("Il catalogo è vuoto. Crea il primo servizio o prodotto.")).toBeVisible();
   await other.close();
 });
+
+/** Permanent deletes are a press and hold: keep the button down until the fill completes. */
+async function holdToDelete(page: Page, button: Locator) {
+  await button.hover();
+  const box = await button.boundingBox();
+  if (!box) throw new Error("pulsante non visibile");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1900);
+  await page.mouse.up();
+}

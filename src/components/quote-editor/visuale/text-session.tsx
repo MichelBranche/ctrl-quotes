@@ -1,8 +1,27 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import type { EditAnchor } from "@/domain/document-ops";
+import { applyMark, normalizeMarks, remapMarks, type Mark, type MarkAttrs } from "@/domain/text-format";
 import { cssValue, relativeRect } from "./geometry";
+import { readRich, renderRich, restoreSelection, selectionOffsets } from "./rich-dom";
+
+/** What the floating text toolbar can do with the open session. */
+export type SessionApi = {
+  box: () => HTMLElement | null;
+  field: () => HTMLElement | null;
+  /** Last selection inside the field (kept while the toolbar has focus). */
+  selection: () => { s: number; e: number } | null;
+  text: () => string;
+  marks: () => Mark[];
+  /** Sets or clears mark attributes on the selection (or on `range`). */
+  mark: (patch: Partial<MarkAttrs>, range?: { s: number; e: number }) => void;
+  /** Bullet or numbered list on the selected lines (all lines without a selection). */
+  list: (kind: "bullet" | "number") => void;
+  focus: () => void;
+};
+
+const bullet = /^(•|\d{1,2}\.) /;
 
 /** Typing is sent to the document after this pause; undo groups a field within 800 ms anyway. */
 const COMMIT_MS = 120;
@@ -55,21 +74,6 @@ function nearestTo(elements: HTMLElement[], point: { x: number; y: number }): nu
   return best;
 }
 
-function supportsPlaintext(): boolean {
-  const probe = document.createElement("div");
-  try {
-    probe.contentEditable = "plaintext-only";
-  } catch {
-    return false;
-  }
-  return probe.contentEditable === "plaintext-only";
-}
-
-function readText(element: HTMLElement, multiline: boolean): string {
-  const text = (element.innerText ?? element.textContent ?? "").replace(/\r/g, "").replace(/\u00a0/g, " ");
-  return multiline ? text.replace(/\n$/, "") : text.replace(/\n+/g, " ");
-}
-
 function placeCaret(element: HTMLElement, point: { x: number; y: number } | null, selectAll: boolean) {
   const selection = window.getSelection();
   if (!selection) return;
@@ -103,6 +107,9 @@ function placeCaret(element: HTMLElement, point: { x: number; y: number } | null
 export function TextSession({
   anchor,
   initial,
+  initialMarks = [],
+  api: apiRef,
+  onSelection,
   limit,
   label,
   content,
@@ -115,6 +122,11 @@ export function TextSession({
 }: {
   anchor: EditAnchor;
   initial: string;
+  initialMarks?: Mark[];
+  /** Filled with the session controls for the text toolbar. */
+  api?: RefObject<SessionApi | null>;
+  /** The selection inside the field changed (the toolbar shows its formatting). */
+  onSelection?: (range: { s: number; e: number } | null) => void;
   limit: number | null;
   label: string;
   content: HTMLElement;
@@ -122,14 +134,16 @@ export function TextSession({
   point: { x: number; y: number } | null;
   selectAll: boolean;
   /** Returns an error message when the value is refused. */
-  onCommit: (value: string) => string | null;
+  onCommit: (value: string, marks: Mark[]) => string | null;
   onClose: () => void;
   onTab: (backwards: boolean) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const last = useRef(initial);
+  const [initialKey] = useState(() => `${initial}\u0000${JSON.stringify(normalizeMarks(initialMarks, initial.length))}`);
+  const last = useRef(initialKey);
+  const saved = useRef<{ s: number; e: number } | null>(null);
   const closed = useRef(false);
   const composing = useRef(false);
   const occurrence = useRef<number | null>(null);
@@ -142,19 +156,95 @@ export function TextSession({
     timer.current = null;
     const node = field.current;
     if (!node) return;
-    const value = readText(node, multiline);
-    if (value === last.current) return;
-    const problem = onCommit(value);
+    const { text: value, marks } = readRich(node, multiline);
+    const key = `${value}\u0000${JSON.stringify(marks)}`;
+    if (key === last.current) return;
+    const problem = onCommit(value, marks);
     setError(problem);
-    if (!problem) last.current = value;
+    if (!problem) last.current = key;
   };
+
+  const schedule = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(flush, COMMIT_MS);
+  };
+
+  /** Rewrites the field from text and marks, keeps the selection, commits right away. */
+  const rewrite = (text: string, marks: Mark[], range: { s: number; e: number } | null) => {
+    const node = field.current;
+    if (!node) return;
+    renderRich(node, text, marks, multiline);
+    setLength(text.length);
+    if (range) {
+      node.focus({ preventScroll: true });
+      restoreSelection(node, Math.min(range.s, text.length), Math.min(range.e, text.length));
+    }
+    flush();
+  };
+
+  useLayoutEffect(() => {
+    if (!apiRef) return;
+    apiRef.current = {
+      box: () => box.current,
+      field: () => field.current,
+      selection: () => saved.current,
+      text: () => (field.current ? readRich(field.current, multiline).text : initial),
+      marks: () => (field.current ? readRich(field.current, multiline).marks : []),
+      focus: () => field.current?.focus({ preventScroll: true }),
+      mark: (patch, range) => {
+        const node = field.current;
+        if (!node) return;
+        const { text, marks } = readRich(node, multiline);
+        const target = range ?? saved.current;
+        if (!target || target.e <= target.s) return;
+        rewrite(text, applyMark(marks, text.length, target.s, target.e, patch), target);
+      },
+      list: (kind) => {
+        const node = field.current;
+        if (!node || !multiline) return;
+        let { text, marks } = readRich(node, multiline);
+        const range = saved.current ?? { s: 0, e: text.length };
+        const lines = text.split("\n");
+        let position = 0;
+        const starts = lines.map((line) => {
+          const at = position;
+          position += line.length + 1;
+          return at;
+        });
+        const chosen = lines.map((line, index) => {
+          const start = starts[index] ?? 0;
+          const end = start + line.length;
+          return range.e > range.s ? end >= range.s && start <= range.e : true;
+        });
+        const targets = lines.filter((line, index) => chosen[index] && line.trim());
+        const on = targets.length > 0 && targets.every((line) => (kind === "bullet" ? line.startsWith("• ") : /^\d{1,2}\. /.test(line)));
+        let number = 0;
+        // From the last line up, so the earlier offsets stay valid.
+        const edits = lines.map((line, index) => {
+          if (!chosen[index] || !line.trim()) return line;
+          const bare = line.replace(bullet, "");
+          if (on) return bare;
+          number += 1;
+          return kind === "bullet" ? `• ${bare}` : `${number}. ${bare}`;
+        });
+        for (let index = lines.length - 1; index >= 0; index -= 1) {
+          const before = text;
+          const start = starts[index] ?? 0;
+          const after = before.slice(0, start) + edits[index] + before.slice(start + (lines[index] ?? "").length);
+          marks = remapMarks(marks, before, after);
+          text = after;
+        }
+        rewrite(text, marks, { s: text.length, e: text.length });
+      },
+    };
+  });
 
   const close = (revert = false) => {
     if (closed.current) return;
     closed.current = true;
     if (revert) {
       if (timer.current) clearTimeout(timer.current);
-      if (last.current !== initial) onCommit(initial);
+      if (last.current !== initialKey) onCommit(initial, initialMarks);
     } else {
       flush();
     }
@@ -165,8 +255,8 @@ export function TextSession({
   useLayoutEffect(() => {
     const node = field.current;
     if (!node) return;
-    node.contentEditable = supportsPlaintext() ? "plaintext-only" : "true";
-    node.textContent = initial;
+    node.contentEditable = "true";
+    renderRich(node, initial, initialMarks, multiline);
     node.focus({ preventScroll: true });
     placeCaret(node, point, selectAll);
     return () => {
@@ -224,9 +314,23 @@ export function TextSession({
     [content],
   );
 
+  // The selection is remembered while the toolbar has the focus (a colour field, the font search).
+  useEffect(() => {
+    const onChange = () => {
+      const node = field.current;
+      if (!node || document.activeElement !== node) return;
+      const range = selectionOffsets(node);
+      saved.current = range;
+      onSelection?.(range);
+    };
+    document.addEventListener("selectionchange", onChange);
+    return () => document.removeEventListener("selectionchange", onChange);
+  });
+
   useEffect(() => {
     const onPointer = (event: PointerEvent) => {
       if (box.current && event.target instanceof Node && box.current.contains(event.target)) return;
+      if (event.target instanceof Element && event.target.closest("[data-ve-text-ui]")) return;
       close();
     };
     document.addEventListener("pointerdown", onPointer, true);
@@ -248,19 +352,17 @@ export function TextSession({
         data-native-undo=""
         suppressContentEditableWarning
         onInput={(event) => {
-          const value = readText(event.currentTarget, multiline);
+          const value = readRich(event.currentTarget, multiline).text;
           setLength(value.length);
           if (composing.current) return;
-          if (timer.current) clearTimeout(timer.current);
-          timer.current = setTimeout(flush, COMMIT_MS);
+          schedule();
         }}
         onCompositionStart={() => {
           composing.current = true;
         }}
         onCompositionEnd={() => {
           composing.current = false;
-          if (timer.current) clearTimeout(timer.current);
-          timer.current = setTimeout(flush, COMMIT_MS);
+          schedule();
         }}
         onPaste={(event) => {
           event.preventDefault();
@@ -276,10 +378,21 @@ export function TextSession({
           } else if (event.key === "Enter" && (!multiline || event.metaKey || event.ctrlKey)) {
             event.preventDefault();
             close();
-          } else if (event.key === "Enter" && multiline && event.currentTarget.contentEditable !== "plaintext-only") {
-            // Rich editing fallback (older browsers): a line break, never a new block element.
+          } else if (event.key === "Enter" && multiline) {
+            // A line break, never a new block element.
             event.preventDefault();
             document.execCommand("insertLineBreak");
+          } else if ((event.metaKey || event.ctrlKey) && !event.altKey && ["b", "i", "u"].includes(event.key.toLowerCase())) {
+            // Bold, italic, underline on the selected words: same marks as the toolbar.
+            event.preventDefault();
+            const key = event.key.toLowerCase() as "b" | "i" | "u";
+            const node = event.currentTarget;
+            const range = selectionOffsets(node);
+            if (range && range.e > range.s) {
+              const { marks } = readRich(node, multiline);
+              const covered = marks.some((mark) => mark[key] && mark.s <= range.s && mark.e >= range.e);
+              apiRef?.current?.mark({ [key]: !covered }, range);
+            }
           } else if (event.key === "Tab") {
             event.preventDefault();
             flush();

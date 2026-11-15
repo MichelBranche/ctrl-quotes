@@ -172,17 +172,22 @@ export function Brand({
   );
 }
 
-export function Paras({ k, text, style, gap = 4, edit }: { k: Kit; text: string; style?: Style; gap?: number; edit?: EditAnchor }) {
-  const parts = text
-    .split(/\n{2,}/)
-    .map((part) => part.trim())
-    .filter(Boolean);
+export function Paras({ k, text, style, gap = 4, edit, within }: { k: Kit; text: string; style?: Style; gap?: number; edit?: EditAnchor; within?: { anchor: EditAnchor; offset: number } }) {
+  // Each paragraph knows where it starts in the field, so inline formatting lands on the right words.
+  const parts: Array<{ text: string; offset: number }> = [];
+  let cursor = 0;
+  for (const raw of text.split(/\n{2,}/)) {
+    const part = raw.trim();
+    const offset = text.indexOf(raw, cursor) + raw.indexOf(part);
+    cursor = text.indexOf(raw, cursor) + raw.length;
+    if (part) parts.push({ text: part, offset });
+  }
   if (!parts.length) return null;
   return (
     <k.V edit={edit}>
       {parts.map((part, index) => (
-        <k.T key={index} style={{ ...style, marginTop: index ? gap : 0 }}>
-          {part}
+        <k.T key={index} rich={edit ? { anchor: edit, offset: part.offset } : within ? { anchor: within.anchor, offset: within.offset + part.offset } : undefined} style={{ ...style, marginTop: index ? gap : 0 }}>
+          {part.text}
         </k.T>
       ))}
     </k.V>

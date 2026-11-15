@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Pencil, Trash2, X } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { FormError } from "@/components/data/fields";
 import { useAction } from "@/components/data/use-action";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { TextField } from "@/components/ui/fields";
 import { Dialog } from "@/components/ui/overlays";
 import { createCategoryAction, deleteCategoryAction, renameCategoryAction } from "@/server/actions/catalog";
 import type { Category } from "@/server/catalog";
+import { FuseAction } from "@/components/ui/destructive";
 
 export function CategoriesDialog({ open, onClose, categories }: { open: boolean; onClose: () => void; categories: Category[] }) {
   const [name, setName] = useState("");
@@ -72,14 +73,7 @@ export function CategoriesDialog({ open, onClose, categories }: { open: boolean;
                       <Button variant="ghost" aria-label={`Rinomina ${category.name}`} onClick={() => setEditing({ id: category.id, name: category.name })}>
                         <Pencil size={16} aria-hidden="true" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        aria-label={`Elimina ${category.name}`}
-                        disabled={pending}
-                        onClick={() => run(() => deleteCategoryAction(category.id))}
-                      >
-                        <Trash2 size={16} aria-hidden="true" />
-                      </Button>
+                      <FuseAction kind="delete" disabled={pending} label="Elimina" onCommit={() => run(() => deleteCategoryAction(category.id))} />
                     </span>
                   </>
                 )}

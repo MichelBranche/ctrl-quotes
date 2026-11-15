@@ -24,6 +24,7 @@ import type { TaxProfile } from "@/domain/pricing";
 import { taxProfileLabel } from "@/domain/settings";
 import { deleteCatalogItemAction, duplicateCatalogItemAction } from "@/server/actions/catalog";
 import type { CatalogItemDetail, CatalogItemRow, Category } from "@/server/catalog";
+import { HoldDelete } from "@/components/ui/destructive";
 
 export function CatalogDetailPanel({
   item,
@@ -221,10 +222,9 @@ export function CatalogDetailPanel({
             {deleteReason ? "Chiudi" : "Annulla"}
           </Button>
           {deleteReason ? null : (
-          <Button
-            className="btn-danger"
-            loading={pending}
-            onClick={() =>
+          <HoldDelete
+            disabled={pending}
+            onHold={() =>
               run(
                 () => deleteCatalogItemAction(item.id),
                 () => {
@@ -233,9 +233,7 @@ export function CatalogDetailPanel({
                 },
               )
             }
-          >
-            Elimina
-          </Button>
+          />
           )}
         </div>
       </Dialog>

@@ -3,6 +3,7 @@
 import { useId, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { messages } from "@/i18n/it";
 import { cn } from "@/lib/cn";
+import { BusyMark } from "@/components/ui/async-status";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost";
@@ -41,7 +42,7 @@ export function Button({
       aria-busy={loading || undefined}
       {...props}
     >
-      {loading ? <span className="spinner" aria-hidden="true" /> : null}
+      {loading ? <BusyMark /> : null}
       {children}
     </button>
   );

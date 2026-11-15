@@ -56,6 +56,13 @@ export type TextProps = Motion & {
   decorative?: boolean;
   /** Visual editor: the stored value this text prints. Only the edit kit reads it; web and PDF ignore it. */
   edit?: EditAnchor;
+  /**
+   * Formatting only: this text is the part of a field that starts at `offset` (a paragraph of a
+   * body). Unlike `edit` it never makes the element a click target of the visual editor.
+   */
+  rich?: { anchor: EditAnchor; offset: number };
+  /** A link (already validated: https, mailto, tel). The editor prints it without navigating. */
+  href?: string;
 };
 
 export type ImageProps = Motion & { src: string; style?: Style; alt?: string };

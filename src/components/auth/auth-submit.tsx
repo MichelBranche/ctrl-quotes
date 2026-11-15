@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore, type ReactNode } from "react";
 import StarBorder from "@/components/ui/star-border";
+import { BusyMark } from "@/components/ui/async-status";
 
 const FALLBACK = "#7c3aed";
 const noop = () => () => {};
@@ -33,7 +34,7 @@ export function AuthSubmit({ loading = false, disabled = false, children }: { lo
       backgroundColor="var(--cq-ink)"
       textColor="white"
     >
-      {loading ? <span className="spinner" aria-hidden="true" /> : null}
+      {loading ? <BusyMark /> : null}
       {children}
     </StarBorder>
   );

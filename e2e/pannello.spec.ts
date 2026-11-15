@@ -38,9 +38,9 @@ async function newQuote(page: Page, title: string, suffix: string) {
   await expect(page).toHaveURL(/\/app\/quotes\/(?!new)[^/?]+$/);
 }
 
-const outlineIds = (page: Page) => page.locator(".ve-outline-row").evaluateAll((rows) => rows.map((row) => row.getAttribute("data-block-id") ?? ""));
-const outlineTitles = (page: Page) => page.locator(".ve-outline-select span").allTextContents();
-const row = (page: Page, title: string) => page.locator(".ve-outline-row").filter({ has: page.locator(".ve-outline-select span", { hasText: title }) });
+const outlineIds = (page: Page) => page.locator(".branched-menu__row").evaluateAll((rows) => rows.map((row) => row.getAttribute("data-value") ?? ""));
+const outlineTitles = (page: Page) => page.locator(".branched-menu__label").allTextContents();
+const row = (page: Page, title: string) => page.locator(".branched-menu__row").filter({ has: page.locator(".branched-menu__label", { hasText: title }) });
 
 /** Top-level printed blocks, with their box on screen. */
 const printed = async (page: Page) => {
@@ -101,7 +101,9 @@ test("pannello e menu contestuale: azioni sui blocchi, inserisci qui, tastiera, 
   await shot(page, "pannello-documento", testInfo);
   await panel.getByRole("tab", { name: "Stile" }).click();
   await expect(panel.getByRole("heading", { name: "Tutto il documento" })).toBeVisible();
-  await expect(panel.getByRole("radiogroup", { name: "Template" })).toBeVisible();
+  // The template is not a Stile choice: it lives in Dettagli.
+  await expect(panel.getByRole("radiogroup", { name: "Template" })).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: "Cambia in Dettagli" })).toBeVisible();
   await expect(panel.getByText("Questo blocco")).toHaveCount(0);
   // Tabs work with the arrows.
   await panel.getByRole("tab", { name: "Stile" }).press("ArrowLeft");
@@ -114,7 +116,7 @@ test("pannello e menu contestuale: azioni sui blocchi, inserisci qui, tastiera, 
   const introIndex = titles.indexOf("Il progetto");
   expect(introIndex).toBeGreaterThan(0);
   const introId = ids[introIndex] ?? "";
-  await row(page, "Il progetto").locator(".ve-outline-select").click();
+  await row(page, "Il progetto").locator(".branched-menu__item").click();
   await expect(visuale.locator(`.qd-sheets [data-block-id="${introId}"]`).first()).toBeInViewport();
   await page.waitForTimeout(600);
   const blocks = await printed(page);
@@ -196,7 +198,7 @@ test("pannello e menu contestuale: azioni sui blocchi, inserisci qui, tastiera, 
   await expect(page.getByRole("menu")).toHaveCount(0);
 
   // Inside a text being edited, the browser menu too (spelling, copy, paste).
-  await row(page, "Il progetto").locator(".ve-outline-select").click();
+  await row(page, "Il progetto").locator(".branched-menu__item").click();
   await page.keyboard.press("Shift+F10");
   await menu.getByRole("menuitem", { name: /Modifica il testo/ }).click();
   const field = visuale.locator(".ve-session-field");
@@ -207,7 +209,7 @@ test("pannello e menu contestuale: azioni sui blocchi, inserisci qui, tastiera, 
   await expect(field).toHaveCount(0);
 
   // Shift+F10 opens the selected block's menu from the keyboard; Esc closes it.
-  await row(page, "Il progetto").locator(".ve-outline-select").click();
+  await row(page, "Il progetto").locator(".branched-menu__item").click();
   await page.keyboard.press("Shift+F10");
   await expect(menu).toBeVisible();
   await expect(menu.getByRole("menuitem").first()).toBeFocused();

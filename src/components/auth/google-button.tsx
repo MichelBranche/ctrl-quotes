@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { createAuthClient } from "better-auth/react";
 import { messages } from "@/i18n/it";
+import { BusyMark } from "@/components/ui/async-status";
 
 const authClient = createAuthClient();
 
@@ -40,7 +41,7 @@ export function GoogleSignIn({ note, callbackURL, newUserCallbackURL }: { note?:
           }
         }}
       >
-        {pending ? <span className="spinner" aria-hidden="true" /> : <GoogleMark />}
+        {pending ? <BusyMark /> : <GoogleMark />}
         {messages.auth.google}
       </button>
       {failed ? (

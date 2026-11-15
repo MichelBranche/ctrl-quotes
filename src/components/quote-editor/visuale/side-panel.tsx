@@ -22,6 +22,8 @@ export function SidePanel({
   onClose,
   title,
   subtitle,
+  icon,
+  crumbs = [],
   content,
   style,
   reduced,
@@ -32,6 +34,10 @@ export function SidePanel({
   onClose: () => void;
   title: string;
   subtitle: string;
+  /** Glyph of what is selected (block type). */
+  icon?: React.ReactNode;
+  /** Where it is: "Pagina 2", "Servizi", "Titolo". */
+  crumbs?: string[];
   content: React.ReactNode;
   style: React.ReactNode;
   reduced: boolean;
@@ -88,10 +94,34 @@ export function SidePanel({
           <PanelRightClose size={16} aria-hidden="true" />
         </button>
       </div>
-      <div className="ve-panel-title">
-        <h2>{title}</h2>
-        <p className="muted small">{subtitle}</p>
-      </div>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={contextKey}
+          className="ve-panel-title"
+          initial={reduced ? false : { opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, transition: { duration: 0.08 } }}
+          transition={{ duration: 0.16 }}
+        >
+          {crumbs.length ? (
+            <p className="ve-panel-crumbs" aria-label="Posizione">
+              {crumbs.map((crumb, index) => (
+                <span key={`${index}:${crumb}`}>
+                  {index ? <i aria-hidden="true">›</i> : null}
+                  {crumb}
+                </span>
+              ))}
+            </p>
+          ) : null}
+          <div className="ve-panel-identity">
+            {icon ? <span className="ve-panel-icon" aria-hidden="true">{icon}</span> : null}
+            <div>
+              <h2>{title}</h2>
+              <p className="muted small">{subtitle}</p>
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
       <div className="ve-panel-body" role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-tab-${tab}`}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div

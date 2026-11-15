@@ -84,14 +84,21 @@ export function WebV({ style, children, a, i, hover, stack, scrollX, flowStart, 
   );
 }
 
-export function WebT({ style, children, a, i, decorative, anchor }: TextProps & { anchor?: AnchorAttrs }) {
+export function WebT({ style, children, a, i, decorative, anchor, href, inert }: TextProps & { anchor?: AnchorAttrs; inert?: boolean }) {
   const nested = useContext(InText);
   const flat = flatten(style);
   // Display sizes get a cap on phones (see quote-doc.css), so big headings never split words.
   const big = typeof flat.fontSize === "number" && flat.fontSize >= 24;
   const css = { ...toCss(flat), ...motionStyle({ i }), ...(big ? { "--fs": `${flat.fontSize}pt` } : {}) } as CSSProperties;
   const props = { style: css, ...motionAttrs({ a }), "aria-hidden": decorative || undefined, "data-big": big ? "" : undefined, ...anchor };
-  return <InText.Provider value={true}>{nested ? <span className="k-ts" {...props}>{children}</span> : <div className="k-t" {...props}>{children}</div>}</InText.Provider>;
+  if (nested && href && !inert) {
+    return (
+      <a className="k-ts k-link" href={href} target="_blank" rel="noopener noreferrer nofollow" {...props}>
+        {children}
+      </a>
+    );
+  }
+  return <InText.Provider value={true}>{nested ? <span className="k-ts" data-href={href && inert ? "" : undefined} {...props}>{children}</span> : <div className="k-t" {...props}>{children}</div>}</InText.Provider>;
 }
 
 function Img({ src, style, alt, a, i }: ImageProps) {

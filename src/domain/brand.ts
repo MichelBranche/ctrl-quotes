@@ -1,19 +1,29 @@
 import { z } from "zod";
 import { clientInputSchema } from "@/domain/clients";
+import { fontFamilyName, isFontRef, type FontRef } from "@/domain/fonts";
 
-export const brandFonts = ["Inter", "Instrument Serif", "Georgia", "Sistema"] as const;
-export type BrandFont = (typeof brandFonts)[number];
+/**
+ * Brand Kit fonts: "template" (each template keeps its own type) or a library font reference,
+ * e.g. "g:Playfair Display" or "fs:satoshi". The old values (Inter, Instrument Serif, Georgia,
+ * Sistema) never reached the quotes, so they read as "template": nothing changes for old quotes.
+ */
+export type BrandFont = "template" | FontRef;
 
-export const fontStack: Record<BrandFont, string> = {
-  Inter: "var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif",
-  "Instrument Serif": "var(--font-instrument), 'Instrument Serif', ui-serif, Georgia, serif",
-  Georgia: "Georgia, 'Times New Roman', serif",
-  Sistema: "ui-sans-serif, system-ui, sans-serif",
-};
-
-export function asBrandFont(value: string): BrandFont {
-  return (brandFonts as readonly string[]).includes(value) ? (value as BrandFont) : "Inter";
+export function asBrandFont(value: string | null | undefined): BrandFont {
+  return isFontRef(value) ? value : "template";
 }
+
+export function fontStack(value: BrandFont): string {
+  return value === "template" ? "inherit" : `"${fontFamilyName(value)}", ui-sans-serif, system-ui, sans-serif`;
+}
+
+/** The four names the old Brand Kit offered: still accepted from old clients, saved as "template". */
+const legacyFonts = new Set(["Inter", "Instrument Serif", "Georgia", "Sistema"]);
+
+const brandFontSchema = z
+  .string()
+  .refine((value) => value === "template" || legacyFonts.has(value) || isFontRef(value), { error: "Font non disponibile." })
+  .transform((value) => asBrandFont(value));
 
 const hex = z
   .string()
@@ -40,8 +50,8 @@ export const brandInputSchema = z.object({
   colorPrimary: hex,
   colorSecondary: hex,
   colorBackground: hex,
-  fontHeading: z.enum(brandFonts, { error: "Font non disponibile." }),
-  fontBody: z.enum(brandFonts, { error: "Font non disponibile." }),
+  fontHeading: brandFontSchema,
+  fontBody: brandFontSchema,
   applyAutomatically: z.boolean().default(true),
 });
 

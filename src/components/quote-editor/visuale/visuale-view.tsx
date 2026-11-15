@@ -28,8 +28,14 @@ import { DragGhost, useBlockDrag } from "./drag";
 import { blockElement, cssValue, useGeometry, type BlockBox } from "./geometry";
 import { RowDivider, type DividerRow } from "./row-divider";
 import { LineCard, type LineFocus } from "./line-card";
-import { Outline } from "./outline";
-import { TextSession, anchorSelector } from "./text-session";
+import { Outline, blockTreeIcon, outlineGroups } from "./outline";
+import { BlockStyle } from "./block-style";
+import { FuseAction } from "@/components/ui/destructive";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { TextSession, anchorSelector, type SessionApi } from "./text-session";
+import { TextToolbar, type ToolbarBrand } from "../text/text-toolbar";
+import { brandFontRef } from "@/components/quote-render/format";
+import type { TextFormat } from "@/domain/text-format";
 import { imagePlaceholder } from "../image-placeholder";
 
 /**
@@ -146,6 +152,11 @@ export function VisualeView({
   const zoom = zoomChoice === "fit" ? fit : zoomChoice;
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  // The text last opened on the sheet: the Stile tab keeps styling it after the session closes.
+  const [lastAnchor, setLastAnchor] = useState<EditAnchor | null>(null);
+  if (session && (lastAnchor?.blockId !== session.anchor.blockId || lastAnchor.field !== session.anchor.field)) setLastAnchor(session.anchor);
+  const sessionApi = useRef<SessionApi | null>(null);
+  const [textRange, setTextRange] = useState<{ s: number; e: number } | null>(null);
   const [lineEdit, setLineEdit] = useState<LineEdit | null>(null);
   const [picker, setPicker] = useState<Picker | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -870,6 +881,22 @@ export function VisualeView({
   };
 
   const sessionBlock = session ? byId.get(session.anchor.blockId) : undefined;
+  const toolbarBrand = useMemo<ToolbarBrand>(() => {
+    const fonts: ToolbarBrand["fonts"] = [];
+    const heading = brandFontRef(snapshot.brand.fontHeading);
+    const body = brandFontRef(snapshot.brand.fontBody);
+    if (heading) fonts.push({ ref: heading, role: "Titoli" });
+    if (body && body !== heading) fonts.push({ ref: body, role: "Testo" });
+    return {
+      fonts,
+      colors: [
+        { color: snapshot.brand.colorPrimary, label: "Primario" },
+        { color: snapshot.brand.colorSecondary, label: "Secondario" },
+        { color: snapshot.brand.colorBackground, label: "Sfondo" },
+      ].filter((item, index, list) => /^#[0-9A-F]{6}$/i.test(item.color) && list.findIndex((other) => other.color.toUpperCase() === item.color.toUpperCase()) === index),
+    };
+  }, [snapshot.brand]);
+  const canvasBounds = useCallback(() => scrollRef.current?.getBoundingClientRect() ?? null, []);
   const sessionValue = session && sessionBlock ? getField(sessionBlock, session.anchor.field) : undefined;
   const lineBlock = lineEdit ? byId.get(lineEdit.blockId) : undefined;
   const line = lineEdit && lineBlock && (lineBlock.type === "services" || lineBlock.type === "options") ? lineBlock.items.find((entry) => entry.id === lineEdit.lineId) : undefined;
@@ -1010,12 +1037,16 @@ export function VisualeView({
                     })()}
                     {blockLabel[selected.type]}
                     {selected.col && selectedRow ? <span className="ve-frame-col">{`Colonna ${spanLabel(selected.col.span)}`}</span> : null}
+                    {session && session.anchor.blockId === selected.id ? <span className="ve-frame-field">{fieldName(session.anchor.field)}</span> : null}
                     {selected.locked ? (
                       <>
                         <Lock size={11} aria-hidden="true" /> Bloccato
                       </>
                     ) : null}
                   </span>
+                  {(["tl", "tr", "bl", "br"] as const).map((corner) => (
+                    <span key={corner} className="ve-frame-corner" data-c={corner} aria-hidden="true" />
+                  ))}
                   {selected.type !== "cover" ? (
                     <button
                       type="button"
@@ -1143,20 +1174,51 @@ export function VisualeView({
                   key={session.key}
                   anchor={session.anchor}
                   initial={sessionValue}
+                  initialMarks={sessionBlock.fmt?.[session.anchor.field]?.marks ?? []}
+                  api={sessionApi}
+                  onSelection={setTextRange}
                   limit={fieldLimit(sessionBlock, session.anchor.field)}
                   label={`${fieldName(session.anchor.field)}, ${blockTitle(sessionBlock)}`}
                   content={contentEl}
                   zoom={zoom}
                   point={session.point}
                   selectAll={session.selectAll}
-                  onCommit={(value) => {
-                    const result = run({ kind: "setField", blockId: session.anchor.blockId, field: session.anchor.field, value }, { order: "template", group: `field:${session.anchor.blockId}:${session.anchor.field}`, quiet: true });
+                  onCommit={(value, marks) => {
+                    const result = run({ kind: "setRich", blockId: session.anchor.blockId, field: session.anchor.field, value, marks }, { order: "template", group: `field:${session.anchor.blockId}:${session.anchor.field}`, quiet: true });
                     return result.ok ? null : result.message;
                   }}
-                  onClose={() => setSession((current) => (current?.key === session.key ? null : current))}
+                  onClose={() => {
+                    setTextRange(null);
+                    setSession((current) => (current?.key === session.key ? null : current));
+                  }}
                   onTab={(backwards) => tab(session.anchor, backwards)}
                 />
               ) : null}
+              <AnimatePresence>
+                {session && sessionBlock && typeof sessionValue === "string" && contentEl && !readOnly ? (
+                  <TextToolbar
+                    key={`tt:${session.key}`}
+                    api={sessionApi}
+                    selection={textRange}
+                    format={sessionBlock.fmt?.[session.anchor.field]}
+                    multiline={session.anchor.kind === "multiline"}
+                    label={`${fieldName(session.anchor.field)} · ${blockTitle(sessionBlock)}`}
+                    brand={toolbarBrand}
+                    bounds={canvasBounds}
+                    onFormat={(patch, live) => {
+                      const current: TextFormat = sessionBlock.fmt?.[session.anchor.field] ?? {};
+                      const next = { ...current, ...patch } as TextFormat;
+                      for (const key of Object.keys(next) as Array<keyof TextFormat>) if (next[key] === undefined) delete next[key];
+                      run({ kind: "setFormat", blockId: session.anchor.blockId, field: session.anchor.field, format: next }, { order: "template", group: live ? `fmt:${session.anchor.blockId}:${session.anchor.field}:${Object.keys(patch).join()}` : undefined });
+                    }}
+                    onClear={() => {
+                      run({ kind: "setFormat", blockId: session.anchor.blockId, field: session.anchor.field, format: null }, { order: "template" });
+                      const api = sessionApi.current;
+                      if (api) api.mark(Object.fromEntries(["b", "i", "u", "x", "c", "h", "f", "z", "href"].map((key) => [key, undefined])), { s: 0, e: api.text().length });
+                    }}
+                  />
+                ) : null}
+              </AnimatePresence>
 
               <AnimatePresence>
                 {lineEdit && line && lineBlock && lineCellRect ? (
@@ -1221,12 +1283,26 @@ export function VisualeView({
           reduced={reduced}
           contextKey={selected?.id ?? "document"}
           title={selected ? blockTitle(selected) : "Documento"}
+          icon={<HugeiconsIcon icon={selected ? blockTreeIcon[selected.type] : blockTreeIcon.cover} size={18} strokeWidth={1.8} />}
+          crumbs={
+            selected
+              ? [
+                  outlineGroups(document.blocks).find((group) => group.blocks.some((block) => block.id === selected.id))?.label.split(" · ")[0] ?? "Documento",
+                  blockLabel[selected.type],
+                  ...(session && session.anchor.blockId === selected.id ? [fieldName(session.anchor.field)] : []),
+                ]
+              : ["Tutto il documento"]
+          }
           subtitle={
             selected
               ? selected.locked
                 ? "Contenuto bloccato: sbloccalo per modificarlo."
-                : `Blocco ${blockLabel[selected.type]}${selected.visible ? "" : " · nascosto nel documento"}`
-              : "Nessun blocco selezionato: clicca un blocco sul foglio per vederne i campi."
+                : panelTab === "content"
+                  ? `I campi di questo blocco${selected.visible ? "" : " · nascosto nel documento"}`
+                  : "Lo stile di questo blocco: testi, spazi, sfondo e bordi."
+              : panelTab === "content"
+                ? "Cliente, validità e dettagli. Clicca un blocco sul foglio per i suoi campi."
+                : "Colore, foto e tipografia di tutte le pagine."
           }
           content={
             selected ? (
@@ -1244,8 +1320,27 @@ export function VisualeView({
           style={
             <>
               {selected ? (
+                <BlockStyle
+                  key={selected.id}
+                  block={selected}
+                  focusField={session && session.anchor.blockId === selected.id ? session.anchor.field : null}
+                  recentField={lastAnchor && lastAnchor.blockId === selected.id ? lastAnchor.field : null}
+                  fieldName={fieldName}
+                  readOnly={readOnly}
+                  brandColors={toolbarBrand.colors.map((item) => item.color)}
+                  brandFonts={toolbarBrand.fonts}
+                  widthLabel={selected.col ? `colonna ${spanLabel(selected.col.span)}` : "tutta la pagina"}
+                  onFormat={(field, format, live) => exec({ kind: "setFormat", blockId: selected.id, field, format }, live ? `fmt:${selected.id}:${field}` : undefined)}
+                  onLook={(look, live) => exec({ kind: "setLook", blockId: selected.id, look }, live ? `look:${selected.id}` : undefined)}
+                  onReset={() => {
+                    exec({ kind: "resetBlockStyle", blockId: selected.id });
+                    announce(`Stile di ${blockTitle(selected)} riportato al template`);
+                  }}
+                />
+              ) : null}
+              {selected ? (
                 <section className="ve-panel-section" aria-labelledby="ve-block-style">
-                  <h3 id="ve-block-style">Questo blocco</h3>
+                  <h3 id="ve-block-style">Visibilità</h3>
                   <label className="ve-switch">
                     <input type="checkbox" role="switch" checked={selected.visible} disabled={readOnly} onChange={() => toggleBlock(selected.id)} />
                     <span className="ve-switch-track" aria-hidden="true" />
@@ -1262,7 +1357,13 @@ export function VisualeView({
                       <small className="muted">Protegge i testi da modifiche per sbaglio. Il PDF non cambia.</small>
                     </span>
                   </label>
-                  {selected.type === "cover" ? <p className="muted small">La foto della copertina si sceglie qui sotto, in Tutto il documento.</p> : null}
+                  {selected.type === "cover" ? <p className="muted small">La foto della copertina si sceglie in Documento: clicca fuori dal foglio, poi Stile.</p> : null}
+                  {allowed({ kind: "removeBlock", blockId: selected.id }) ? (
+                    <div className="ve-panel-danger">
+                      <FuseAction key={selected.id} kind="delete" label="Elimina blocco" onCommit={() => removeBlock(selected.id)} />
+                      <small className="muted">Hai qualche secondo per annullare, poi resta Ctrl+Z.</small>
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
               {selected && isChartType(selected.type) ? (
@@ -1274,7 +1375,7 @@ export function VisualeView({
                   </fieldset>
                 </section>
               ) : null}
-              {documentStyle}
+              {selected ? null : documentStyle}
             </>
           }
         />

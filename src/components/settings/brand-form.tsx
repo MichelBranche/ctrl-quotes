@@ -8,11 +8,14 @@ import { SectionTitle, Switch } from "@/components/data/controls";
 import { useAction } from "@/components/data/use-action";
 import { TemplateCover } from "@/components/templates/template-cover";
 import { Button } from "@/components/ui/button";
-import { SelectField, TextField } from "@/components/ui/fields";
-import { brandFonts, contrastRatio, fontStack, logoLimits, readableOn, type BrandFont } from "@/domain/brand";
+import { TextField } from "@/components/ui/fields";
+import { contrastRatio, fontStack, logoLimits, readableOn, type BrandFont } from "@/domain/brand";
+import { fontCssHref } from "@/domain/fonts";
+import { FontSelect } from "@/components/quote-editor/text/font-select";
 import { removeLogoAction, saveBrandAction, uploadLogoAction } from "@/server/actions/settings";
 import type { BrandKit } from "@/server/settings";
 import type { TemplateKey } from "@/server/templates";
+import { BusyMark } from "@/components/ui/async-status";
 
 type ColorKey = "colorPrimary" | "colorSecondary" | "colorBackground";
 
@@ -84,6 +87,8 @@ export function BrandKitForm({
   const accentContrast = contrastRatio(readableOn(values.colorSecondary), values.colorSecondary);
   const textContrast = contrastRatio(values.colorPrimary, values.colorBackground);
 
+  const previewFonts = fontCssHref([values.fontHeading, values.fontBody].filter((font): font is Exclude<BrandFont, "template"> => font !== "template"));
+
   return (
     <form
       onSubmit={(event) => {
@@ -130,7 +135,7 @@ export function BrandKitForm({
                 </div>
                 <div className="stack-tight">
                   <label className={`btn btn-secondary${!canEdit || logo.pending ? " is-disabled" : ""}`}>
-                    <ImageUp size={16} aria-hidden="true" /> {logo.pending ? "Caricamento…" : brand.logo ? "Sostituisci logo" : "Carica logo"}
+                    {logo.pending ? <BusyMark /> : <ImageUp size={16} aria-hidden="true" />} {logo.pending ? "Caricamento…" : brand.logo ? "Sostituisci logo" : "Carica logo"}
                     <input
                       ref={fileRef}
                       className="visually-hidden"
@@ -199,21 +204,10 @@ export function BrandKitForm({
 
             <section className="card inset">
               <SectionTitle icon={<Type size={16} aria-hidden="true" />}>Tipografia</SectionTitle>
+              <p className="field-hint">Oltre 1.300 font gratuiti di Google Fonts e Fontshare. Valgono per titoli e testi di tutti i preventivi, anche nel PDF. Lascia &quot;Font del template&quot; per tenere quelli del template.</p>
               <div className="grid-2">
-                <SelectField
-                  label="Titoli"
-                  value={values.fontHeading}
-                  disabled={!canEdit}
-                  onChange={(event) => set("fontHeading", event.target.value as BrandFont)}
-                  options={brandFonts.map((font) => ({ value: font, label: font }))}
-                />
-                <SelectField
-                  label="Testo"
-                  value={values.fontBody}
-                  disabled={!canEdit}
-                  onChange={(event) => set("fontBody", event.target.value as BrandFont)}
-                  options={brandFonts.map((font) => ({ value: font, label: font }))}
-                />
+                <FontSelect label="Titoli" value={values.fontHeading === "template" ? null : values.fontHeading} disabled={!canEdit} onChange={(ref) => set("fontHeading", (ref ?? "template") as BrandFont)} />
+                <FontSelect label="Testo" value={values.fontBody === "template" ? null : values.fontBody} disabled={!canEdit} onChange={(ref) => set("fontBody", (ref ?? "template") as BrandFont)} />
               </div>
             </section>
 
@@ -250,6 +244,7 @@ export function BrandKitForm({
 
           <section className="card inset brand-preview" aria-label="Anteprima">
             <SectionTitle>Anteprima con {templateName}</SectionTitle>
+            {previewFonts ? <link rel="stylesheet" href={previewFonts} precedence="cq-fonts" /> : null}
             <div
               className="brand-preview-frame"
               style={
@@ -257,8 +252,8 @@ export function BrandKitForm({
                   "--brand-primary": values.colorPrimary,
                   "--brand-secondary": values.colorSecondary,
                   "--brand-bg": values.colorBackground,
-                  "--brand-heading": fontStack[values.fontHeading],
-                  "--brand-body": fontStack[values.fontBody],
+                  "--brand-heading": fontStack(values.fontHeading),
+                  "--brand-body": fontStack(values.fontBody),
                 } as React.CSSProperties
               }
             >

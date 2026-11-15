@@ -10,6 +10,7 @@ import { clientImportFields, csvLimits, type ColumnMapping } from "@/domain/csv"
 import { commitImportAction, previewImportAction } from "@/server/actions/clients";
 import type { ImportPreviewResult } from "@/server/client-import";
 import { cn } from "@/lib/cn";
+import { BusyMark } from "@/components/ui/async-status";
 
 type Step = "file" | "map" | "done";
 
@@ -103,7 +104,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
                 </span>
               </p>
               <label className={cn("btn btn-secondary", pending && "is-disabled")}>
-                {pending ? "Lettura in corso…" : "Scegli file CSV"}
+                {pending ? <><BusyMark /> Lettura in corso…</> : "Scegli file CSV"}
                 <input
                   className="visually-hidden"
                   type="file"

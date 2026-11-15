@@ -95,3 +95,4 @@
 }
 @media (max-width: 767px) { .qd-stage[data-layout="auto"] .k-page { box-shadow: none; } }
 @media (min-width: 768px) { .qd-stage[data-layout="auto"] .qd-sheets { zoom: var(--qd-fit); } .qd-stage[data-layout="auto"][data-fit="pending"] .qd-sheets { visibility: hidden; } }
+.k-link { color: inherit; text-decoration: underline; text-underline-offset: 0.12em; }

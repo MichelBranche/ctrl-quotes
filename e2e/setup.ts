@@ -1,9 +1,16 @@
 import fs from "node:fs";
-import { expect, test as setup } from "@playwright/test";
+import { expect, test as setup, type APIRequestContext } from "@playwright/test";
 
 const baseURL = `http://127.0.0.1:${process.env.PORT ?? "3000"}`;
 const email = "giulia.neri@example.com";
 const password = "Esempio123";
+
+/** Sign-up sends a six digit code (email OTP): read it from the file mailbox and confirm. */
+async function verifyByCode(request: APIRequestContext, headers: Record<string, string>, messages: Array<{ to: string; text: string }>, address: string) {
+  const otp = messages.filter((message) => message.to === address).at(-1)?.text.match(/Codice:\s*(\d{6})/)?.[1];
+  expect(otp, `codice per ${address}`).toBeTruthy();
+  return request.post("/api/auth/email-otp/verify-email", { headers, data: { email: address, otp } });
+}
 
 setup("prepara un account fittizio", async ({ request }) => {
   fs.mkdirSync("e2e/.auth", { recursive: true });
@@ -19,11 +26,8 @@ setup("prepara un account fittizio", async ({ request }) => {
 
   const mailbox = await request.get("/api/dev/emails");
   expect(mailbox.ok()).toBeTruthy();
-  const messages = (await mailbox.json()) as Array<{ text: string }>;
-  const link = messages.at(-1)?.text.match(/https?:\/\/\S+/)?.[0];
-  expect(link).toBeTruthy();
-  const verify = await request.get(link!);
-  expect(verify.ok()).toBeTruthy();
+  const messages = (await mailbox.json()) as Array<{ to: string; text: string }>;
+  expect((await verifyByCode(request, headers, messages, email)).ok()).toBeTruthy();
 
   const signIn = await request.post("/api/auth/sign-in/email", {
     headers,
@@ -47,9 +51,7 @@ setup("prepara un secondo account in un altro workspace", async ({ playwright })
   expect(signUp.ok()).toBeTruthy();
   const mailbox = await request.get("/api/dev/emails");
   const messages = (await mailbox.json()) as Array<{ to: string; text: string }>;
-  const link = messages.filter((message) => JSON.stringify(message).includes(other.email)).at(-1)?.text.match(/https?:\/\/\S+/)?.[0];
-  expect(link).toBeTruthy();
-  expect((await request.get(link!)).ok()).toBeTruthy();
+  expect((await verifyByCode(request, headers, messages, other.email)).ok()).toBeTruthy();
   expect((await request.post("/api/auth/sign-in/email", { headers, data: { email: other.email, password: other.password } })).ok()).toBeTruthy();
   expect((await request.post("/api/workspaces", { headers, data: { name: "Studio Altrui", taxProfile: "ordinario" } })).ok()).toBeTruthy();
   await request.storageState({ path: "e2e/.auth/other.json" });

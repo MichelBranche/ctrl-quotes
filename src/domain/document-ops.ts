@@ -10,6 +10,7 @@ import {
   type QuoteBlock,
   type QuoteDocument,
 } from "@/domain/quote-document";
+import { isEmptyFormat, normalizeMarks, remapMarks, type BlockLook, type Mark, type TextFormat } from "@/domain/text-format";
 
 /**
  * Every change to a quote body goes through `applyCommand`: the form editor today, the visual
@@ -87,8 +88,49 @@ export function setField(block: QuoteBlock, field: FieldPath, value: FieldValue)
   } else {
     next = { ...block, [head]: value };
   }
+  // Bold words and links stay on the same words when the text changes around them.
+  const format = block.fmt?.[field];
+  const before = getField(block, field);
+  if (format?.marks?.length && typeof before === "string" && typeof value === "string") {
+    next = { ...next, fmt: { ...block.fmt, [field]: { ...format, marks: remapMarks(format.marks, before, value) } } };
+  }
   const parsed = blockSchema.safeParse(next);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Valore non valido." };
+  return { ok: true, value: parsed.data };
+}
+
+/** Writes the format of one field (null clears it). Marks are normalised to the current text. */
+export function setFormat(block: QuoteBlock, field: FieldPath, format: TextFormat | null): OpResult<QuoteBlock> {
+  const value = getField(block, field);
+  if (typeof value !== "string") return { ok: false, message: "Questo campo non si può formattare." };
+  const fmt = { ...block.fmt };
+  const clean: TextFormat | null = format ? { ...format, marks: format.marks ? normalizeMarks(format.marks, value.length) : undefined } : null;
+  if (clean && !clean.marks?.length) delete clean.marks;
+  if (!clean || isEmptyFormat(clean)) delete fmt[field];
+  else fmt[field] = clean;
+  const next: Record<string, unknown> = { ...block, fmt };
+  if (!Object.keys(fmt).length) delete next.fmt;
+  const parsed = blockSchema.safeParse(next);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Formato non valido." };
+  return { ok: true, value: parsed.data };
+}
+
+/** Text and inline marks together, as the visual editor commits them. */
+export function setRich(block: QuoteBlock, field: FieldPath, value: string, marks: Mark[]): OpResult<QuoteBlock> {
+  if (getField(block, field) === undefined) return { ok: false, message: "Questo campo non esiste più." };
+  const plain = { ...block, fmt: block.fmt ? { ...block.fmt, [field]: { ...block.fmt[field], marks: [] } } : undefined } as QuoteBlock;
+  const written = setField(plain, field, value);
+  if (!written.ok) return written;
+  return setFormat(written.value, field, { ...block.fmt?.[field], marks });
+}
+
+export function setLook(block: QuoteBlock, look: BlockLook | null): OpResult<QuoteBlock> {
+  const next: Record<string, unknown> = { ...block };
+  const clean = look ? Object.fromEntries(Object.entries(look).filter(([, value]) => value !== undefined)) : {};
+  if (Object.keys(clean).length) next.look = clean;
+  else delete next.look;
+  const parsed = blockSchema.safeParse(next);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Stile non valido." };
   return { ok: true, value: parsed.data };
 }
 
@@ -96,6 +138,14 @@ export type DocumentCommand =
   /** The form editor replaces a whole block at a time. Type and id never change. */
   | { kind: "replaceBlock"; block: QuoteBlock }
   | { kind: "setField"; blockId: string; field: FieldPath; value: FieldValue }
+  /** Element style and marks of one text field; null goes back to the template's type. */
+  | { kind: "setFormat"; blockId: string; field: FieldPath; format: TextFormat | null }
+  /** Text and inline marks in one step (the visual editor's text session). */
+  | { kind: "setRich"; blockId: string; field: FieldPath; value: string; marks: Mark[] }
+  /** Spacing, background and border of a block; null goes back to the template's. */
+  | { kind: "setLook"; blockId: string; look: BlockLook | null }
+  /** Clears every format and look of a block. */
+  | { kind: "resetBlockStyle"; blockId: string }
   | { kind: "insertBlock"; block: QuoteBlock; index: number }
   | { kind: "moveBlock"; blockId: string; toIndex: number }
   /** New order of the same ids, e.g. from a drag and drop list. */
@@ -160,17 +210,38 @@ function withBlocks(document: QuoteDocument, blocks: QuoteBlock[]): QuoteDocumen
 
 function copyBlock(block: QuoteBlock, makeId: () => string): QuoteBlock {
   const id = makeId();
+  const ids = new Map<string, string>();
+  const renew = (old: string) => {
+    const fresh = makeId();
+    ids.set(old, fresh);
+    return fresh;
+  };
+  let copy: QuoteBlock;
   switch (block.type) {
     case "services":
     case "options":
-      return { ...block, id, items: block.items.map((line) => ({ ...line, id: makeId() })) };
+      copy = { ...block, id, items: block.items.map((line) => ({ ...line, id: renew(line.id) })) };
+      break;
     case "highlights":
-      return { ...block, id, items: block.items.map((item) => ({ ...item, id: makeId() })) };
+      copy = { ...block, id, items: block.items.map((item) => ({ ...item, id: renew(item.id) })) };
+      break;
     case "timeline":
-      return { ...block, id, steps: block.steps.map((step) => ({ ...step, id: makeId() })) };
+      copy = { ...block, id, steps: block.steps.map((step) => ({ ...step, id: renew(step.id) })) };
+      break;
     default:
-      return { ...block, id };
+      copy = { ...block, id };
   }
+  // Formats of rows follow the rows to their new ids.
+  if (block.fmt) {
+    copy.fmt = Object.fromEntries(
+      Object.entries(block.fmt).map(([path, format]) => {
+        const [head, rowId, key] = path.split(".");
+        const fresh = rowId ? ids.get(rowId) : undefined;
+        return [fresh && key ? `${head}.${fresh}.${key}` : path, format];
+      }),
+    );
+  }
+  return copy;
 }
 
 /** A copy starts unlocked: it is new content to work on. */
@@ -217,6 +288,29 @@ export function applyCommand(document: QuoteDocument, command: DocumentCommand, 
       const result = setField(block, command.field, command.value);
       if (!result.ok) return result;
       next = withBlocks(document, document.blocks.map((entry, position) => (position === at ? result.value : entry)));
+      break;
+    }
+    case "setFormat":
+    case "setRich":
+    case "setLook":
+    case "resetBlockStyle": {
+      const at = index(command.blockId);
+      const block = document.blocks[at];
+      if (!block) return missing;
+      if (isLocked(block)) return { ok: false, message: lockedMessage };
+      let result: OpResult<QuoteBlock>;
+      if (command.kind === "setFormat") result = setFormat(block, command.field, command.format);
+      else if (command.kind === "setRich") result = setRich(block, command.field, command.value, command.marks);
+      else if (command.kind === "setLook") result = setLook(block, command.look);
+      else {
+        const copy = { ...block };
+        delete copy.fmt;
+        delete copy.look;
+        result = { ok: true, value: copy };
+      }
+      if (!result.ok) return result;
+      const value = result.value;
+      next = withBlocks(document, document.blocks.map((entry, position) => (position === at ? value : entry)));
       break;
     }
     case "insertBlock": {

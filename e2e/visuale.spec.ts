@@ -38,7 +38,7 @@ async function newQuote(page: Page, title: string, suffix: string) {
   return page.url();
 }
 
-const outlineTitles = (page: Page) => page.locator(".ve-outline-select span").allTextContents();
+const outlineTitles = (page: Page) => page.locator(".branched-menu__label").allTextContents();
 
 async function saved(page: Page) {
   await expect(page.getByText(/Salvato alle/)).toBeVisible({ timeout: 15_000 });

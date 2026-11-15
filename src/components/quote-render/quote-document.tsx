@@ -6,6 +6,9 @@ import type { QuoteSnapshot } from "@/domain/quote-snapshot";
 import { cn } from "@/lib/cn";
 import type { Kit } from "./kit";
 import { IdScopeProvider, SheetProvider, webKit } from "./kit-web";
+import { fontCssHref } from "@/domain/fonts";
+import { fontsInFormats } from "@/domain/text-format";
+import { brandFontRef, formatContext, withFormats } from "./format";
 import { buildModel, type LogoInfo, type Resources } from "./model";
 import { renderers } from "./templates";
 
@@ -184,7 +187,18 @@ export function QuoteDocumentView({
       : snapshot;
     return buildModel(source, resources, renderer.numbering);
   }, [snapshot, logo, assetBase, watermark, versionLabel, renderer.numbering, imagePlaceholder]);
-  const pages = renderer.render(kit, model);
+  const formats = useMemo(() => formatContext(snapshot.document, snapshot.brand), [snapshot.document, snapshot.brand]);
+  const fontHref = useMemo(
+    () =>
+      fontCssHref(
+        [
+          ...fontsInFormats(snapshot.document.blocks.map((block) => block.fmt)),
+          ...[brandFontRef(snapshot.brand.fontHeading), brandFontRef(snapshot.brand.fontBody)].filter((ref) => ref !== null),
+        ],
+      ),
+    [snapshot.document, snapshot.brand],
+  );
+  const pages = renderer.render(withFormats(kit, formats), model);
   useReveal(root, animate, `${snapshot.template}:${pages.length}`);
   return (
     <div
@@ -197,6 +211,8 @@ export function QuoteDocumentView({
       style={{ "--qd-fit": scale ?? 1 } as React.CSSProperties}
     >
       {activeBlockId ? <style>{`.qd-stage [data-block-id="${activeBlockId.replace(/[^\w-]/g, "")}"]{outline:2px solid var(--color-accent, #7c3aed);outline-offset:4px;border-radius:2px}`}</style> : null}
+      {/* Library fonts of this quote, served from this app (no third party sees the reader). */}
+      {fontHref ? <link rel="stylesheet" href={fontHref} precedence="cq-fonts" /> : null}
       <IdScopeProvider scope={scope}>
         <div className="qd-sheets">
           {pages.map((page, index) =>

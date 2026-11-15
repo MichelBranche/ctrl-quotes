@@ -1,5 +1,5 @@
 import "server-only";
-import { Circle, Defs, Ellipse, G, Image, Line, LinearGradient, Page, Path, RadialGradient, Rect, Stop, Svg, Text, View } from "@react-pdf/renderer";
+import { Circle, Defs, Ellipse, G, Image, Line, LinearGradient, Link, Page, Path, RadialGradient, Rect, Stop, Svg, Text, View } from "@react-pdf/renderer";
 import type { ComponentProps } from "react";
 import { flatten, type Kit, type ShapeProps, type Style } from "@/components/quote-render/kit";
 import { printPageProp, printTagProp } from "./fit";
@@ -36,11 +36,16 @@ export const pdfKit: Kit = {
       {children}
     </View>
   ),
-  T: ({ style, children, fixed }) => (
-    <Text style={s(style)} {...(fixed ? { fixed: true } : {})}>
-      {children}
-    </Text>
-  ),
+  T: ({ style, children, fixed, href }) =>
+    href ? (
+      <Link src={href} style={s(style) as never}>
+        {children}
+      </Link>
+    ) : (
+      <Text style={s(style)} {...(fixed ? { fixed: true } : {})}>
+        {children}
+      </Text>
+    ),
   // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf images have no alt attribute
   Img: ({ src, style }) => <Image src={src} style={s(style)} />,
   Svg: ({ width, height, viewBox, style, children, preserveAspectRatio }) => (

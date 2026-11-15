@@ -37,7 +37,8 @@ function EditV({ edit, ...props }: ViewProps) {
 }
 
 function EditT({ edit, ...props }: TextProps) {
-  return <WebT {...props} anchor={anchorAttrs(edit)} />;
+  // Links print as text in the editor: a click there means "edit", never "leave the page".
+  return <WebT {...props} anchor={anchorAttrs(edit)} inert />;
 }
 
 export const editKit: Kit = { ...webKit, V: EditV, T: EditT };

@@ -2,10 +2,12 @@ import { z } from "zod";
 import { catalogBillings, toPricingBilling, type CatalogBilling } from "@/domain/catalog";
 import { createId } from "@/domain/ids";
 import { priceQuote, type PriceMode, type PriceResult, type TaxProfile } from "@/domain/pricing";
+import { blockLookSchema, fieldFormatsSchema } from "@/domain/text-format";
 
 /**
  * The editable body of a quote: an ordered list of typed blocks.
  * Content is plain text only. No HTML, no markdown, no scripts: the renderers print text nodes.
+ * Formatting (fonts, sizes, colours, bold words, links) lives beside the text as data, see text-format.ts.
  */
 
 export const blockTypes = [
@@ -140,6 +142,10 @@ const base = {
   locked: z.boolean().optional(),
   /** Side by side placement: consecutive blocks with the same row form a row, widths in sixths. Absent means full width. */
   col: z.object({ row: z.string().min(1).max(64), span: z.union([z.literal(2), z.literal(3), z.literal(4)]) }).optional(),
+  /** Text formatting per field path (element style and inline marks). Absent: the template's type. */
+  fmt: fieldFormatsSchema.optional(),
+  /** Spacing, background, border and corners of the block. Absent: the template's. */
+  look: blockLookSchema.optional(),
 };
 const heading = plain(limits.heading, "Titolo sezione").default("");
 const body = plain(limits.body, "Testo").default("");

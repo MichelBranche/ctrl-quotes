@@ -160,7 +160,7 @@ export function demoSnapshot(template: TemplateKey, options: { services?: QuoteL
       ownerName: null,
       ownerEmail: null,
     },
-    brand: { colorPrimary: "#0B0B0F", colorSecondary: "#7C3AED", colorBackground: "#FFFFFF", fontHeading: "Inter", fontBody: "Inter", logo: options.logo ?? null },
+    brand: { colorPrimary: "#0B0B0F", colorSecondary: "#7C3AED", colorBackground: "#FFFFFF", fontHeading: "template", fontBody: "template", logo: options.logo ?? null },
     template,
     fiscal,
     document,

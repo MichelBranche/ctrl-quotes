@@ -1,18 +1,14 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowLeft,
-  CheckCircle2,
-  CircleAlert,
   Download,
   Eye,
   History,
-  LoaderCircle,
   Lock,
   Monitor,
   Redo2,
@@ -44,6 +40,7 @@ import { cn } from "@/lib/cn";
 import { BlockForm } from "./block-form";
 import { BlockList, blockIcon, blockTitle } from "./block-list";
 import { StylePanel } from "./style-panel";
+import { Status } from "@/components/ui/async-status";
 import { PercentInput } from "./inputs";
 import { useQuoteDraft, useUndoShortcuts, type SaveState } from "./state/use-quote-draft";
 import { useEditorMode } from "./mode";
@@ -319,6 +316,8 @@ export function QuoteEditor({
             documentStyle={
               <StylePanel
                 embedded
+                onOpenDetails={() => setTab("details")}
+                brandFonts={{ heading: data.snapshot.brand.fontHeading, body: data.snapshot.brand.fontBody }}
                 templates={templates}
                 templateId={meta.templateId}
                 templateKey={templateKey}
@@ -574,40 +573,22 @@ export function QuoteEditor({
 }
 
 function SaveIndicator({ state, savedAt, error, onRetry, readOnly }: { state: SaveState; savedAt: Date; error: string | null; onRetry: () => void; readOnly: boolean }) {
-  const reduced = useReducedMotion();
   if (readOnly) return null;
-  // The icon pops in when the state changes: spinner while saving, a check once it is stored.
-  const pop = (key: string, icon: React.ReactNode) => (
-    <motion.span key={key} className="save-icon" initial={reduced ? false : { scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 600, damping: 28 }}>
-      {icon}
-    </motion.span>
-  );
-  if (state === "saving" || state === "dirty") {
-    return (
-      <span className="save-indicator" role="status">
-        {pop("saving", <LoaderCircle size={15} aria-hidden="true" className="spin" />)} {state === "saving" ? "Salvataggio in corso" : "Modifiche in attesa"}
-      </span>
-    );
-  }
-  if (state === "error" || state === "conflict") {
-    return (
-      <span className="save-indicator is-error" role="alert">
-        {pop("error", <CircleAlert size={15} aria-hidden="true" />)} {error ?? "Salvataggio non riuscito."}
-        {state === "error" ? (
-          <button type="button" className="link-btn" onClick={onRetry}>
-            Riprova
-          </button>
-        ) : (
-          <button type="button" className="link-btn" onClick={() => window.location.reload()}>
-            Ricarica
-          </button>
-        )}
-      </span>
-    );
-  }
+  const failed = state === "error" || state === "conflict";
+  const status = state === "saving" ? "running" : state === "dirty" ? "pending" : failed ? "failed" : "done";
+  const label = state === "saving" ? "Salvataggio…" : state === "dirty" ? "Modifiche in attesa" : failed ? (error ?? "Salvataggio non riuscito.") : `Salvato alle ${timeFormat.format(savedAt)}`;
   return (
-    <span className="save-indicator is-ok" role="status">
-      {pop("ok", <CheckCircle2 size={15} aria-hidden="true" />)} Salvato alle {timeFormat.format(savedAt)}
+    <span className={cn("save-indicator", failed && "is-error", status === "done" && "is-ok")} role={failed ? "alert" : "status"}>
+      <Status status={status} label={label} />
+      {state === "error" ? (
+        <button type="button" className="link-btn" onClick={onRetry}>
+          Riprova
+        </button>
+      ) : state === "conflict" ? (
+        <button type="button" className="link-btn" onClick={() => window.location.reload()}>
+          Ricarica
+        </button>
+      ) : null}
     </span>
   );
 }

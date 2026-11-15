@@ -15,6 +15,7 @@ import { inviteMemberAction, changeRoleAction, removeMemberAction, resendInviteA
 import { inviteRoleLabels, type PendingInvite, type SeatUsage } from "@/domain/invites";
 import { overSeatCapMessage } from "@/domain/stripe-plans";
 import type { Member } from "@/server/team";
+import { HoldDelete } from "@/components/ui/destructive";
 
 
 const dateFormat = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Rome" });
@@ -240,16 +241,15 @@ export function TeamView({
           <Button variant="secondary" onClick={() => setRemoving(null)} autoFocus>
             Annulla
           </Button>
-          <Button
-            className="btn-danger"
-            loading={pending}
-            onClick={() => {
+          <HoldDelete
+            label="Tieni premuto per rimuovere"
+            doneLabel="Rimosso"
+            disabled={pending}
+            onHold={() => {
               const target = removing;
               if (target) run(() => removeMemberAction(target.userId), () => setRemoving(null));
             }}
-          >
-            Rimuovi
-          </Button>
+          />
         </div>
       </Dialog>
     </SettingsFrame>

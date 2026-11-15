@@ -43,33 +43,32 @@ async function saved(page: Page) {
 }
 
 /** Outline rows as "title" in order, read from the DOM. */
-const outlineTitles = (page: Page) => page.locator(".ve-outline-select span").allTextContents();
+const outlineTitles = (page: Page) => page.locator(".branched-menu__label").allTextContents();
 
 /** Each outline row with the page group it sits in, e.g. "Pagina 3 · dal Riepilogo". */
 const outlinePages = (page: Page) =>
-  page.locator(".ve-outline-row").evaluateAll((rows) => {
-    let group = "";
-    return rows.map((row) => {
-      group = row.querySelector(".ve-outline-page")?.textContent ?? group;
-      return `${group} > ${row.querySelector(".ve-outline-select span")?.textContent ?? ""}`;
-    });
-  });
+  page.locator(".branched-menu__section").evaluateAll((sections) =>
+    sections.flatMap((section) => {
+      const group = section.querySelector(".branched-menu__head-label")?.textContent ?? "";
+      return [...section.querySelectorAll(".branched-menu__row")].map((row) => `${group} > ${row.querySelector(".branched-menu__label")?.textContent ?? ""}`);
+    }),
+  );
 
 /** Block ids printed on the sheet, in order, and the outline's visible ones. */
 const sheetOrder = (page: Page) => page.locator(".ve-content [data-block-id]").evaluateAll((items) => [...new Set(items.map((item) => item.getAttribute("data-block-id")))]);
 /** Outline order of the blocks that print (an empty block, e.g. Tempistiche with no steps, prints nothing). */
 const outlinePrintedOrder = async (page: Page) => {
   const printed = new Set(await sheetOrder(page));
-  const ids = await page.locator(".ve-outline-row:not(:has(.is-hidden))").evaluateAll((rows) => rows.map((row) => row.getAttribute("data-block-id")));
+  const ids = await page.locator(".branched-menu__row:not([data-muted])").evaluateAll((rows) => rows.map((row) => row.getAttribute("data-value")));
   return ids.filter((id) => printed.has(id));
 };
 
-const row = (page: Page, title: string | RegExp) => page.locator(".ve-outline-row").filter({ has: page.locator(".ve-outline-select span", { hasText: title }) });
+const row = (page: Page, title: string | RegExp) => page.locator(".branched-menu__row").filter({ has: page.locator(".branched-menu__label", { hasText: title }) });
 
 /** Drags an outline row by its grip, in small steps like a person would. */
 async function dragRow(page: Page, from: Locator, to: Locator, onTheWay?: () => Promise<void>) {
   await from.hover();
-  const grip = await from.locator(".ve-outline-grip").boundingBox();
+  const grip = await from.locator(".branched-menu__grip:not(.is-off)").boundingBox();
   const target = await to.boundingBox();
   if (!grip || !target) throw new Error("row not visible");
   const x = grip.x + grip.width / 2;
@@ -122,9 +121,9 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
     await expect(item.getByRole("button", { name: new RegExp(`^Blocca ${escape(title)}`) })).toBeVisible();
     await expect(item.getByRole("button", { name: new RegExp(`^Elimina ${escape(title)}`) })).toBeVisible();
   }
-  const cover = page.locator(".ve-outline-row").first();
-  await expect(cover.locator(".ve-outline-pin")).toBeVisible();
-  await expect(cover.locator(".ve-outline-grip")).toHaveCount(0);
+  const cover = page.locator(".branched-menu__row").first();
+  await expect(cover.locator(".branched-menu__grip.is-off")).toHaveCount(1);
+  await expect(cover.locator(".branched-menu__grip:not(.is-off)")).toHaveCount(0);
   await row(page, "Il progetto").hover();
   await shot(page, "struttura-azioni", testInfo);
 
@@ -134,11 +133,11 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
   expect(pagesBefore.at(-1)).toContain("dal Riepilogo");
   await row(page, late).hover();
   await row(page, late).getByRole("button", { name: /^Nascondi/ }).click();
-  await expect(row(page, late).locator(".ve-outline-item")).toHaveClass(/is-hidden/);
+  await expect(row(page, late)).toHaveAttribute("data-muted", "");
   expect(await outlinePages(page)).toEqual(pagesBefore);
   await shot(page, "struttura-nascosto", testInfo);
   await row(page, late).getByRole("button", { name: /^Mostra/ }).click();
-  await expect(row(page, late).locator(".ve-outline-item")).not.toHaveClass(/is-hidden/);
+  await expect(row(page, late)).not.toHaveAttribute("data-muted");
   expect(await outlinePages(page)).toEqual(pagesBefore);
   expect(await outlineTitles(page)).toEqual(titles);
 
@@ -150,20 +149,20 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
   expect(offered).toEqual(expect.arrayContaining(["Introduzione", "Testo", "Immagine", "Servizi", "Opzioni", "Vantaggi", "Condizioni"]));
   for (const label of offered) {
     // With the signature (Contatti) selected, a new block still lands before the Riepilogo.
-    if (label === "Vantaggi") await row(page, "Contatti e accettazione").locator(".ve-outline-select").click();
+    if (label === "Vantaggi") await row(page, "Contatti e accettazione").locator(".branched-menu__item").click();
     await page.locator(".ve-outline-add").click();
     await expect(picker).toBeVisible();
     await picker.locator(".ve-picker-item").filter({ hasText: label }).first().click();
     await expect(picker).toHaveCount(0);
-    const selectedRow = page.locator(".ve-outline-row").filter({ has: page.locator(".ve-outline-item.is-selected") });
-    const id = await selectedRow.getAttribute("data-block-id");
+    const selectedRow = page.locator(".branched-menu__row").filter({ has: page.locator(".branched-menu__item[data-active]") });
+    const id = await selectedRow.getAttribute("data-value");
     const block = sheet.locator(`[data-block-id="${id}"]`).first();
     await expect(block, `${label} sul foglio`).toBeVisible();
     await expect(block, `${label} in vista`).toBeInViewport();
     await expect(visuale.locator(".ve-frame.is-new")).toBeVisible();
     if (label === "Vantaggi") {
-      const order = await page.locator(".ve-outline-row").evaluateAll((rows) => rows.map((entry) => entry.getAttribute("data-block-id")));
-      const summaryId = await row(page, "Riepilogo economico").getAttribute("data-block-id");
+      const order = await page.locator(".branched-menu__row").evaluateAll((rows) => rows.map((entry) => entry.getAttribute("data-value")));
+      const summaryId = await row(page, "Riepilogo economico").getAttribute("data-value");
       expect(order.indexOf(id)).toBe(order.indexOf(summaryId) - 1);
       await expect(block).toContainText("Punto di forza 1");
       await shot(page, "struttura-vantaggi", testInfo);
@@ -172,7 +171,7 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
     // Close what opened (text session or fields drawer) and take the block away again.
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
-    const addedRow = page.locator(`.ve-outline-row[data-block-id="${id}"]`);
+    const addedRow = page.locator(`.branched-menu__row[data-value="${id}"]`);
     await addedRow.hover();
     await addedRow.getByRole("button", { name: /^Elimina/ }).click();
     await expect(addedRow).toHaveCount(0);
@@ -190,28 +189,32 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
   await expect.poll(() => outlineTitles(page)).toEqual(titles);
   await saved(page);
 
-  // Drag in the outline: the sheet follows, the cover never moves.
+  // Drag in the outline, inside its page: the sheet follows, the cover never moves.
   const moving = titles[titles.length - 1] ?? "";
-  const target = titles[1] ?? "";
+  const groupFirst = row(page, moving).locator("xpath=..").locator(".branched-menu__row").first();
+  const target = ((await groupFirst.locator(".branched-menu__label").textContent()) ?? "").trim();
+  const top = titles.indexOf(target);
+  expect(top).toBeGreaterThan(0);
   await dragRow(page, row(page, moving), row(page, target), async () => {
-    await expect(page.locator(".ve-outline-item.is-dragging")).toBeVisible();
+    await expect(page.locator(".branched-menu__row[data-dragging]")).toBeVisible();
     await shot(page, "struttura-trascinamento", testInfo);
   });
-  await expect.poll(async () => (await outlineTitles(page)).indexOf(moving)).toBe(1);
+  await expect.poll(async () => (await outlineTitles(page)).indexOf(moving)).toBe(top);
   await expect.poll(async () => (await sheetOrder(page)).join()).toBe((await outlinePrintedOrder(page)).join());
   const coverTitle = titles[0] ?? "";
-  await dragRow(page, row(page, moving), page.locator(".ve-outline-row").first());
+  await dragRow(page, row(page, moving), page.locator(".branched-menu__row").first());
   expect((await outlineTitles(page))[0]).toBe(coverTitle);
 
-  // Keyboard on the grip: arrow down moves one place.
+  // Keyboard on the grip: arrow down moves one place (pages regroup as blocks move, so read where it is now).
+  const before = (await outlineTitles(page)).indexOf(moving);
   await row(page, moving).hover();
-  await row(page, moving).locator(".ve-outline-grip").focus();
+  await row(page, moving).locator(".branched-menu__grip:not(.is-off)").focus();
   await page.keyboard.press("ArrowDown");
-  await expect.poll(async () => (await outlineTitles(page)).indexOf(moving)).toBe(2);
+  await expect.poll(async () => (await outlineTitles(page)).indexOf(moving)).toBe(before + 1);
   await saved(page);
   await page.reload();
   await expect(visuale).toBeVisible();
-  await expect.poll(async () => (await outlineTitles(page)).indexOf(moving)).toBe(2);
+  await expect.poll(async () => (await outlineTitles(page)).indexOf(moving)).toBe(before + 1);
   await expect.poll(async () => (await sheetOrder(page)).join()).toBe((await outlinePrintedOrder(page)).join());
 
   // Lock: the content stops taking edits, the cover's pin is a different thing.
@@ -220,7 +223,7 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
   await intro.getByRole("button", { name: /^Blocca/ }).click();
   await expect(intro.getByRole("button", { name: /^Sblocca/ })).toHaveAttribute("aria-pressed", "true");
   await expect(intro.getByRole("button", { name: /^Elimina/ })).toBeDisabled();
-  const introId = await intro.getAttribute("data-block-id");
+  const introId = await intro.getAttribute("data-value");
   const introText = sheet.locator(`[data-edit-block="${introId}"]`).first();
   await introText.click();
   await expect(visuale.getByRole("textbox")).toHaveCount(0);

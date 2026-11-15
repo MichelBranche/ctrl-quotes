@@ -25,6 +25,8 @@ export function StylePanel({
   onTemplate,
   onStyle,
   embedded = false,
+  onOpenDetails,
+  brandFonts,
 }: {
   templates: TemplateRow[];
   templateId: string;
@@ -38,6 +40,10 @@ export function StylePanel({
   onStyle: (style: DocumentStyle) => void;
   /** Inside the visual editor's side panel: no card, a "whole document" heading. */
   embedded?: boolean;
+  /** Embedded only: the template is chosen in the Dettagli tab, not in Stile. */
+  onOpenDetails?: () => void;
+  /** Brand Kit fonts ("template" or a font ref), shown as document settings when embedded. */
+  brandFonts?: { heading: string; body: string };
 }) {
   const titleId = useId();
   const style = document.style;
@@ -49,16 +55,7 @@ export function StylePanel({
   const accent = style.accent === "template" ? info.accent : style.accent === "brand" ? brandAccent : style.accent;
   const contrast = hex.test(accent) ? contrastRatio(accent, "#FFFFFF") : 21;
   const setAccent = (value: DocumentStyle["accent"]) => onStyle({ ...style, accent: value });
-
-  return (
-    <section className={embedded ? "style-panel is-embedded" : "card editor-panel style-panel"} aria-labelledby={titleId}>
-      <div className="panel-head">
-        <div>
-          <h2 id={titleId}>{embedded ? "Tutto il documento" : "Stile del preventivo"}</h2>
-          <p className="muted small">{embedded ? "Template, foto e colore valgono per tutte le pagine. I contenuti non cambiano." : "Cambia l'impaginazione senza toccare i contenuti."}</p>
-        </div>
-      </div>
-
+  const templateGrid = (
       <div className="style-grid" role="radiogroup" aria-label="Template">
         {templates.map((template) => (
           <button
@@ -78,7 +75,47 @@ export function StylePanel({
           </button>
         ))}
       </div>
+  );
 
+  return (
+    <section className={embedded ? "style-panel is-embedded" : "card editor-panel style-panel"} aria-labelledby={titleId}>
+      {embedded ? (
+        <h2 id={titleId} className="visually-hidden">
+          Tutto il documento
+        </h2>
+      ) : (
+      <div className="panel-head">
+        <div>
+          <h2 id={titleId}>Stile del preventivo</h2>
+          <p className="muted small">Cambia l&apos;impaginazione senza toccare i contenuti.</p>
+        </div>
+      </div>
+      )}
+
+      {embedded ? (
+        <dl className="doc-facts">
+          <div>
+            <dt>Formato</dt>
+            <dd>A4 verticale, uguale nel link e nel PDF</dd>
+          </div>
+          <div>
+            <dt>Template</dt>
+            <dd>
+              {templates.find((template) => template.id === templateId)?.name ?? info.name}
+              {onOpenDetails ? (
+                <>
+                  {" "}
+                  <button type="button" className="link-btn" onClick={onOpenDetails}>
+                    Cambia in Dettagli
+                  </button>
+                </>
+              ) : null}
+            </dd>
+          </div>
+        </dl>
+      ) : (
+        templateGrid
+      )}
       {info.photos.length ? (
         <fieldset className="style-field" disabled={readOnly}>
           <legend>Immagine di copertina</legend>
@@ -135,6 +172,22 @@ export function StylePanel({
           </p>
         ) : null}
       </fieldset>
+      {embedded && brandFonts ? (
+        <div className="style-field">
+          <p className="style-legend">Tipografia</p>
+          <dl className="doc-facts">
+            <div>
+              <dt>Titoli</dt>
+              <dd>{fontLabel(brandFonts.heading)}</dd>
+            </div>
+            <div>
+              <dt>Testo</dt>
+              <dd>{fontLabel(brandFonts.body)}</dd>
+            </div>
+          </dl>
+          <p className="muted small">Si cambiano per tutti i preventivi nel <Link href="/app/settings/brand">Brand Kit</Link>; per un solo testo usa Stile sul blocco.</p>
+        </div>
+      ) : null}
       <p className="muted small">
         Logo e dati aziendali arrivano dal <Link href="/app/settings/brand">Brand Kit</Link>.
       </p>
@@ -166,4 +219,11 @@ function ArcSwatch({ accent }: { accent: string }) {
       <circle cx="64" cy="64" r="52" fill="url(#arc-swatch)" />
     </svg>
   );
+}
+
+/** "g:Playfair Display" -> "Playfair Display", "fs:general-sans" -> "General Sans". */
+function fontLabel(value: string) {
+  if (value.startsWith("g:")) return value.slice(2);
+  if (value.startsWith("fs:")) return value.slice(3).split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+  return "Del template";
 }

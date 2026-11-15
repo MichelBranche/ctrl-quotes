@@ -33,6 +33,7 @@ import type { QuotableItem } from "@/server/quotes";
 import { cn } from "@/lib/cn";
 import { ChartContentFields, ChartStyleFields } from "./chart-form";
 import { IntInput, MoneyInput, PercentInput, QuantityInput } from "./inputs";
+import { BusyMark } from "@/components/ui/async-status";
 
 export type FormContext = {
   quoteId: string;
@@ -322,7 +323,7 @@ function ImagePicker({ label, quoteId, assetId, onAsset }: { label: string; quot
         </div>
       ) : (
         <button type="button" className="dropzone image-drop" onClick={() => input.current?.click()} disabled={pending}>
-          <ImagePlus size={20} aria-hidden="true" />
+          {pending ? <BusyMark size={20} /> : <ImagePlus size={20} aria-hidden="true" />}
           <span>{pending ? "Caricamento in corso" : "Carica PNG o JPG, massimo 1,5 MB"}</span>
         </button>
       )}

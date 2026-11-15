@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, CreditCard, Landmark, Wallet } from "lucide-react";
 import { formatEuro } from "@/domain/money";
 import { paymentStatusLabel, type PublicPaymentView } from "@/domain/payments";
+import { BusyMark } from "@/components/ui/async-status";
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -123,7 +124,7 @@ export function PublicPaymentSection({ token, payment }: { token: string; paymen
 
       {!paid && payment.stripe?.available !== false && payment.methods.includes("stripe") ? (
         <button type="button" className="pq-btn dark block pq-pay-btn" onClick={() => void payWithCard()} disabled={pending}>
-          <CreditCard size={16} aria-hidden="true" /> {pending ? "Apro Stripe…" : "Paga con carta"}
+          {pending ? <BusyMark /> : <CreditCard size={16} aria-hidden="true" />} {pending ? "Apro Stripe…" : "Paga con carta"}
         </button>
       ) : null}
       {error ? (
