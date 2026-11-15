@@ -26,6 +26,10 @@ export const rateRules = {
   badToken: { name: "q-bad-token", limit: 20, windowSec: 3600 },
   /** Redeem codes: per user. Slows down guessing. */
   redeem: { name: "redeem", limit: 8, windowSec: 600 },
+  /** Team invite emails: per workspace. */
+  inviteSend: { name: "invite-send", limit: 8, windowSec: 3600 },
+  /** Same invite email in the same workspace: daily cap. */
+  inviteEmail: { name: "invite-email", limit: 3, windowSec: 86400 },
 } as const satisfies Record<string, RateRule>;
 
 export type RateResult = { ok: boolean; remaining: number; resetAt: number };

@@ -6,10 +6,11 @@ import { OtpForm } from "@/components/auth/otp-form";
 import { messages } from "@/i18n/it";
 import { ensureMigrated } from "@/db/client";
 import { getAuth } from "@/server/auth";
+import { safeInvitePath } from "@/domain/invite-path";
 
 export const metadata = { title: "Verifica email" };
 
-type Search = Promise<{ token?: string; email?: string }>;
+type Search = Promise<{ token?: string; email?: string; next?: string }>;
 
 export default function VerifyEmailPage({ searchParams }: { searchParams: Search }) {
   return (
@@ -23,6 +24,8 @@ async function VerifyContent({ searchParams }: { searchParams: Search }) {
   await connection();
   const params = await searchParams;
   const email = typeof params.email === "string" ? params.email.trim() : "";
+  const next = safeInvitePath(typeof params.next === "string" ? params.next : null);
+  const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
 
   if (params.token) {
     let ok = false;
@@ -38,7 +41,7 @@ async function VerifyContent({ searchParams }: { searchParams: Search }) {
         <h1>{ok ? messages.auth.verifiedTitle : messages.auth.verifyFailedTitle}</h1>
         <p className="lede">{ok ? messages.auth.verifiedBody : messages.auth.verifyFailedBody}</p>
         <p>
-          <Link href="/login">{messages.auth.loginLink}</Link>
+          <Link href={loginHref}>{messages.auth.loginLink}</Link>
         </p>
       </AuthScreen>
     );
@@ -58,7 +61,7 @@ async function VerifyContent({ searchParams }: { searchParams: Search }) {
 
   return (
     <AuthScreen>
-      <OtpForm email={email} />
+      <OtpForm email={email} next={next} />
     </AuthScreen>
   );
 }

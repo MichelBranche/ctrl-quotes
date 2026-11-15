@@ -18,6 +18,9 @@ e le togliamo più avanti se decidiamo che non ci interessano. Fonte unica dei t
 - Template standard (5 template)
 - Tutte le funzionalità Starter (Pro)
 - Tutte le funzionalità Pro (Business): disponibili solo le parti già presenti in Pro
+- Collaborazione team (inviti via email, ruoli owner/admin/member, reinvio e revoca)
+- Posti nel team: 1 su Starter, 5 su Pro, illimitati su Business. Durante il Piano di prova si applicano i 5 posti del Piano Pro, finché non esiste il checkout.
+- Utenti illimitati (Piano Business)
 
 ## In arrivo, per piano
 
@@ -26,19 +29,18 @@ e le togliamo più avanti se decidiamo che non ci interessano. Fonte unica dei t
 
 ### Pro
 - Analytics avanzate
-- Collaborazione team (i ruoli esistono, gli inviti via email no)
 - Template personalizzati (esiste il brand kit, non i template su misura)
 - Supporto prioritario
 
 ### Business
-- Utenti illimitati
 - Controlli amministrativi (oggi solo ruoli owner/admin/member)
 - Sicurezza avanzata
 - Supporto prioritario 24/7
 
 ### Tabella "Confronta i piani"
 - Template personalizzati (Pro, Business)
-- Collaborazione team (Pro, Business)
+- Collaborazione team (Pro, Business): ora disponibile
+- Posti nel team (1 / 5 / illimitati)
 - Supporto prioritario (Business)
 
 Nota: nel mockup la tabella segna "Supporto prioritario" solo per Business, mentre la pagina Pro lo elenca in "Cosa include".

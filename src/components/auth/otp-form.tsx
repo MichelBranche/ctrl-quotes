@@ -14,7 +14,7 @@ function onlyDigits(value: string): string {
   return value.replace(/\D/g, "").slice(0, OTP_LENGTH);
 }
 
-export function OtpForm({ email }: { email: string }) {
+export function OtpForm({ email, next }: { email: string; next?: string | null }) {
   const [state, action, pending] = useActionState(verifyOtpAction, initial);
   const [digits, setDigits] = useState<string[]>(() => Array.from({ length: OTP_LENGTH }, () => ""));
   const [wait, setWait] = useState(RESEND_SECONDS);
@@ -106,6 +106,7 @@ export function OtpForm({ email }: { email: string }) {
       <p className="auth-otp-email">{email}</p>
       <form action={action} className="stack" onSubmit={onSubmit}>
         <input type="hidden" name="email" value={email} />
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <input type="hidden" name="otp" value={code} />
         {state.error ? <p className="alert" role="alert">{state.error}</p> : null}
         {resendError ? <p className="alert" role="alert">{resendError}</p> : null}
@@ -147,7 +148,7 @@ export function OtpForm({ email }: { email: string }) {
         )}
       </p>
       <p>
-        <Link href="/login">{messages.auth.backLogin}</Link>
+        <Link href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}>{messages.auth.backLogin}</Link>
       </p>
     </>
   );

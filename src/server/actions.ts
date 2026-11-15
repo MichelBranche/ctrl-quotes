@@ -14,6 +14,8 @@ import { clientIp } from "@/server/request-meta";
 import { previewAutoVerifyEmail } from "@/server/preview-auth";
 import { passesCaptcha } from "@/server/turnstile";
 import { requireUser, workspaceCookieOptions } from "@/server/session";
+import { safeInvitePath } from "@/domain/invite-path";
+import { readInviteCookiePath, resolveInviteNext } from "@/server/invite-cookie";
 import {
   createWorkspace,
   deleteWorkspace,
@@ -56,7 +58,12 @@ export async function loginAction(_state: FormState, formData: FormData): Promis
     if (error instanceof APIError) return { error: messages.auth.invalidLogin };
     throw error;
   }
-  redirect("/app/overview");
+  redirect(await postAuthPath(formData));
+}
+
+async function postAuthPath(formData: FormData): Promise<string> {
+  const next = resolveInviteNext(String(formData.get("next") ?? ""), await readInviteCookiePath());
+  return next ?? "/app/overview";
 }
 
 export async function registerAction(_state: FormState, formData: FormData): Promise<FormState> {
@@ -93,14 +100,16 @@ export async function registerAction(_state: FormState, formData: FormData): Pro
     });
   } catch (error) {
     if (error instanceof APIError && error.status === 429) return { error: messages.auth.tooMany };
-    redirect(registerNext(parsed.data.email));
+    redirect(registerNext(parsed.data.email, formData));
   }
-  redirect(registerNext(parsed.data.email));
+  redirect(registerNext(parsed.data.email, formData));
 }
 
-function registerNext(email: string): string {
-  if (previewAutoVerifyEmail()) return "/check-email";
-  return `/verify-email?email=${encodeURIComponent(email)}`;
+function registerNext(email: string, formData?: FormData): string {
+  const next = formData ? safeInvitePath(String(formData.get("next") ?? "")) : null;
+  const suffix = next ? `&next=${encodeURIComponent(next)}` : "";
+  if (previewAutoVerifyEmail()) return next ? `/check-email?next=${encodeURIComponent(next)}` : "/check-email";
+  return `/verify-email?email=${encodeURIComponent(email)}${suffix}`;
 }
 
 export async function verifyOtpAction(_state: FormState, formData: FormData): Promise<FormState> {
@@ -119,7 +128,9 @@ export async function verifyOtpAction(_state: FormState, formData: FormData): Pr
     if (code === "TOO_MANY_ATTEMPTS") return { error: messages.auth.tooManyCodes };
     return { error: messages.auth.invalidCode };
   }
-  redirect("/login?verified=1");
+  const next = safeInvitePath(String(formData.get("next") ?? ""));
+  const suffix = next ? `&next=${encodeURIComponent(next)}` : "";
+  redirect(`/login?verified=1${suffix}`);
 }
 
 export async function resendVerificationOtpAction(emailValue: string): Promise<FormState> {
@@ -174,9 +185,10 @@ export async function resetAction(_state: FormState, formData: FormData): Promis
   redirect("/login?reset=1");
 }
 
-export async function logoutAction(): Promise<void> {
+export async function logoutAction(formData?: FormData): Promise<void> {
   await getAuth().api.signOut({ headers: await headers() });
-  redirect("/login");
+  const next = formData ? safeInvitePath(String(formData.get("next") ?? "")) : null;
+  redirect(next ?? "/login");
 }
 
 export async function createWorkspaceAction(_state: FormState, formData: FormData): Promise<FormState> {

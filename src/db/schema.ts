@@ -123,6 +123,36 @@ export const workspaceMemberships = sqliteTable(
   ],
 );
 
+
+export const workspaceInvitations = sqliteTable(
+  "workspace_invitations",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: text("role").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    invitedByUserId: text("invited_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"),
+    expiresAt: timestamp("expires_at").notNull(),
+    acceptedAt: timestamp("accepted_at"),
+    acceptedByUserId: text("accepted_by_user_id").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("workspace_invitations_token_hash_uq").on(table.tokenHash),
+    index("workspace_invitations_workspace_idx").on(table.workspaceId, table.status),
+    index("workspace_invitations_email_idx").on(table.workspaceId, table.email),
+    check("workspace_invitations_role_chk", sql`${table.role} in ('admin', 'member')`),
+    check("workspace_invitations_status_chk", sql`${table.status} in ('pending', 'accepted', 'revoked')`),
+  ],
+);
+
 export const subscriptions = sqliteTable("subscriptions", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id")
@@ -853,6 +883,7 @@ export const schema = {
   verification,
   workspaces,
   workspaceMemberships,
+  workspaceInvitations,
   subscriptions,
   subscriptionEvents,
   usageCounters,

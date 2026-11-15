@@ -22,6 +22,7 @@ export const permissionMatrix = {
   "templates.favorite": "member",
   "templates.default": "admin",
   "team.read": "member",
+  "team.invite": "admin",
   "team.remove": "admin",
   "team.role": "owner",
 } as const satisfies Record<string, Role>;

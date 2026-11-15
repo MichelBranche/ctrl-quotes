@@ -33,7 +33,7 @@ export function AuthTabs({ initial, ui, notice }: { initial: Tab; ui: AuthUi; no
     if (next === tab) return;
     setTab(next);
     const entry = tabs.find((item) => item.key === next)!;
-    window.history.pushState(null, "", entry.href);
+    window.history.pushState(null, "", `${entry.href}${window.location.search}`);
   };
 
   useEffect(() => {

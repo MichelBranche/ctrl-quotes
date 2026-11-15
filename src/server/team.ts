@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { user, workspaceMemberships } from "@/db/schema";
 import { can } from "@/domain/permissions";
@@ -93,7 +93,14 @@ export async function removeMember(db: AppDatabase, actor: Actor, targetUserId: 
   if (targetUserId === actor.userId) return conflict("Non puoi rimuovere te stesso dal workspace.");
   const current = await membership(db, actor.workspaceId, targetUserId);
   if (!current) return notFound("Membro non trovato.");
-  if (current === "owner") return conflict("Il proprietario non può essere rimosso.");
+  if (current === "owner") {
+    const [{ owners }] = await db
+      .select({ owners: count() })
+      .from(workspaceMemberships)
+      .where(and(eq(workspaceMemberships.workspaceId, actor.workspaceId), eq(workspaceMemberships.role, "owner")));
+    if (owners <= 1) return conflict("Non puoi rimuovere l'unico titolare del workspace.");
+    return conflict("Il proprietario non può essere rimosso.");
+  }
   if (current === "admin" && access.value.role !== "owner") {
     return { ok: false, error: "forbidden", message: "Solo il proprietario può rimuovere un amministratore." };
   }

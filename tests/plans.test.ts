@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { compareRows, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, planIds, plans, quoteSendDailyLimitLabel, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, upcomingFeatures, type PlanId } from "@/domain/plans";
+import { compareRows, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, planIds, plans, quoteSendDailyLimitLabel, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, teamSeatLimitLabel, teamSeatLimits, teamSeatQuotaLabel, upcomingFeatures, workspaceTeamSeatLimit, type PlanId } from "@/domain/plans";
 
 describe("subscription plans", () => {
   it("formats prices the Italian way", () => {
@@ -84,5 +84,28 @@ describe("subscription plans", () => {
       expect(compareRows.find((row) => row.label === "Invio preventivi")?.values?.[id]?.toLowerCase()).not.toMatch(/illimitat/);
     }
     expect(quoteSendDailyLimitLabel("business").toLowerCase()).toContain("illimitat");
+  });
+
+  it("sets team seat limits: 1 on Starter, 5 on Pro, unlimited on Business, and the trial uses the Pro cap", () => {
+    expect(teamSeatLimits.starter).toBe(1);
+    expect(teamSeatLimits.pro).toBe(5);
+    expect(teamSeatLimits.business).toBeNull();
+    expect(workspaceTeamSeatLimit("free")).toBe(5);
+    expect(workspaceTeamSeatLimit("free", "starter")).toBe(1);
+    expect(workspaceTeamSeatLimit("pro")).toBe(5);
+    expect(workspaceTeamSeatLimit("studio")).toBeNull();
+    expect(teamSeatQuotaLabel(2, 5)).toBe("Posti: 2 di 5");
+    expect(teamSeatQuotaLabel(3, null)).toBe("Posti usati: 3, illimitati");
+    expect(teamSeatLimitLabel("starter")).toBe("1 posto nel team");
+    expect(teamSeatLimitLabel("pro")).toBe("5 posti nel team");
+    expect(teamSeatLimitLabel("business")).toBe("Utenti illimitati");
+    const seatsRow = compareRows.find((row) => row.label === "Posti nel team");
+    expect(seatsRow?.soon).toBe(false);
+    expect(seatsRow?.values).toEqual({
+      starter: teamSeatLimitLabel("starter"),
+      pro: teamSeatLimitLabel("pro"),
+      business: teamSeatLimitLabel("business"),
+    });
+    expect(compareRows.find((row) => row.label === "Collaborazione team")?.soon).toBe(false);
   });
 });

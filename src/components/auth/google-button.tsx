@@ -18,7 +18,7 @@ function GoogleMark() {
 }
 
 /** "Continua con Google" + "oppure" divider, above the email form. Rendered only when Google env is set. */
-export function GoogleSignIn({ note }: { note?: ReactNode }) {
+export function GoogleSignIn({ note, callbackURL, newUserCallbackURL }: { note?: ReactNode; callbackURL?: string; newUserCallbackURL?: string }) {
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
   return (
@@ -32,7 +32,7 @@ export function GoogleSignIn({ note }: { note?: ReactNode }) {
           setPending(true);
           setFailed(false);
           const result = await authClient.signIn
-            .social({ provider: "google", callbackURL: "/app/overview", newUserCallbackURL: "/onboarding", errorCallbackURL: "/login" })
+            .social({ provider: "google", callbackURL: callbackURL ?? "/app/overview", newUserCallbackURL: newUserCallbackURL ?? callbackURL ?? "/onboarding", errorCallbackURL: "/login" })
             .catch(() => ({ error: true }));
           if (result && "error" in result && result.error) {
             setPending(false);

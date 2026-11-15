@@ -40,6 +40,13 @@ export const ownCookies: CookieEntry[] = [
     kind: "tecnico",
     setBy: "CTRL Quotes",
   },
+  {
+    name: "cq_invite",
+    purpose: "Ricorda il token di un invito al team mentre accedi o ti registri, così puoi accettarlo dopo il login. HttpOnly, SameSite Lax, Secure su HTTPS. Contiene solo il token dell'invito.",
+    duration: "7 giorni, o fino all'accettazione o alla scadenza dell'invito.",
+    kind: "tecnico",
+    setBy: "CTRL Quotes",
+  },
 ];
 
 export const localPreferences = [

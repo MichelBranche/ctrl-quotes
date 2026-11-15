@@ -30,6 +30,41 @@ export type Plan = {
 
 
 /** Daily client-email sends allowed for the sender, by effective plan. `null` = unlimited (Business). */
+/** Members plus pending invites that count toward the plan cap. `null` means unlimited. */
+export const teamSeatLimits: Record<PlanId, number | null> = {
+  starter: 1,
+  pro: 5,
+  business: null,
+};
+
+/**
+ * Seat cap for a workspace. A workspace still on the free trial (`plan = "free"`, no redeem
+ * override) uses the Pro cap so the team can work before checkout exists. A paid or redeemed
+ * plan uses its own cap.
+ */
+export function workspaceTeamSeatLimit(plan: string, override: PlanId | null = null): number | null {
+  if (override) return teamSeatLimits[override];
+  if (plan === "free") return teamSeatLimits.pro;
+  return teamSeatLimits[effectivePlanId(plan, override)];
+}
+
+export function teamSeatLimitLabel(id: PlanId): string {
+  const limit = teamSeatLimits[id];
+  if (limit == null) return "Utenti illimitati";
+  if (limit === 1) return "1 posto nel team";
+  return `${limit} posti nel team`;
+}
+
+export function teamSeatQuotaLabel(used: number, limit: number | null): string {
+  if (limit == null) return `Posti usati: ${used}, illimitati`;
+  return `Posti: ${used} di ${limit}`;
+}
+
+export function teamSeatLimitReachedMessage(planLabel: string, limit: number): string {
+  const seats = limit === 1 ? "1 posto" : `${limit} posti`;
+  return `Hai raggiunto il limite di ${seats} del ${planLabel}. Per aggiungerne altri scegli un piano con più posti.`;
+}
+
 export const quoteSendDailyLimits: Record<PlanId, number | null> = {
   starter: 3,
   pro: 15,
@@ -62,6 +97,7 @@ export const plans: Record<PlanId, Plan> = {
     priceLine: "L’opzione ideale per freelancer e professionisti indipendenti.",
     includes: [
       { label: quoteSendDailyLimitLabel("starter"), icon: "send", soon: false },
+      { label: teamSeatLimitLabel("starter"), icon: "users", soon: false },
       { label: "Creazione preventivi", icon: "layers", soon: false },
       { label: "Gestione clienti", icon: "user", soon: false },
       { label: "Report di base", icon: "chart", soon: false },
@@ -84,7 +120,8 @@ export const plans: Record<PlanId, Plan> = {
       { label: quoteSendDailyLimitLabel("pro"), icon: "send", soon: false },
       { label: "Tutte le funzionalità Starter", icon: "layers", soon: false },
       { label: "Analytics avanzate", icon: "chart", soon: true },
-      { label: "Collaborazione team", icon: "users", soon: true },
+      { label: "Collaborazione team", icon: "users", soon: false },
+      { label: teamSeatLimitLabel("pro"), icon: "users", soon: false },
       { label: "Template personalizzati", icon: "grid", soon: true },
       { label: "Supporto prioritario", icon: "headset", soon: true },
     ],
@@ -104,7 +141,7 @@ export const plans: Record<PlanId, Plan> = {
     includes: [
       { label: quoteSendDailyLimitLabel("business"), icon: "send", soon: false },
       { label: "Tutte le funzionalità Pro", icon: "layers", soon: false },
-      { label: "Utenti illimitati", icon: "users", soon: true },
+      { label: teamSeatLimitLabel("business"), icon: "users", soon: false },
       { label: "Controlli amministrativi", icon: "chart", soon: true },
       { label: "Sicurezza avanzata", icon: "shield", soon: true },
       { label: "Supporto prioritario 24/7", icon: "headset", soon: true },
@@ -138,7 +175,18 @@ export const compareRows: CompareRow[] = [
   { label: "Creazione preventivi", icon: "layers", included: { starter: true, pro: true, business: true }, soon: false },
   { label: "Template personalizzati", icon: "grid", included: { starter: false, pro: true, business: true }, soon: true },
   { label: "Gestione clienti", icon: "user", included: { starter: true, pro: true, business: true }, soon: false },
-  { label: "Collaborazione team", icon: "users", included: { starter: false, pro: true, business: true }, soon: true },
+  { label: "Collaborazione team", icon: "users", included: { starter: false, pro: true, business: true }, soon: false },
+  {
+    label: "Posti nel team",
+    icon: "users",
+    included: { starter: true, pro: true, business: true },
+    soon: false,
+    values: {
+      starter: teamSeatLimitLabel("starter"),
+      pro: teamSeatLimitLabel("pro"),
+      business: teamSeatLimitLabel("business"),
+    },
+  },
   { label: "Supporto prioritario", icon: "headset", included: { starter: false, pro: false, business: true }, soon: true },
 ];
 

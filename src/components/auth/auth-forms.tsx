@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { safeInvitePath } from "@/domain/invite-path";
 import { messages } from "@/i18n/it";
 import { AuthSubmit } from "@/components/auth/auth-submit";
 import { GoogleSignIn } from "@/components/auth/google-button";
@@ -29,16 +31,41 @@ function useCaptcha(siteKey: string | null, resetKey: unknown): { widget: ReactN
   };
 }
 
-export function AuthSessionForm({
+export function AuthSessionForm(props: {
+  tab: AuthTab;
+  ui: AuthUi;
+  notice?: ReactNode;
+  swap: (login: ReactNode, register: ReactNode) => ReactNode;
+}) {
+  return (
+    <Suspense fallback={<AuthSessionFields {...props} next={null} />}>
+      <AuthSessionFieldsWithNext {...props} />
+    </Suspense>
+  );
+}
+
+function AuthSessionFieldsWithNext(props: {
+  tab: AuthTab;
+  ui: AuthUi;
+  notice?: ReactNode;
+  swap: (login: ReactNode, register: ReactNode) => ReactNode;
+}) {
+  const next = safeInvitePath(useSearchParams().get("next"));
+  return <AuthSessionFields {...props} next={next} />;
+}
+
+function AuthSessionFields({
   tab,
   ui,
   notice,
   swap,
+  next,
 }: {
   tab: AuthTab;
   ui: AuthUi;
   notice?: ReactNode;
   swap: (login: ReactNode, register: ReactNode) => ReactNode;
+  next: string | null;
 }) {
   const [loginState, loginFormAction, loginPending] = useActionState(loginAction, initial);
   const [registerState, registerFormAction, registerPending] = useActionState(registerAction, initial);
@@ -54,18 +81,23 @@ export function AuthSessionForm({
     prev.current = { loginState, registerState };
   }, [loginState, registerState, tab]);
 
-  const state = tab === "login" ? loginState : registerState;
   const pending = tab === "login" ? loginPending : registerPending;
   const captcha = useCaptcha(ui.turnstileSiteKey, captchaReset);
+  const google = ui.google ? <GoogleSignIn callbackURL={next ?? undefined} newUserCallbackURL={next ?? undefined} note={tab === "register" ? (
+    <>
+      Continuando con Google accetti i <Link href="/termini">{messages.auth.termsLink}</Link> e la <Link href="/privacy">{messages.auth.privacyLink}</Link>.
+    </>
+  ) : undefined} /> : null;
 
   return (
     <form action={tab === "login" ? loginFormAction : registerFormAction} className="stack auth-session">
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       {swap(
         <>
           <h1>{messages.auth.loginTitle}</h1>
           <p className="lede">{messages.auth.loginSubtitle}</p>
           {notice}
-          {ui.google ? <GoogleSignIn /> : null}
+          {tab === "login" ? google : null}
           {loginState.error ? <p className="alert" role="alert">{loginState.error}</p> : null}
           <TextField label={messages.auth.email} name="email" type="email" autoComplete="email" required placeholder={messages.auth.emailPlaceholder} icon="mail" value={email} onChange={(event) => setEmail(event.target.value)} />
           <PasswordField label={messages.auth.password} name="password" autoComplete="current-password" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} />
@@ -76,15 +108,7 @@ export function AuthSessionForm({
         <>
           <h1>{messages.auth.registerTitle}</h1>
           <p className="lede">{messages.auth.registerSubtitle}</p>
-          {ui.google ? (
-            <GoogleSignIn
-              note={
-                <>
-                  Continuando con Google accetti i <Link href="/termini">{messages.auth.termsLink}</Link> e la <Link href="/privacy">{messages.auth.privacyLink}</Link>.
-                </>
-              }
-            />
-          ) : null}
+          {tab === "register" ? google : null}
           {registerState.error ? <p className="alert" role="alert">{registerState.error}</p> : null}
           <TextField label={messages.auth.name} name="name" autoComplete="name" required placeholder={messages.auth.namePlaceholder} icon="user" value={name} onChange={(event) => setName(event.target.value)} error={registerState.fieldErrors?.name || undefined} />
           <TextField label={messages.auth.email} name="email" type="email" autoComplete="email" required placeholder={messages.auth.emailPlaceholder} icon="mail" value={email} onChange={(event) => setEmail(event.target.value)} error={registerState.fieldErrors?.email || undefined} />

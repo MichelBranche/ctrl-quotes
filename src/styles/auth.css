@@ -284,3 +284,6 @@ button.text-btn {
 @media (prefers-reduced-motion: reduce) {
   .pwd-strength-bar > span > span { transition: none; }
 }
+
+.invite-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.invite-actions .btn { text-decoration: none; }
