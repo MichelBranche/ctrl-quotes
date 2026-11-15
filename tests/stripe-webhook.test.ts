@@ -161,6 +161,22 @@ describe("webhook Stripe", () => {
     if (!invite.ok) expect(invite.message).toContain("limite");
   });
 
+  it("registra l'evento di un workspace sconosciuto senza creare un abbonamento", async () => {
+    const db = await createTestDb();
+    const result = await applyStripeEvent(
+      db,
+      event("evt_unknown", "customer.subscription.updated", subscriptionObject({ workspaceId: "ws_does_not_exist", plan: "pro" })),
+      env,
+    );
+    expect(result.applied).toBe(false);
+    expect(result.skipped).toBe(false);
+    expect(result.workspaceId).toBe(null);
+    const rows = await db.select().from(subscriptions);
+    expect(rows).toHaveLength(0);
+    const events = await db.select().from(stripeProcessedEvents);
+    expect(events).toHaveLength(1);
+  });
+
   it("riconosce il piano dai lookup key e dagli id prezzo", () => {
     expect(planFromStripeObject({ metadata: { plan: "business" } }, env)).toBe("business");
     expect(

@@ -62,15 +62,22 @@ function subscriptionStatus(value: string | null, fallback = "active"): string {
   return value;
 }
 
+async function existingWorkspaceId(db: AppDatabase, candidate: string | null): Promise<string | null> {
+  if (!candidate) return null;
+  const [row] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, candidate)).limit(1);
+  return row?.id ?? null;
+}
+
 async function findWorkspaceId(
   db: AppDatabase,
   object: Record<string, unknown>,
 ): Promise<string | null> {
   const meta = metadataOf(object);
-  if (meta.workspace_id) return meta.workspace_id;
+  const fromMeta = await existingWorkspaceId(db, meta.workspace_id ?? null);
+  if (fromMeta) return fromMeta;
   const parent = object.subscription && typeof object.subscription === "object" ? (object.subscription as Record<string, unknown>) : null;
-  const fromSub = parent ? metadataOf(parent).workspace_id : null;
-  if (fromSub) return fromSub;
+  const fromParent = await existingWorkspaceId(db, parent ? metadataOf(parent).workspace_id ?? null : null);
+  if (fromParent) return fromParent;
   const subscriptionId =
     asString(object.subscription) ??
     (object.object === "subscription" ? asString(object.id) : null);
@@ -173,12 +180,26 @@ export async function applyStripeEvent(
     return { applied: false, skipped: true, workspaceId: null };
   }
 
+  try {
+    return await applyRecordedStripeEvent(db, event, env, now);
+  } catch (error) {
+    await db.delete(stripeProcessedEvents).where(eq(stripeProcessedEvents.eventId, event.id));
+    throw error;
+  }
+}
+
+async function applyRecordedStripeEvent(
+  db: AppDatabase,
+  event: StripeLikeEvent,
+  env: Record<string, string | undefined>,
+  now: Date,
+): Promise<ApplyStripeEventResult> {
   const object = (event.data.object ?? {}) as Record<string, unknown>;
   let workspaceId: string | null = null;
   let applied = false;
 
   if (event.type === "checkout.session.completed") {
-    workspaceId = metadataOf(object).workspace_id ?? (await findWorkspaceId(db, object));
+    workspaceId = await findWorkspaceId(db, object);
     const metaPlan = metadataOf(object).plan;
     const plan = isPaidCheckoutPlan(metaPlan) ? metaPlan : planFromStripeObject(object, env);
     const subscriptionId = asString(object.subscription);
@@ -199,7 +220,7 @@ export async function applyStripeEvent(
       applied = true;
     }
   } else if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") {
-    workspaceId = (await findWorkspaceId(db, object)) ?? metadataOf(object).workspace_id;
+    workspaceId = await findWorkspaceId(db, object);
     const status = subscriptionStatus(asString(object.status));
     const plan = planFromStripeObject(object, env);
     const canceled = status === "canceled" || status === "incomplete_expired";
@@ -220,7 +241,7 @@ export async function applyStripeEvent(
       applied = true;
     }
   } else if (event.type === "customer.subscription.deleted") {
-    workspaceId = (await findWorkspaceId(db, object)) ?? metadataOf(object).workspace_id;
+    workspaceId = await findWorkspaceId(db, object);
     if (workspaceId) {
       await upsertSubscription(db, {
         workspaceId,
@@ -239,7 +260,7 @@ export async function applyStripeEvent(
   } else if (event.type === "invoice.payment_failed") {
     const subscriptionId = asString(object.subscription);
     const invoice = object;
-    workspaceId = (await findWorkspaceId(db, invoice)) ?? metadataOf(invoice).workspace_id;
+    workspaceId = await findWorkspaceId(db, invoice);
     if (workspaceId) {
       const [existing] = await db.select().from(subscriptions).where(eq(subscriptions.workspaceId, workspaceId)).limit(1);
       const plan =
