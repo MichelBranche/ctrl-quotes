@@ -49,11 +49,11 @@ export function planFromStripeObject(
   const items = (object.items as { data?: Array<{ price?: Record<string, unknown> }> } | undefined)?.data ?? [];
   const price = items[0]?.price ?? (object.price as Record<string, unknown> | undefined);
   const lookup = asString(price?.lookup_key);
-  if (lookup === stripePriceLookupKeys.pro.monthly) return "pro";
-  if (lookup === stripePriceLookupKeys.business.monthly) return "business";
+  if (lookup === stripePriceLookupKeys.pro.monthly || lookup === stripePriceLookupKeys.pro.yearly) return "pro";
+  if (lookup === stripePriceLookupKeys.business.monthly || lookup === stripePriceLookupKeys.business.yearly) return "business";
   const priceId = asString(price?.id);
-  if (priceId && priceId === env[stripePriceEnvNames.pro.monthly]?.trim()) return "pro";
-  if (priceId && priceId === env[stripePriceEnvNames.business.monthly]?.trim()) return "business";
+  if (priceId && (priceId === env[stripePriceEnvNames.pro.monthly]?.trim() || priceId === env[stripePriceEnvNames.pro.yearly]?.trim())) return "pro";
+  if (priceId && (priceId === env[stripePriceEnvNames.business.monthly]?.trim() || priceId === env[stripePriceEnvNames.business.yearly]?.trim())) return "business";
   return null;
 }
 

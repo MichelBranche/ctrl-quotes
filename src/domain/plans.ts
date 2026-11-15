@@ -198,6 +198,36 @@ export function formatPlanPrice(cents: number): string {
   return `€ ${(cents / 100).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+/** Paid checkout can be monthly or yearly (12 months at 20% off). Starter is not sold. */
+export const billingIntervals = ["monthly", "yearly"] as const;
+export type BillingInterval = (typeof billingIntervals)[number];
+
+export function isBillingInterval(value: string): value is BillingInterval {
+  return value === "monthly" || value === "yearly";
+}
+
+export function billingIntervalLabel(interval: BillingInterval): string {
+  return interval === "yearly" ? "Annuale" : "Mensile";
+}
+
+/** Yearly total in cents: twelve monthly payments minus 20%, exact integer arithmetic. */
+export function yearlyPriceCents(monthlyCents: number): number {
+  return (monthlyCents * 12 * 4) / 5;
+}
+
+/** Twelve months at the monthly price, before the yearly discount. */
+export function yearlyUndiscountedCents(monthlyCents: number): number {
+  return monthlyCents * 12;
+}
+
+/** Per-month equivalent of a yearly total (yearly cents are always divisible by 12). */
+export function yearlyMonthlyEquivalentCents(yearlyCents: number): number {
+  return yearlyCents / 12;
+}
+
+export const YEARLY_SAVINGS_PERCENT = 20;
+export const yearlySavingsLabel = `Risparmi ${YEARLY_SAVINGS_PERCENT}%`;
+
 export const DEFAULT_QUOTE_SEND_GLOBAL_DAILY_CAP = 90;
 export const BILLING_PATH = "/app/settings/billing";
 

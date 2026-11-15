@@ -4,17 +4,16 @@ Checkout e portale cliente si accendono solo se `STRIPE_SECRET_KEY` è impostata
 
 ## Cosa si vende
 
-- Piani **Pro** e **Business**, solo **mensile**, importi da `src/domain/plans.ts` in EUR.
-- Non c'è un prezzo annuale in `plans.ts`: non è stato inventato e lo script di setup non lo crea.
-- Lo Starter non si acquista: è il piano di partenza del Piano di prova.
+- Piani **Pro** e **Business**, mensili o annuali, importi da `src/domain/plans.ts` in EUR.
+- L'annuale è dodici mesi meno il 20% (Pro 182,40 EUR, Business 470,40 EUR). Lo Starter non si acquista.
 
 ## Variabili
 
 - `STRIPE_SECRET_KEY` (obbligatoria per accendere i pagamenti)
 - `STRIPE_WEBHOOK_SECRET` (obbligatoria per i webhook)
-- `STRIPE_PRICE_PRO_MONTHLY` e `STRIPE_PRICE_BUSINESS_MONTHLY` (facoltative se esistono i lookup key)
+- `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`, `STRIPE_PRICE_BUSINESS_MONTHLY`, `STRIPE_PRICE_BUSINESS_YEARLY` (facoltative se esistono i lookup key)
 
-Lookup key: `ctrl_quotes_pro_monthly`, `ctrl_quotes_business_monthly`.
+Lookup key: `ctrl_quotes_pro_monthly`, `ctrl_quotes_pro_yearly`, `ctrl_quotes_business_monthly`, `ctrl_quotes_business_yearly`.
 
 ## Setup
 
@@ -22,7 +21,7 @@ Lookup key: `ctrl_quotes_pro_monthly`, `ctrl_quotes_business_monthly`.
 npm run stripe:setup
 ```
 
-Crea in modo idempotente prodotti, prezzi mensili e la configurazione di default del Customer Portal (test o live, secondo la chiave). Ogni oggetto ha `metadata.app=ctrl-quotes`. Client, sessioni di checkout e sottoscrizioni hanno anche `workspace_id`.
+Crea in modo idempotente prodotti, prezzi mensili e annuali e la configurazione di default del Customer Portal (incluso il passaggio tra mensile e annuale) (test o live, secondo la chiave). Ogni oggetto ha `metadata.app=ctrl-quotes`. Client, sessioni di checkout e sottoscrizioni hanno anche `workspace_id`.
 
 Webhook: `https://quotes.ctrlagency.dev/api/stripe/webhook`
 

@@ -1,12 +1,26 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { compareRows, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, planIds, plans, quoteSendDailyLimitLabel, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, teamSeatLimitLabel, teamSeatLimitLabelFromCap, teamSeatLimits, teamSeatQuotaLabel, upcomingFeatures, workspaceTeamSeatLimit, type PlanId } from "@/domain/plans";
+import { compareRows, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, planIds, plans, quoteSendDailyLimitLabel, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, teamSeatLimitLabel, teamSeatLimitLabelFromCap, teamSeatLimits, teamSeatQuotaLabel, upcomingFeatures, workspaceTeamSeatLimit, yearlyMonthlyEquivalentCents, yearlyPriceCents, yearlySavingsLabel, yearlyUndiscountedCents, type PlanId } from "@/domain/plans";
 
 describe("subscription plans", () => {
   it("formats prices the Italian way", () => {
     expect(formatPlanPrice(plans.starter.priceCents)).toBe("€ 9,00");
     expect(formatPlanPrice(plans.pro.priceCents)).toBe("€ 19,00");
     expect(formatPlanPrice(plans.business.priceCents)).toBe("€ 49,00");
+  });
+
+  it("derives yearly totals as twelve months minus 20%, in exact cents", () => {
+    expect(yearlyPriceCents(plans.pro.priceCents)).toBe(18_240);
+    expect(yearlyPriceCents(plans.business.priceCents)).toBe(47_040);
+    expect(yearlyUndiscountedCents(plans.pro.priceCents)).toBe(22_800);
+    expect(yearlyUndiscountedCents(plans.business.priceCents)).toBe(58_800);
+    expect(yearlyMonthlyEquivalentCents(18_240)).toBe(1_520);
+    expect(yearlyMonthlyEquivalentCents(47_040)).toBe(3_920);
+    expect(formatPlanPrice(1_520)).toBe("€ 15,20");
+    expect(formatPlanPrice(18_240)).toBe("€ 182,40");
+    expect(formatPlanPrice(22_800)).toBe("€ 228,00");
+    expect(yearlySavingsLabel).toBe("Risparmi 20%");
+    expect(yearlyPriceCents(plans.pro.priceCents)).toBe((plans.pro.priceCents * 12 * 4) / 5);
   });
 
   it("shows the free plan as a trial", () => {

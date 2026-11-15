@@ -48,7 +48,7 @@ Riportati entrambi come da mockup: da allineare quando si definiscono i limiti d
 ## Stripe (Fase 5)
 
 - Checkout e portale sono attivi solo se `STRIPE_SECRET_KEY` è impostata. Senza chiave l'interfaccia resta com'è.
-- Si vendono Pro e Business, solo mensile (gli importi annuali non sono definiti in `plans.ts`).
+- Si vendono Pro e Business, mensile o annuale (dodici mesi meno il 20%, importi derivati in `plans.ts`).
 - `workspaces.plan` resta `free` / `pro` / `studio` (Business = `studio`). Il Piano di prova resta invariato finché non c'è un pagamento.
-- Metadata Stripe: `app=ctrl-quotes` e, dove esiste, `workspace_id`. Lookup key: `ctrl_quotes_pro_monthly`, `ctrl_quotes_business_monthly`.
+- Metadata Stripe: `app=ctrl-quotes` e, dove esiste, `workspace_id`. Lookup key: `ctrl_quotes_pro_monthly`, `ctrl_quotes_pro_yearly`, `ctrl_quotes_business_monthly`, `ctrl_quotes_business_yearly`.
 - Dettagli operativi: `docs/stripe.md`.

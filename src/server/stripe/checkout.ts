@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { subscriptions, user } from "@/db/schema";
 import { createId } from "@/domain/ids";
-import { BILLING_PATH } from "@/domain/plans";
+import { BILLING_PATH, isBillingInterval, type BillingInterval } from "@/domain/plans";
 import { isPaidCheckoutPlan, type PaidCheckoutPlanId } from "@/domain/stripe-plans";
 import { authorize, invalid, type Actor, type Result } from "@/server/access";
 import { writeAuditLog } from "@/server/audit";
@@ -15,18 +15,20 @@ export async function createCheckoutSession(
   actor: Actor,
   planId: string,
   origin: string,
+  interval: BillingInterval = "monthly",
   env: Record<string, string | undefined> = process.env,
 ): Promise<Result<{ url: string }>> {
   const access = await authorize(db, actor, "billing.manage");
   if (!access.ok) return access;
   if (!stripeConfigured(env)) return invalid("I pagamenti non sono ancora attivi.");
   if (!isPaidCheckoutPlan(planId)) return invalid("Puoi attivare il Piano Pro o il Piano Business.");
+  const cycle: BillingInterval = isBillingInterval(interval) ? interval : "monthly";
 
   const limited = await createRateLimiter(db, env).hit(rateRules.checkout, actor.userId);
   if (!limited.ok) return invalid("Hai aperto troppe sessioni di pagamento. Riprova tra qualche minuto.");
 
   const stripe = getStripe(env);
-  const priceId = await resolvePriceId(planId, env, stripe);
+  const priceId = await resolvePriceId(planId, cycle, env, stripe);
   if (!priceId) return invalid("Il prezzo di questo piano non è ancora configurato su Stripe.");
 
   const customerId = await ensureCustomer(db, stripe, actor, access.value.name, env);
@@ -40,9 +42,9 @@ export async function createCheckoutSession(
     line_items: [{ price: priceId, quantity: 1 }],
     allow_promotion_codes: true,
     billing_address_collection: "auto",
-    metadata: stripeAppMetadata({ workspace_id: actor.workspaceId, plan: planId }),
+    metadata: stripeAppMetadata({ workspace_id: actor.workspaceId, plan: planId, interval: cycle }),
     subscription_data: {
-      metadata: stripeAppMetadata({ workspace_id: actor.workspaceId, plan: planId }),
+      metadata: stripeAppMetadata({ workspace_id: actor.workspaceId, plan: planId, interval: cycle }),
     },
   });
   if (!session.url) return invalid("Stripe non ha restituito un indirizzo di pagamento. Riprova.");
@@ -53,7 +55,7 @@ export async function createCheckoutSession(
     action: "billing.checkout_started",
     entityType: "subscription",
     entityId: actor.workspaceId,
-    meta: { plan: planId },
+    meta: { plan: planId, interval: cycle },
   });
 
   return { ok: true, value: { url: session.url } };

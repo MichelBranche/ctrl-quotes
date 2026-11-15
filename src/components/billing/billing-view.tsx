@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAction } from "@/components/data/use-action";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import { ArrowRight, ArrowUpRight, Check, ChartNoAxesColumn, Headset, Layers, LayoutGrid, Minus, Send, ShieldCheck, UserRound, Users } from "lucide-react";
@@ -10,7 +11,7 @@ import { cn } from "@/lib/cn";
 import { SectionLink, useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { PlanHeroEffect } from "@/components/billing/effects/billing-effects";
 import { RedeemButton } from "@/components/billing/redeem-dialog";
-import { compareRows, formatPlanPrice, planIds, plans, quoteSendDailyLimitLabel, teamSeatLimitLabel, type PlanIcon, type PlanId } from "@/domain/plans";
+import { compareRows, formatPlanPrice, planIds, plans, quoteSendDailyLimitLabel, teamSeatLimitLabel, yearlyMonthlyEquivalentCents, yearlyPriceCents, yearlySavingsLabel, yearlyUndiscountedCents, type BillingInterval, type PlanIcon, type PlanId } from "@/domain/plans";
 import { isPaidCheckoutPlan, overSeatCapMessage, type BillingClientState } from "@/domain/stripe-plans";
 import { startCheckoutAction, startPortalAction } from "@/server/actions/billing";
 
@@ -24,6 +25,96 @@ export const billingHref: Record<BillingViewId, string> = {
   pro: `${base}/pro`,
   business: `${base}/business`,
 };
+
+const CycleContext = createContext<{ interval: BillingInterval; href: (id: BillingViewId) => string }>({
+  interval: "monthly",
+  href: (id) => billingHref[id],
+});
+
+export function useBillingCycle() {
+  const pathname = usePathname();
+  const search = useSearchParams();
+  const router = useRouter();
+  const interval: BillingInterval = search.get("ciclo") === "annuale" ? "yearly" : "monthly";
+
+  const href = (id: BillingViewId) => {
+    const params = new URLSearchParams();
+    if (pathname === billingHref.plans) {
+      const checkout = search.get("checkout");
+      if (checkout === "success" || checkout === "cancel") params.set("checkout", checkout);
+    }
+    if (interval === "yearly") params.set("ciclo", "annuale");
+    const query = params.toString();
+    return query ? `${billingHref[id]}?${query}` : billingHref[id];
+  };
+
+  const setInterval = (next: BillingInterval) => {
+    const params = new URLSearchParams(search.toString());
+    if (next === "yearly") params.set("ciclo", "annuale");
+    else params.delete("ciclo");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+
+  return { interval, setInterval, href };
+}
+
+/** Top segmented Mensile/Annuale control, used on every billing page including Confronta. */
+export function BillingCycleToggle() {
+  const { interval, setInterval } = useBillingCycle();
+  const reduced = useReducedMotion() ?? false;
+  return (
+    <div className="bl-cycle" role="group" aria-label="Periodo di fatturazione">
+      {([
+        { id: "monthly", label: "Mensile" },
+        { id: "yearly", label: "Annuale" },
+      ] as const).map((item) => {
+        const active = interval === item.id;
+        return (
+          <button key={item.id} type="button" aria-pressed={active} onClick={() => setInterval(item.id)}>
+            {active ? (
+              <motion.span
+                layoutId="bl-cycle"
+                className="bl-cycle-bg"
+                transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34 }}
+              />
+            ) : null}
+            <span className="bl-cycle-label">{item.label}</span>
+            {item.id === "yearly" ? <span className="bl-cycle-save">{yearlySavingsLabel}</span> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function AnimatedCents({ cents }: { cents: number }) {
+  const reduced = useReducedMotion() ?? false;
+  const [shown, setShown] = useState(cents);
+  const current = useRef(cents);
+  useEffect(() => {
+    if (reduced || current.current === cents) {
+      current.current = cents;
+      setShown(cents);
+      return;
+    }
+    const from = current.current;
+    const started = performance.now();
+    const duration = 420;
+    let frame = 0;
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - started) / duration);
+      const eased = 1 - (1 - progress) ** 3;
+      const next = Math.round(from + (cents - from) * eased);
+      current.current = next;
+      setShown(next);
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [cents, reduced]);
+  return <>{formatPlanPrice(shown)}</>;
+}
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -109,6 +200,7 @@ export function BillingView({
   const { visit, leaving } = useSectionTransition();
   const { moving, settle } = useMoving();
   const checkoutEnabled = billing?.checkoutEnabled ?? false;
+  const cycle = useBillingCycle();
 
   const goToUrl = (value: { url: string }) => {
     window.location.href = value.url;
@@ -128,7 +220,7 @@ export function BillingView({
       run(() => startPortalAction(), goToUrl);
       return;
     }
-    run(() => startCheckoutAction(planId), goToUrl);
+    run(() => startCheckoutAction(planId, cycle.interval), goToUrl);
   };
 
   const manage = () => run(() => startPortalAction(), goToUrl);
@@ -161,6 +253,7 @@ export function BillingView({
         </p>
       ) : null}
       {/* Keyed on the visit: the cards build up again on every arrival, also when Next reveals a route it kept hidden. */}
+      <CycleContext.Provider value={{ interval: cycle.interval, href: cycle.href }}>
       <motion.div
         key={`${view}-${visit}`}
         className={cn("bl-grid", `bl-grid-${view}`, leaving && "is-leaving", moving && "is-moving")}
@@ -171,6 +264,7 @@ export function BillingView({
       >
         {view === "plans" ? <PlansView /> : view === "compare" ? <CompareView /> : <PlanView id={view} onActivate={() => activate(view)} pending={pending} />}
       </motion.div>
+      </CycleContext.Provider>
       <Dialog open={payments} title="Pagamenti in arrivo" onClose={() => setPayments(false)}>
         <p>
           L&apos;attivazione dei piani arriva con i pagamenti online. Per ora nessun addebito e nessuna modifica al tuo workspace: resti sul Piano di
@@ -225,11 +319,12 @@ function Art({ name }: { name: "hero-blocchi" | "pro-sfere" | "business-archi" |
   );
 }
 
-function ActionLink({ href, children }: { href: string; children: ReactNode }) {
+function ActionLink({ hrefTo, children }: { hrefTo: BillingViewId; children: ReactNode }) {
   const m = useBillingMotion();
+  const { href } = useContext(CycleContext);
   return (
     <motion.span className="bl-btn-wrap" whileHover={m.lift ? { y: -2 } : undefined} whileTap={m.press}>
-      <SectionLink href={href} className="bl-btn">
+      <SectionLink href={href(hrefTo)} className="bl-btn">
         {children} <ArrowRight size={18} aria-hidden="true" className="bl-btn-arrow" />
       </SectionLink>
     </motion.span>
@@ -251,22 +346,23 @@ const art: Record<PlanId, "starter-lastre" | "pro-sfere" | "business-archi"> = {
 /** A plan card that links somewhere: the whole card is the link, with the ↗ arrow. */
 function PlanCard({
   plan,
-  href,
+  hrefTo,
   className,
   children,
   dir,
 }: {
   plan: PlanId;
-  href: string;
+  hrefTo: BillingViewId;
   className?: string;
   children: ReactNode;
   dir: Dir;
 }) {
   const m = useBillingMotion();
+  const { href } = useContext(CycleContext);
   return (
     <motion.div className={cn("bl-card bl-plan", tone[plan], className)} variants={m.item} custom={dir} whileHover={m.lift}>
       <Art name={art[plan]} />
-      <SectionLink href={href} className="bl-plan-link">
+      <SectionLink href={href(hrefTo)} className="bl-plan-link">
         <span className="bl-plan-copy">{children}</span>
         <ArrowUpRight size={22} aria-hidden="true" className="bl-corner" />
       </SectionLink>
@@ -274,10 +370,27 @@ function PlanCard({
   );
 }
 
-function Price({ cents }: { cents: number }) {
+function Price({ planId }: { planId: PlanId }) {
+  const { interval } = useContext(CycleContext);
+  const monthly = plans[planId].priceCents;
+  const showYearly = interval === "yearly" && planId !== "starter";
+  const main = showYearly ? yearlyMonthlyEquivalentCents(yearlyPriceCents(monthly)) : monthly;
+  const yearly = yearlyPriceCents(monthly);
+  const fullYear = yearlyUndiscountedCents(monthly);
   return (
     <p className="bl-price">
-      <strong>{formatPlanPrice(cents)}</strong> <span>/ mese</span>
+      <strong>
+        <AnimatedCents cents={main} />
+      </strong>{" "}
+      <span>/ mese</span>
+      {showYearly ? (
+        <span className="bl-price-year">
+          <s className="bl-price-was">{formatPlanPrice(fullYear)}</s>
+          <span>
+            {formatPlanPrice(yearly)} all&apos;anno
+          </span>
+        </span>
+      ) : null}
     </p>
   );
 }
@@ -295,6 +408,28 @@ function Soon() {
   return <span className="bl-soon">In arrivo</span>;
 }
 
+
+function CompareBackLink() {
+  const { href } = useContext(CycleContext);
+  return (
+    <SectionLink href={href("plans")} className="bl-corner-link" aria-label="Torna alla scelta del piano">
+      <ArrowUpRight size={22} aria-hidden="true" className="bl-corner" />
+    </SectionLink>
+  );
+}
+
+function ComparePlanLink({ id }: { id: PlanId }) {
+  const { href } = useContext(CycleContext);
+  return (
+    <SectionLink href={href(id)}>
+      <span className="bl-compare-name">{plans[id].name.replace("Piano ", "")}</span>
+      <span className="bl-compare-price">
+        <Price planId={id} />
+      </span>
+    </SectionLink>
+  );
+}
+
 /* Views */
 
 function PlansView() {
@@ -307,15 +442,15 @@ function PlansView() {
         dir={dirs.plans.hero}
         action={
           <>
-            <ActionLink href={billingHref.compare}>Confronta i piani</ActionLink>
+            <ActionLink hrefTo="compare">Confronta i piani</ActionLink>
             <RedeemButton />
           </>
         }
       />
       {planIds.map((id) => (
-        <PlanCard key={id} plan={id} href={billingHref[id]} className={`bl-slot-${id}`} dir={dirs.plans[id]}>
+        <PlanCard key={id} plan={id} hrefTo={id} className={`bl-slot-${id}`} dir={dirs.plans[id]}>
           <span className="bl-eyebrow">{plans[id].name}</span>
-          <Price cents={plans[id].priceCents} />
+          <Price planId={id} />
           <PlanLimits id={id} />
           <span className="bl-plan-line">{plans[id].pickerLine}</span>
         </PlanCard>
@@ -335,9 +470,7 @@ function CompareView() {
         dir={dirs.compare.hero}
       />
       <motion.section className="bl-card bl-compare" variants={m.item} custom={dirs.compare.table} aria-labelledby="bl-compare-title">
-        <SectionLink href={billingHref.plans} className="bl-corner-link" aria-label="Torna alla scelta del piano">
-          <ArrowUpRight size={22} aria-hidden="true" className="bl-corner" />
-        </SectionLink>
+        <CompareBackLink />
         <table>
           <caption id="bl-compare-title" className="bl-sr">
             Confronto delle funzionalità tra Starter, Pro e Business
@@ -349,13 +482,7 @@ function CompareView() {
               </th>
               {planIds.map((id) => (
                 <th key={id} scope="col" className={cn(id === "pro" && "is-pro")}>
-                  <SectionLink href={billingHref[id]}>
-                    <span className="bl-compare-name">{plans[id].name.replace("Piano ", "")}</span>
-                    <span className="bl-compare-price">
-                      {formatPlanPrice(plans[id].priceCents)}
-                      <small> / mese</small>
-                    </span>
-                  </SectionLink>
+                  <ComparePlanLink id={id} />
                 </th>
               ))}
             </tr>
@@ -395,8 +522,9 @@ function CompareView() {
         </table>
       </motion.section>
       {(["pro", "business"] as const).map((id) => (
-        <PlanCard key={id} plan={id} href={billingHref[id]} className="bl-compare-card" dir={dirs.compare[id]}>
+        <PlanCard key={id} plan={id} hrefTo={id} className="bl-compare-card" dir={dirs.compare[id]}>
           <span className="bl-plan-title">{plans[id].name}</span>
+          <Price planId={id} />
           <PlanLimits id={id} />
           <span className="bl-plan-line">{plans[id].compareLine}</span>
         </PlanCard>
@@ -412,9 +540,9 @@ function PlanView({ id, onActivate, pending = false }: { id: PlanId; onActivate:
   return (
     <>
       <Hero eyebrow={plan.eyebrow} title={plan.title} body={plan.body} plan={id} dir={dirs.plan.hero} action={<ActionButton onClick={onActivate} disabled={pending}>{plan.cta}</ActionButton>} />
-      <PlanCard plan={id} href={billingHref.compare} className="bl-price-card" dir={dirs.plan.price}>
+      <PlanCard plan={id} hrefTo="compare" className="bl-price-card" dir={dirs.plan.price}>
         <span className="bl-plan-name">{plan.name}</span>
-        <Price cents={plan.priceCents} />
+        <Price planId={id} />
         <PlanLimits id={id} />
         <span className="bl-plan-line">{plan.priceLine}</span>
       </PlanCard>
@@ -435,7 +563,7 @@ function PlanView({ id, onActivate, pending = false }: { id: PlanId; onActivate:
           ))}
         </motion.ul>
       </motion.section>
-      <PlanCard plan={next.id} href={billingHref[next.id]} className="bl-next-card" dir={dirs.plan.next}>
+      <PlanCard plan={next.id} hrefTo={next.id} className="bl-next-card" dir={dirs.plan.next}>
         <span className="bl-eyebrow">{plan.next.eyebrow}</span>
         <span className="bl-plan-title is-large">{plan.next.title}</span>
         <span className="bl-plan-line">{plan.next.body}</span>

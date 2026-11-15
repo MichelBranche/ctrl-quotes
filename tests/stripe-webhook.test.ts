@@ -10,6 +10,8 @@ import { listMembers } from "@/server/team";
 const env = {
   STRIPE_PRICE_PRO_MONTHLY: "price_pro_test",
   STRIPE_PRICE_BUSINESS_MONTHLY: "price_biz_test",
+  STRIPE_PRICE_PRO_YEARLY: "price_pro_year_test",
+  STRIPE_PRICE_BUSINESS_YEARLY: "price_biz_year_test",
 };
 
 function event(id: string, type: string, object: Record<string, unknown>): StripeLikeEvent {
@@ -183,5 +185,9 @@ describe("webhook Stripe", () => {
       planFromStripeObject({ items: { data: [{ price: { lookup_key: "ctrl_quotes_pro_monthly" } }] } }, env),
     ).toBe("pro");
     expect(planFromStripeObject({ items: { data: [{ price: { id: "price_biz_test" } }] } }, env)).toBe("business");
+    expect(
+      planFromStripeObject({ items: { data: [{ price: { lookup_key: "ctrl_quotes_pro_yearly" } }] } }, env),
+    ).toBe("pro");
+    expect(planFromStripeObject({ items: { data: [{ price: { id: "price_biz_year_test" } }] } }, env)).toBe("business");
   });
 });

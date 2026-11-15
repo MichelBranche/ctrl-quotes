@@ -5,10 +5,11 @@ import { subscriptions } from "@/db/schema";
 import { currentPlanLabel, effectivePlanId, workspaceTeamSeatLimit } from "@/domain/plans";
 import {
   billingStatusLabel,
+  intervalFromPriceId,
   paidPlanFromWorkspacePlan,
+  paidPlanIntervalLabel,
   type BillingClientState,
   type BillingStatus,
-  type PaidCheckoutPlanId,
 } from "@/domain/stripe-plans";
 import { can } from "@/domain/permissions";
 import { activePlanOverride } from "@/domain/redeem";
@@ -55,6 +56,7 @@ export async function loadBillingState(
   const limit = seats?.limit ?? (workspace ? workspaceTeamSeatLimit(plan, override) : null);
   const used = seats?.used ?? 0;
   const overSeatCap = limit != null && used > limit;
+  const interval = intervalFromPriceId(sub?.stripePriceId, env);
 
   return {
     checkoutEnabled: stripeConfigured(env),
@@ -64,6 +66,8 @@ export async function loadBillingState(
     planId,
     planLabel,
     paidPlanId: sub?.plan === "pro" || sub?.plan === "business" ? sub.plan : paidPlanFromWorkspacePlan(plan),
+    interval,
+    intervalLabel: paidPlanIntervalLabel(interval),
     periodEnd,
     periodEndLabel,
     overSeatCap,

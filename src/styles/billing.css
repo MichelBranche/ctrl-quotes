@@ -227,8 +227,11 @@
 .bl-compare thead a { display: grid; gap: 4px; justify-items: center; color: var(--cq-ink); text-decoration: none; }
 .bl-compare thead a:hover .bl-compare-name { text-decoration: underline; }
 .bl-compare-name { font-size: var(--cq-font-size-md); font-weight: 650; }
-.bl-compare-price { font-size: var(--cq-font-size-lg); font-weight: 650; white-space: nowrap; }
-.bl-compare-price small { font-size: 11px; font-weight: 500; color: var(--cq-ink-soft); }
+.bl-compare-price { font-size: var(--cq-font-size-lg); font-weight: 650; }
+.bl-compare-price .bl-price { gap: 6px; }
+.bl-compare-price .bl-price strong { font-size: 1.05em; }
+.bl-compare-price .bl-price span { font-size: 11px; }
+.bl-compare-price .bl-price-year { margin-top: 0; font-size: 11px; }
 .bl-compare tbody th, .bl-compare tbody td { padding: 9px 10px; border-top: 1px solid color-mix(in srgb, var(--cq-ink) 8%, transparent); }
 .bl-compare tbody th { padding-left: 0; text-align: left; font-weight: 500; }
 .bl-compare tbody td { text-align: center; }
@@ -380,4 +383,85 @@
   padding: 4px 10px; border-radius: 999px;
   background: color-mix(in srgb, var(--cq-ink) 8%, transparent);
   font-weight: 650;
+}
+
+.bl-top-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.bl-cycle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--cq-radius-pill);
+  background: var(--cq-surface);
+  box-shadow: var(--cq-shadow-sm);
+  border: 1px solid color-mix(in srgb, var(--cq-ink) 6%, transparent);
+}
+.bl-cycle button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--cq-radius-pill);
+  background: transparent;
+  color: var(--cq-ink-soft);
+  font: inherit;
+  font-size: var(--cq-font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.bl-cycle button[aria-pressed="true"] { color: var(--cq-ink); }
+.bl-cycle-bg { position: absolute; inset: 0; border-radius: inherit; background: color-mix(in srgb, var(--cq-ink) 8%, transparent); }
+.bl-cycle-label { position: relative; }
+.bl-cycle-save {
+  position: relative;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cq-plan-business) 42%, var(--cq-surface));
+  color: var(--cq-plan-business-ink);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.bl-price { flex-wrap: wrap; row-gap: 2px; }
+.bl-price-year {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-basis: 100%;
+  font-size: var(--cq-font-size-sm);
+  font-weight: 550;
+}
+.bl-price-was {
+  color: color-mix(in srgb, currentColor 52%, transparent);
+  text-decoration: line-through;
+  font-weight: 500;
+}
+.bl-current-interval, .bl-current-renew {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cq-ink) 8%, transparent);
+  font-weight: 650;
+}
+.bl-switch-year {
+  margin-left: 2px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brand);
+  color: white;
+  font: inherit;
+  font-size: var(--cq-font-size-sm);
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--brand) 30%, transparent);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.bl-switch-year:hover:not(:disabled) { transform: translateY(-1px); }
+.bl-switch-year:disabled { opacity: 0.7; cursor: progress; }
+@media (prefers-reduced-motion: reduce) {
+  .bl-switch-year, .bl-switch-year:hover:not(:disabled) { transition: none; transform: none; }
 }

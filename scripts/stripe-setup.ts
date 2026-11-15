@@ -1,22 +1,23 @@
 /**
- * Idempotently creates CTRL Quotes Stripe products and monthly prices from src/domain/plans.ts (test or live,
- * depending on the key). Lookup keys are namespaced (`ctrl_quotes_pro_monthly`). Metadata `app=ctrl-quotes`
- * is set on every object so a shared Stripe account can later host other CTRL products.
+ * Idempotently creates CTRL Quotes Stripe products and monthly/yearly prices from src/domain/plans.ts
+ * (test or live, depending on the key). Lookup keys are namespaced (`ctrl_quotes_pro_monthly`,
+ * `ctrl_quotes_pro_yearly`). Metadata `app=ctrl-quotes` is set on every object so a shared Stripe
+ * account can later host other CTRL products.
  *
  *   npm run stripe:setup
  *
- * Requires STRIPE_SECRET_KEY. Yearly prices are not created: plans.ts only defines monthly amounts.
+ * Requires STRIPE_SECRET_KEY. Yearly totals are twelve months minus 20%.
  */
 import Stripe from "stripe";
-import { plans } from "../src/domain/plans.ts";
+import { plans, yearlyPriceCents, type BillingInterval } from "../src/domain/plans.ts";
 
 /** Keep these in sync with src/domain/stripe-plans.ts. The script cannot import that file: Node does not resolve the app path alias. */
 const STRIPE_APP = "ctrl-quotes";
 const paidCheckoutPlanIds = ["pro", "business"] as const;
 type PaidCheckoutPlanId = (typeof paidCheckoutPlanIds)[number];
-const stripePriceLookupKeys: Record<PaidCheckoutPlanId, { monthly: string }> = {
-  pro: { monthly: "ctrl_quotes_pro_monthly" },
-  business: { monthly: "ctrl_quotes_business_monthly" },
+const stripePriceLookupKeys: Record<PaidCheckoutPlanId, { monthly: string; yearly: string }> = {
+  pro: { monthly: "ctrl_quotes_pro_monthly", yearly: "ctrl_quotes_pro_yearly" },
+  business: { monthly: "ctrl_quotes_business_monthly", yearly: "ctrl_quotes_business_yearly" },
 };
 function stripeProductName(planId: PaidCheckoutPlanId): string {
   return plans[planId].name;
@@ -58,31 +59,36 @@ async function ensureProduct(planId: PaidCheckoutPlanId): Promise<string> {
   return created.id;
 }
 
-async function ensureMonthlyPrice(planId: PaidCheckoutPlanId, productId: string): Promise<{ id: string; created: boolean }> {
-  const lookup_key = stripePriceLookupKeys[planId].monthly;
-  const unit_amount = plans[planId].priceCents;
+async function ensurePrice(
+  planId: PaidCheckoutPlanId,
+  productId: string,
+  interval: BillingInterval,
+): Promise<{ id: string; created: boolean; lookup: string; amount: number }> {
+  const lookup_key = stripePriceLookupKeys[planId][interval];
+  const unit_amount = interval === "yearly" ? yearlyPriceCents(plans[planId].priceCents) : plans[planId].priceCents;
   const listed = await stripe.prices.list({ lookup_keys: [lookup_key], limit: 1 });
   const found = listed.data[0];
+  const stripeInterval = interval === "yearly" ? "year" : "month";
   if (found) {
-    if (found.unit_amount !== unit_amount || found.currency !== currency) {
+    if (found.unit_amount !== unit_amount || found.currency !== currency || found.recurring?.interval !== stripeInterval) {
       throw new Error(
-        `Il prezzo ${lookup_key} esiste già ma non coincide con plans.ts (${unit_amount} ${currency}). Non lo sovrascrivo: archivialo e riprova.`,
+        `Il prezzo ${lookup_key} esiste già ma non coincide con plans.ts (${unit_amount} ${currency}, ${stripeInterval}). Non lo sovrascrivo: archivialo e riprova.`,
       );
     }
     if (found.metadata.app !== STRIPE_APP) {
-      await stripe.prices.update(found.id, { metadata: { app: STRIPE_APP, plan: planId } });
+      await stripe.prices.update(found.id, { metadata: { app: STRIPE_APP, plan: planId, interval } });
     }
-    return { id: found.id, created: false };
+    return { id: found.id, created: false, lookup: lookup_key, amount: unit_amount };
   }
   const created = await stripe.prices.create({
     product: productId,
     currency,
     unit_amount,
-    recurring: { interval: "month" },
+    recurring: { interval: stripeInterval },
     lookup_key,
-    metadata: { app: STRIPE_APP, plan: planId },
+    metadata: { app: STRIPE_APP, plan: planId, interval },
   });
-  return { id: created.id, created: true };
+  return { id: created.id, created: true, lookup: lookup_key, amount: unit_amount };
 }
 
 async function ensurePortal(priceIds: string[]): Promise<string> {
@@ -123,19 +129,22 @@ async function ensurePortal(priceIds: string[]): Promise<string> {
   return created.id;
 }
 
-const summary: Array<{ plan: PaidCheckoutPlanId; lookup: string; priceId: string; amount: number; created: boolean }> = [];
+const summary: Array<{ plan: PaidCheckoutPlanId; interval: BillingInterval; lookup: string; priceId: string; amount: number; created: boolean }> = [];
 const priceIds: string[] = [];
 for (const planId of paidCheckoutPlanIds) {
   const productId = await ensureProduct(planId);
-  const price = await ensureMonthlyPrice(planId, productId);
-  priceIds.push(price.id);
-  summary.push({
-    plan: planId,
-    lookup: stripePriceLookupKeys[planId].monthly,
-    priceId: price.id,
-    amount: plans[planId].priceCents,
-    created: price.created,
-  });
+  for (const interval of ["monthly", "yearly"] as const) {
+    const price = await ensurePrice(planId, productId, interval);
+    priceIds.push(price.id);
+    summary.push({
+      plan: planId,
+      interval,
+      lookup: price.lookup,
+      priceId: price.id,
+      amount: price.amount,
+      created: price.created,
+    });
+  }
 }
 
 let portalId = "";
@@ -145,12 +154,15 @@ try {
   console.error("Portale cliente: configurazione non completata.", error instanceof Error ? error.message : error);
 }
 
-console.log("Stripe setup CTRL Quotes (mensile, EUR, da plans.ts)");
-console.log("Anno: nessuno, i prezzi annuali non sono definiti in plans.ts.");
+console.log("Stripe setup CTRL Quotes (mensile e annuale, EUR, da plans.ts)");
+console.log("Anno: 12 mesi meno il 20%.");
 for (const row of summary) {
-  console.log(`${row.plan}: ${row.lookup} ${row.priceId} ${row.amount} cents (${row.created ? "creato" : "già presente"})`);
+  console.log(`${row.plan} ${row.interval}: ${row.lookup} ${row.priceId} ${row.amount} cents (${row.created ? "creato" : "già presente"})`);
 }
 if (portalId) console.log(`portale: ${portalId}`);
 console.log("Variabili da impostare:");
-console.log(`STRIPE_PRICE_PRO_MONTHLY=${summary.find((row) => row.plan === "pro")?.priceId}`);
-console.log(`STRIPE_PRICE_BUSINESS_MONTHLY=${summary.find((row) => row.plan === "business")?.priceId}`);
+const idOf = (plan: PaidCheckoutPlanId, interval: BillingInterval) => summary.find((row) => row.plan === plan && row.interval === interval)?.priceId;
+console.log(`STRIPE_PRICE_PRO_MONTHLY=${idOf("pro", "monthly")}`);
+console.log(`STRIPE_PRICE_PRO_YEARLY=${idOf("pro", "yearly")}`);
+console.log(`STRIPE_PRICE_BUSINESS_MONTHLY=${idOf("business", "monthly")}`);
+console.log(`STRIPE_PRICE_BUSINESS_YEARLY=${idOf("business", "yearly")}`);

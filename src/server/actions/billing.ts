@@ -1,5 +1,6 @@
 "use server";
 
+import { isBillingInterval, type BillingInterval } from "@/domain/plans";
 import { requireContext } from "@/server/context";
 import { toAction, type ActionResult } from "@/server/actions/result";
 import { resolvePublicBaseUrl } from "@/domain/public-url";
@@ -9,9 +10,10 @@ function originFromRequest(): string {
   return resolvePublicBaseUrl(process.env);
 }
 
-export async function startCheckoutAction(planId: string): Promise<ActionResult<{ url: string }>> {
+export async function startCheckoutAction(planId: string, interval: BillingInterval = "monthly"): Promise<ActionResult<{ url: string }>> {
   const { db, actor } = await requireContext();
-  const result = await createCheckoutSession(db, actor, planId, originFromRequest());
+  const cycle = isBillingInterval(interval) ? interval : "monthly";
+  const result = await createCheckoutSession(db, actor, planId, originFromRequest(), cycle);
   return toAction(result);
 }
 
