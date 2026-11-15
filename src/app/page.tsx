@@ -4,7 +4,7 @@ import { SITE_URL } from "@/domain/site";
 
 const title = "CTRL® Quotes · Preventivi che chiudono";
 const description =
-  "Crea preventivi con il tuo brand, mandali con un link e lascia che il cliente li legga, li accetti e li paghi online. 7 giorni gratis con i limiti del Piano Pro, senza carta.";
+  "Crea preventivi con il tuo brand, mandali con un link e lascia che il cliente li legga, li accetti e li paghi online. 7 giorni gratis, senza carta.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

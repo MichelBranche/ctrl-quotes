@@ -17,7 +17,7 @@ export type WorkspaceCard = {
   name: string;
   slug: string;
   role: Role;
-  plan: "free" | "pro" | "studio";
+  plan: "free" | "starter" | "pro" | "studio";
   planOverride: PlanId | null;
   memberCount: number;
   logoAssetId: string | null;

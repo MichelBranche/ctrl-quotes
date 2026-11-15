@@ -13,7 +13,6 @@ export type LandingPlan = {
   yearlyFullCents: number | null;
   limits: string[];
   includes: Array<{ label: string; soon: boolean }>;
-  note?: string;
 };
 
 const euro = (cents: number) =>
@@ -66,7 +65,7 @@ export function PricingPlans({ plans, ctas, trialLine, savingsLabel }: { plans: 
               <header className="lp-plan-head">
                 <p className="lp-plan-name">
                   {plan.name}
-                  {plan.id === "pro" ? <span className="lp-plan-tag">Prova gratuita a questo livello</span> : null}
+                  {plan.id === "pro" ? <span className="lp-plan-tag">Consigliato</span> : null}
                 </p>
                 <p className="lp-plan-line">{plan.line}</p>
               </header>
@@ -82,8 +81,6 @@ export function PricingPlans({ plans, ctas, trialLine, savingsLabel }: { plans: 
                   <>
                     <s>€ {euro(plan.yearlyFullCents!)}</s> € {euro(plan.yearlyCents!)} all&apos;anno
                   </>
-                ) : plan.note ? (
-                  plan.note
                 ) : (
                   "Pagamento mensile, disdici quando vuoi"
                 )}

@@ -8,7 +8,7 @@ export const planIds = ["starter", "pro", "business"] as const;
 export type PlanId = (typeof planIds)[number];
 
 /** Plan whose limits apply during the card-free trial. Change here if the trial offer changes. */
-export const TRIAL_PLAN_ID: PlanId = "pro";
+export const TRIAL_PLAN_ID: PlanId = "starter";
 /** Length of the free trial, in 24-hour days from the moment it starts. */
 export const TRIAL_DURATION_DAYS = 7;
 /** Show the in-app banner and send the reminder email when this many days (or fewer) remain. */
@@ -85,9 +85,9 @@ export const teamSeatLimits: Record<PlanId, number | null> = {
 };
 
 /**
- * Seat cap for a workspace. A workspace still on the free trial (`plan = "free"`, no redeem
- * override) uses the Pro cap so the team can work before checkout exists. A paid or redeemed
- * plan uses its own cap.
+ * Seat cap for a workspace. A workspace on the free trial (`plan = "free"`, no redeem override)
+ * uses the trial plan cap (Starter). A paid or redeemed plan uses its own cap. Members above the
+ * cap are never removed: only new invites are blocked.
  */
 export function workspaceTeamSeatLimit(plan: string, override: PlanId | null = null): number | null {
   if (override) return teamSeatLimits[override];
@@ -144,8 +144,8 @@ export const plans: Record<PlanId, Plan> = {
     eyebrow: "Piano Starter",
     title: "Tutto l’essenziale per iniziare",
     body: "Crea, gestisci e invia preventivi professionali con gli strumenti fondamentali.",
-    cta: "Attiva il piano",
-    priceLine: "L’opzione ideale per freelancer e professionisti indipendenti.",
+    cta: "Attiva il Piano Starter",
+    priceLine: "L’opzione ideale per freelancer e professionisti indipendenti. Sono gli stessi limiti della prova gratuita.",
     includes: [
       { label: quoteSendDailyLimitLabel("starter"), icon: "send", soon: false },
       { label: teamSeatLimitLabel("starter"), icon: "users", soon: false },
@@ -245,7 +245,7 @@ export function formatPlanPrice(cents: number): string {
   return `€ ${(cents / 100).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** Paid checkout can be monthly or yearly (12 months at 20% off). Starter is not sold. */
+/** Paid checkout can be monthly or yearly (12 months at 20% off), for every plan. */
 export const billingIntervals = ["monthly", "yearly"] as const;
 export type BillingInterval = (typeof billingIntervals)[number];
 
@@ -339,7 +339,7 @@ const avatarPlanShortName: Record<PlanId, string> = {
   business: "Business",
 };
 
-/** Ring around the header avatar: trial stays dashed even though limits are Pro. Lifetime Business uses the Business ring. */
+/** Ring around the header avatar: trial stays dashed (limits are Starter). Lifetime Business uses the Business ring. */
 export function avatarPlanRing(input: {
   trialActive: boolean;
   plan: string;

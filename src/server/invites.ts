@@ -2,7 +2,8 @@ import "server-only";
 import { and, count, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { AppDatabase } from "@/db/client";
-import { user, workspaceInvitations, workspaceMemberships, workspaces } from "@/db/schema";
+import { subscriptions, user, workspaceInvitations, workspaceMemberships, workspaces } from "@/db/schema";
+import { summaryPlanValue } from "@/domain/stripe-plans";
 import { createId } from "@/domain/ids";
 import { inviteRoleLabels, inviteRoles, type InviteRole, type PendingInvite, type SeatUsage } from "@/domain/invites";
 import { currentPlanLabel, teamSeatLimitReachedMessage, teamSeatQuotaLabel, workspaceTeamSeatLimit } from "@/domain/plans";
@@ -49,7 +50,12 @@ export async function getSeatUsage(db: AppDatabase, workspaceId: string, now = n
     .where(and(eq(workspaceInvitations.workspaceId, workspaceId), eq(workspaceInvitations.status, "pending")));
   const pending = pendingRows.filter((row) => row.expiresAt.getTime() > now.getTime()).length;
   const used = members + pending;
-  const planLabel = currentPlanLabel(workspace.plan, override);
+  const [sub] = await db
+    .select({ plan: subscriptions.plan, status: subscriptions.status })
+    .from(subscriptions)
+    .where(eq(subscriptions.workspaceId, workspaceId))
+    .limit(1);
+  const planLabel = currentPlanLabel(summaryPlanValue(workspace.plan, sub), override);
   return {
     used,
     members,

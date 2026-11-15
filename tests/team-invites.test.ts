@@ -7,6 +7,7 @@ import { joinAs, ownerWithWorkspace } from "./helpers/actors";
 import {
   acceptInvite,
   createWorkspaceInvite,
+  getSeatUsage,
   listPendingInvites,
   previewInvite,
   resendWorkspaceInvite,
@@ -38,10 +39,30 @@ function tokenFrom(message: EmailMessage): string {
   return match[1];
 }
 
+/** The trial now has Starter limits (1 seat): invite flows run on a paid Pro workspace. */
+async function proOwner(db: Awaited<ReturnType<typeof createTestDb>>, email: string, name: string) {
+  const owner = await ownerWithWorkspace(db, email, name);
+  await db.update(workspaces).set({ plan: "pro" }).where(eq(workspaces.id, owner.workspaceId));
+  return owner;
+}
+
 describe("inviti al team", () => {
+  it("durante la prova vale il limite Starter: i membri in più restano, ma non si invita nessun altro", async () => {
+    const db = await createTestDb();
+    const owner = await ownerWithWorkspace(db, "owner@example.com", "Studio Prova");
+    await joinAs(db, owner.workspaceId, "gia-dentro@example.com", "member");
+    const box = mailbox();
+    const created = await createWorkspaceInvite(db, owner, { email: "nuovo@example.com", role: "member" }, box.deps);
+    expect(created.ok).toBe(false);
+    if (!created.ok) expect(created.message).toContain("limite di 1 posto");
+    expect(box.sent).toHaveLength(0);
+    const usage = await getSeatUsage(db, owner.workspaceId);
+    expect(usage).toMatchObject({ members: 2, limit: 1 });
+  });
+
   it("consente a titolare e admin di invitare un membro, con token in hash e email di sistema", async () => {
     const db = await createTestDb();
-    const owner = await ownerWithWorkspace(db, "owner@example.com", "Studio Nord");
+    const owner = await proOwner(db, "owner@example.com", "Studio Nord");
     const admin = await joinAs(db, owner.workspaceId, "admin@example.com", "admin");
     const box = mailbox();
 
@@ -70,7 +91,7 @@ describe("inviti al team", () => {
 
   it("impedisce a un membro di invitare e a un admin di invitare un altro admin", async () => {
     const db = await createTestDb();
-    const owner = await ownerWithWorkspace(db, "owner@example.com", "Studio");
+    const owner = await proOwner(db, "owner@example.com", "Studio");
     const admin = await joinAs(db, owner.workspaceId, "admin@example.com", "admin");
     const member = await joinAs(db, owner.workspaceId, "member@example.com", "member");
     const box = mailbox();
@@ -90,7 +111,7 @@ describe("inviti al team", () => {
 
   it("rifiuta un invito a un membro già presente o a un invito già in attesa", async () => {
     const db = await createTestDb();
-    const owner = await ownerWithWorkspace(db, "owner@example.com", "Studio");
+    const owner = await proOwner(db, "owner@example.com", "Studio");
     await joinAs(db, owner.workspaceId, "gia@example.com", "member");
     const box = mailbox();
     const existing = await createWorkspaceInvite(db, owner, { email: "GIA@example.com", role: "member" }, box.deps);
@@ -106,7 +127,7 @@ describe("inviti al team", () => {
 
   it("rispetta il limite posti: con override Starter (1 posto) un secondo invito non parte", async () => {
     const db = await createTestDb();
-    const owner = await ownerWithWorkspace(db, "owner@example.com", "Studio");
+    const owner = await proOwner(db, "owner@example.com", "Studio");
     await db.update(workspaces).set({ planOverride: "starter" }).where(eq(workspaces.id, owner.workspaceId));
     const box = mailbox();
     const created = await createWorkspaceInvite(db, owner, { email: "extra@example.com", role: "member" }, box.deps);
@@ -117,7 +138,7 @@ describe("inviti al team", () => {
 
   it("accetta l'invito con l'email giusta, una sola volta, e rifiuta email diversa o token scaduto", async () => {
     const db = await createTestDb();
-    const owner = await ownerWithWorkspace(db, "owner@example.com", "Studio");
+    const owner = await proOwner(db, "owner@example.com", "Studio");
     const box = mailbox();
     const created = await createWorkspaceInvite(db, owner, { email: "ospite@example.com", role: "member" }, box.deps);
     expect(created.ok).toBe(true);
@@ -131,7 +152,7 @@ describe("inviti al team", () => {
     const wrong = await acceptInvite(db, { userId: stranger.userId, token });
     expect(wrong.ok).toBe(false);
 
-    const guestId = (await joinAs(db, (await ownerWithWorkspace(db, "tmp@example.com", "Altro")).workspaceId, "ospite@example.com", "member")).userId;
+    const guestId = (await joinAs(db, (await proOwner(db, "tmp@example.com", "Altro")).workspaceId, "ospite@example.com", "member")).userId;
     // joinAs creates the user; remove them from the other workspace is unnecessary for accept
     const accepted = await acceptInvite(db, { userId: guestId, token });
     expect(accepted.ok).toBe(true);
@@ -153,7 +174,7 @@ describe("inviti al team", () => {
     const second = await createWorkspaceInvite(db, owner, { email: "late@example.com", role: "member" }, expiredBox.deps);
     expect(second.ok).toBe(true);
     const lateToken = tokenFrom(expiredBox.sent[0]);
-    const lateUser = (await joinAs(db, (await ownerWithWorkspace(db, "x2@example.com", "X2")).workspaceId, "late@example.com", "member")).userId;
+    const lateUser = (await joinAs(db, (await proOwner(db, "x2@example.com", "X2")).workspaceId, "late@example.com", "member")).userId;
     const expired = await acceptInvite(db, { userId: lateUser, token: lateToken }, new Date(Date.now() + 8 * 24 * 60 * 60 * 1000));
     expect(expired.ok).toBe(false);
     if (!expired.ok) expect(expired.message).toContain("scaduto");
@@ -161,7 +182,7 @@ describe("inviti al team", () => {
 
   it("il reinvio invalida il token precedente; la revoca impedisce l'accettazione", async () => {
     const db = await createTestDb();
-    const owner = await ownerWithWorkspace(db, "owner@example.com", "Studio");
+    const owner = await proOwner(db, "owner@example.com", "Studio");
     const box = mailbox();
     const created = await createWorkspaceInvite(db, owner, { email: "re@example.com", role: "member" }, box.deps);
     expect(created.ok).toBe(true);
@@ -172,7 +193,7 @@ describe("inviti al team", () => {
     const newToken = tokenFrom(box.sent[1]);
     expect(newToken).not.toBe(oldToken);
 
-    const guestId = (await joinAs(db, (await ownerWithWorkspace(db, "y@example.com", "Studio Y")).workspaceId, "re@example.com", "member")).userId;
+    const guestId = (await joinAs(db, (await proOwner(db, "y@example.com", "Studio Y")).workspaceId, "re@example.com", "member")).userId;
     const oldAccept = await acceptInvite(db, { userId: guestId, token: oldToken });
     expect(oldAccept.ok).toBe(false);
 
@@ -182,7 +203,7 @@ describe("inviti al team", () => {
     const revokedToken = tokenFrom(box.sent[2]);
     const revoked = await revokeWorkspaceInvite(db, owner, other.value.id);
     expect(revoked.ok).toBe(true);
-    const revokee = (await joinAs(db, (await ownerWithWorkspace(db, "z@example.com", "Studio Z")).workspaceId, "revoca@example.com", "member")).userId;
+    const revokee = (await joinAs(db, (await proOwner(db, "z@example.com", "Studio Z")).workspaceId, "revoca@example.com", "member")).userId;
     const afterRevoke = await acceptInvite(db, { userId: revokee, token: revokedToken });
     expect(afterRevoke.ok).toBe(false);
     const logs = await db.select().from(auditLogs);
@@ -192,7 +213,7 @@ describe("inviti al team", () => {
 
   it("applica il rate limit sugli invii", async () => {
     const db = await createTestDb();
-    const owner = await ownerWithWorkspace(db, "owner@example.com", "Studio");
+    const owner = await proOwner(db, "owner@example.com", "Studio");
     const limiter: RateLimiter = {
       async hit(_rule: RateRule, subject: string): Promise<RateResult> {
         if (subject === owner.workspaceId) return { ok: false, remaining: 0, resetAt: Date.now() + 1000 };
@@ -208,7 +229,7 @@ describe("inviti al team", () => {
 
   it("protegge l'unico titolare dalla rimozione", async () => {
     const db = await createTestDb();
-    const owner = await ownerWithWorkspace(db, "owner@example.com", "Studio");
+    const owner = await proOwner(db, "owner@example.com", "Studio");
     const admin = await joinAs(db, owner.workspaceId, "admin@example.com", "admin");
     const removed = await removeMember(db, admin, owner.userId);
     expect(removed.ok).toBe(false);

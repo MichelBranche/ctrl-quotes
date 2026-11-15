@@ -13,7 +13,7 @@ export function TrialAcceptScreen() {
     <AuthScreen>
       <h1>Riscatta i tuoi 7 giorni gratuiti</h1>
       <p className="lede">
-        Inizia subito con i limiti del piano Pro, senza carta. Alla fine dei sette giorni puoi attivare un abbonamento per continuare a lavorare. I dati restano al sicuro.
+        Inizia subito con i limiti del piano Starter, senza carta. Alla fine dei sette giorni puoi attivare un abbonamento per continuare a lavorare. I dati restano al sicuro.
       </p>
       {error ? <p className="alert" role="alert">{error}</p> : null}
       <form

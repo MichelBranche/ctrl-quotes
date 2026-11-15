@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { ArrowRight, Bell, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowRight, Bell, Globe, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { PageTransition } from "@/components/motion/page-transition";
 import { SectionTransitionProvider } from "@/components/motion/section-transition";
 import { AnchoredPopover } from "@/components/ui/anchored-popover";
@@ -161,6 +161,9 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
               <Link href="/onboarding">
                 <Plus size={16} aria-hidden="true" /> {messages.shell.newWorkspace}
               </Link>
+              <Link href="/?home=1" prefetch={false}>
+                <Globe size={16} aria-hidden="true" /> Vai al sito
+              </Link>
               <form action={logoutAction}>
                 <button type="submit">
                   <LogOut size={16} aria-hidden="true" /> {messages.shell.logout}
@@ -198,7 +201,7 @@ function PlanCard({ workspace }: { workspace: ShellData["workspace"] }) {
   const body = workspace.trialExpired
     ? "Attiva un abbonamento per tornare a modificare i dati."
     : workspace.trialActive
-      ? "Limiti del piano Pro, senza carta. I dati restano al sicuro dopo la scadenza."
+      ? "Limiti del piano Starter, senza carta. I dati restano al sicuro dopo la scadenza."
       : messages.shell.planBody;
   const progress = workspace.trialActive || workspace.trialExpired
     ? Math.max(0, Math.min(1, 1 - workspace.trialDaysLeft / 7))

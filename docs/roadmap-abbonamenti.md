@@ -19,7 +19,7 @@ e le togliamo più avanti se decidiamo che non ci interessano. Fonte unica dei t
 - Tutte le funzionalità Starter (Pro)
 - Tutte le funzionalità Pro (Business): disponibili solo le parti già presenti in Pro
 - Collaborazione team (inviti via email, ruoli owner/admin/member, reinvio e revoca)
-- Persone nel workspace: 1 su Starter, 5 su Pro, illimitate su Business, titolare compreso, incluse nell'abbonamento. Durante il Piano di prova si applica il limite Pro (5), finché non esiste il checkout.
+- Persone nel workspace: 1 su Starter, 5 su Pro, illimitate su Business, titolare compreso, incluse nell'abbonamento. Durante il Piano di prova si applica il limite Starter (1): chi ha già più persone le tiene, ma non può invitarne altre.
 
 ## In arrivo, per piano
 
@@ -49,6 +49,6 @@ Riportati entrambi come da mockup: da allineare quando si definiscono i limiti d
 
 - Checkout e portale sono attivi solo se `STRIPE_SECRET_KEY` è impostata. Senza chiave l'interfaccia resta com'è.
 - Si vendono Pro e Business, mensile o annuale (dodici mesi meno il 20%, importi derivati in `plans.ts`).
-- `workspaces.plan` resta `free` / `pro` / `studio` (Business = `studio`). Il Piano di prova resta invariato finché non c'è un pagamento.
+- `workspaces.plan` resta `free` / `pro` / `studio` (Business = `studio`). Lo Starter a pagamento resta `free` nella riga: lo distingue l'abbonamento attivo con piano `starter` (vedi `summaryPlanValue`).
 - Metadata Stripe: `app=ctrl-quotes` e, dove esiste, `workspace_id`. Lookup key: `ctrl_quotes_pro_monthly`, `ctrl_quotes_pro_yearly`, `ctrl_quotes_business_monthly`, `ctrl_quotes_business_yearly`.
 - Dettagli operativi: `docs/stripe.md`.

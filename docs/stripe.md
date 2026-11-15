@@ -5,11 +5,11 @@ Checkout e portale cliente si accendono solo se `STRIPE_SECRET_KEY` è impostata
 ## Cosa si vende
 
 - Piani **Pro** e **Business**, mensili o annuali, importi da `src/domain/plans.ts` in EUR.
-- L'annuale è dodici mesi meno il 20% (Pro 182,40 EUR, Business 470,40 EUR). Lo Starter non si acquista.
+- L'annuale è dodici mesi meno il 20% (Starter 86,40 EUR, Pro 182,40 EUR, Business 470,40 EUR). Tutti e tre i piani si acquistano.
 
 ## Prova gratuita
 
-Ogni workspace ha sette giorni di prova, senza carta, con i limiti del piano Pro (`TRIAL_PLAN_ID` e `TRIAL_DURATION_DAYS` in `src/domain/plans.ts`). La prova parte quando l'utente accetta dalla schermata di onboarding, non alla sola creazione dell'account. I workspace già esistenti ricevono la stessa scadenza di sette giorni al momento della migration.
+Ogni workspace ha sette giorni di prova, senza carta, con i limiti del piano Starter (`TRIAL_PLAN_ID` e `TRIAL_DURATION_DAYS` in `src/domain/plans.ts`). La prova parte quando l'utente accetta dalla schermata di onboarding, non alla sola creazione dell'account. I workspace già esistenti ricevono la stessa scadenza di sette giorni al momento della migration.
 
 Se si sottoscrive durante la prova, Checkout imposta `subscription_data.trial_end` alla fine della prova del workspace: il primo addebito arriva in quella data. Dopo la scadenza, Checkout parte subito. A prova terminata, senza abbonamento o codice a vita, il workspace è in sola lettura (i link pubblici `/q/` restano utilizzabili). Un codice lifetime Business sblocca il piano senza sottoscrizione Stripe.
 
@@ -17,7 +17,7 @@ Se si sottoscrive durante la prova, Checkout imposta `subscription_data.trial_en
 
 - `STRIPE_SECRET_KEY` (obbligatoria per accendere i pagamenti)
 - `STRIPE_WEBHOOK_SECRET` (obbligatoria per i webhook)
-- `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`, `STRIPE_PRICE_BUSINESS_MONTHLY`, `STRIPE_PRICE_BUSINESS_YEARLY` (facoltative se esistono i lookup key)
+- `STRIPE_PRICE_STARTER_MONTHLY`, `STRIPE_PRICE_STARTER_YEARLY`, `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`, `STRIPE_PRICE_BUSINESS_MONTHLY`, `STRIPE_PRICE_BUSINESS_YEARLY` (facoltative se esistono i lookup key)
 
 Lookup key: `ctrl_quotes_pro_monthly`, `ctrl_quotes_pro_yearly`, `ctrl_quotes_business_monthly`, `ctrl_quotes_business_yearly`.
 

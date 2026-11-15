@@ -7,6 +7,7 @@ import { workspaceEntitlement } from "@/domain/entitlement";
 import {
   billingStatusLabel,
   intervalFromPriceId,
+  isPaidCheckoutPlan,
   paidPlanFromWorkspacePlan,
   paidPlanIntervalLabel,
   type BillingClientState,
@@ -78,7 +79,7 @@ export async function loadBillingState(
     statusLabel: billingStatusLabel(status, periodEndLabel),
     planId,
     planLabel,
-    paidPlanId: sub?.plan === "pro" || sub?.plan === "business" ? sub.plan : paidPlanFromWorkspacePlan(plan),
+    paidPlanId: sub?.plan && isPaidCheckoutPlan(sub.plan) ? sub.plan : paidPlanFromWorkspacePlan(plan),
     interval,
     intervalLabel: paidPlanIntervalLabel(interval),
     periodEnd,

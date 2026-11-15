@@ -6,8 +6,12 @@ import { joinAs, ownerWithWorkspace } from "./helpers/actors";
 import { applyStripeEvent, planFromStripeObject, type StripeLikeEvent } from "@/server/stripe/webhook";
 import { createWorkspaceInvite } from "@/server/invites";
 import { listMembers } from "@/server/team";
+import { listWorkspaces } from "@/server/workspaces";
+import { workspaceEntitlement } from "@/domain/entitlement";
 
 const env = {
+  STRIPE_PRICE_STARTER_MONTHLY: "price_starter_test",
+  STRIPE_PRICE_STARTER_YEARLY: "price_starter_year_test",
   STRIPE_PRICE_PRO_MONTHLY: "price_pro_test",
   STRIPE_PRICE_BUSINESS_MONTHLY: "price_biz_test",
   STRIPE_PRICE_PRO_YEARLY: "price_pro_year_test",
@@ -51,6 +55,36 @@ function subscriptionObject(input: {
 }
 
 describe("webhook Stripe", () => {
+  it("Starter a pagamento: la riga resta free, l'abbonamento starter dà accesso pagato con limiti Starter", async () => {
+    const db = await createTestDb();
+    const owner = await ownerWithWorkspace(db, "owner@example.com", "Studio Starter");
+    expect(planFromStripeObject({ items: { data: [{ price: { id: "price_starter_year_test" } }] } }, env)).toBe("starter");
+    expect(planFromStripeObject({ items: { data: [{ price: { lookup_key: "ctrl_quotes_starter_monthly" } }] } }, env)).toBe("starter");
+    const created = await applyStripeEvent(
+      db,
+      event("evt_starter_1", "customer.subscription.created", {
+        ...subscriptionObject({ workspaceId: owner.workspaceId, priceId: "price_starter_test", lookup: "ctrl_quotes_starter_monthly" }),
+        metadata: { app: "ctrl-quotes", workspace_id: owner.workspaceId, plan: "starter" },
+      }),
+      env,
+    );
+    expect(created.applied).toBe(true);
+    const [row] = await db.select().from(workspaces).where(eq(workspaces.id, owner.workspaceId));
+    expect(row.plan).toBe("free");
+    const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.workspaceId, owner.workspaceId));
+    expect(sub.plan).toBe("starter");
+    const [summary] = await listWorkspaces(db, owner.userId);
+    expect(summary.plan).toBe("starter");
+    const access = workspaceEntitlement({
+      plan: summary.plan,
+      planOverride: null,
+      planOverrideUntil: null,
+      trialEndsAt: new Date("2020-01-01T00:00:00.000Z"),
+      subscriptionStatus: sub.status,
+    });
+    expect(access).toMatchObject({ planId: "starter", hasPaidAccess: true, trialExpired: false, readOnly: false });
+  });
+
   it("mappa un checkout completato sul piano Pro e ignora un evento già processato", async () => {
     const db = await createTestDb();
     const owner = await ownerWithWorkspace(db, "owner@example.com", "Studio Stripe");

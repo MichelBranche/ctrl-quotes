@@ -38,6 +38,7 @@ import { assertWorkspaceId, createId, slugify } from "@/domain/ids";
 import { hasRole, isRole, type Role } from "@/domain/roles";
 import type { TaxProfile } from "@/domain/pricing";
 import { TRIAL_EXPIRED_WRITE_MESSAGE, trialEndFrom, type PlanId } from "@/domain/plans";
+import { summaryPlanValue } from "@/domain/stripe-plans";
 import { loadWorkspaceEntitlement } from "@/server/entitlement";
 import { activePlanOverride } from "@/domain/redeem";
 
@@ -45,7 +46,8 @@ export type WorkspaceSummary = {
   id: string;
   name: string;
   slug: string;
-  plan: "free" | "pro" | "studio";
+  /** Row value, or `starter` when a `free` row has a live Starter subscription (see summaryPlanValue). */
+  plan: "free" | "starter" | "pro" | "studio";
   /** Plan unlocked by a redeem code and still in force, or null. */
   planOverride: PlanId | null;
   /** End of that override; null with an override = lifetime. */
@@ -62,6 +64,7 @@ export type AccessFailure = "not_found" | "forbidden";
 function isPlan(value: string): value is WorkspaceSummary["plan"] {
   switch (value) {
     case "free":
+    case "starter":
     case "pro":
     case "studio":
       return true;
@@ -165,19 +168,24 @@ export async function listWorkspaces(db: AppDatabase, userId: string): Promise<W
       trialEndsAt: workspaces.trialEndsAt,
       onboardingCompletedAt: workspaces.onboardingCompletedAt,
       onboardingStep: workspaces.onboardingStep,
+      subPlan: subscriptions.plan,
+      subStatus: subscriptions.status,
     })
     .from(workspaceMemberships)
     .innerJoin(workspaces, eq(workspaces.id, workspaceMemberships.workspaceId))
+    .leftJoin(subscriptions, eq(subscriptions.workspaceId, workspaces.id))
     .where(and(eq(workspaceMemberships.userId, userId), isNull(workspaces.deletedAt)));
 
   return rows.flatMap((row) => {
-    if (!isPlan(row.plan) || !isTaxProfile(row.taxProfile) || !isRole(row.role)) return [];
-    const { overridePlan, overrideUntil, trialEndsAt, onboardingCompletedAt, onboardingStep, ...rest } = row;
+    const plan = summaryPlanValue(row.plan, { plan: row.subPlan, status: row.subStatus });
+    if (!isPlan(plan) || !isTaxProfile(row.taxProfile) || !isRole(row.role)) return [];
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { overridePlan, overrideUntil, trialEndsAt, onboardingCompletedAt, onboardingStep, subPlan, subStatus, ...rest } = row;
     const until = overrideUntil ? overrideUntil.getTime() : null;
     const planOverride = activePlanOverride(overridePlan, until);
     return [{
       ...rest,
-      plan: row.plan,
+      plan,
       planOverride,
       planOverrideUntil: planOverride ? until : null,
       taxProfile: row.taxProfile,

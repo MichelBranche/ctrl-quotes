@@ -13,9 +13,10 @@ import { plans, yearlyPriceCents, type BillingInterval } from "../src/domain/pla
 
 /** Keep these in sync with src/domain/stripe-plans.ts. The script cannot import that file: Node does not resolve the app path alias. */
 const STRIPE_APP = "ctrl-quotes";
-const paidCheckoutPlanIds = ["pro", "business"] as const;
+const paidCheckoutPlanIds = ["starter", "pro", "business"] as const;
 type PaidCheckoutPlanId = (typeof paidCheckoutPlanIds)[number];
 const stripePriceLookupKeys: Record<PaidCheckoutPlanId, { monthly: string; yearly: string }> = {
+  starter: { monthly: "ctrl_quotes_starter_monthly", yearly: "ctrl_quotes_starter_yearly" },
   pro: { monthly: "ctrl_quotes_pro_monthly", yearly: "ctrl_quotes_pro_yearly" },
   business: { monthly: "ctrl_quotes_business_monthly", yearly: "ctrl_quotes_business_yearly" },
 };
@@ -162,6 +163,8 @@ for (const row of summary) {
 if (portalId) console.log(`portale: ${portalId}`);
 console.log("Variabili da impostare:");
 const idOf = (plan: PaidCheckoutPlanId, interval: BillingInterval) => summary.find((row) => row.plan === plan && row.interval === interval)?.priceId;
+console.log(`STRIPE_PRICE_STARTER_MONTHLY=${idOf("starter", "monthly")}`);
+console.log(`STRIPE_PRICE_STARTER_YEARLY=${idOf("starter", "yearly")}`);
 console.log(`STRIPE_PRICE_PRO_MONTHLY=${idOf("pro", "monthly")}`);
 console.log(`STRIPE_PRICE_PRO_YEARLY=${idOf("pro", "yearly")}`);
 console.log(`STRIPE_PRICE_BUSINESS_MONTHLY=${idOf("business", "monthly")}`);

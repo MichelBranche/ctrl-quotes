@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { ArrowUpRight, Check, CreditCard, FileDown, GripVertical, Landmark, MousePointer2, Bell, Eye, Wallet } from "lucide-react";
+import Image from "next/image";
+import { ArrowUpRight, Check, FileDown, GripVertical, Mail, MousePointer2, Bell, Eye, Wallet } from "lucide-react";
 import {
   TRIAL_DURATION_DAYS,
   YEARLY_SAVINGS_PERCENT,
@@ -17,8 +17,17 @@ import { LandingMotion, landingBootScript } from "./motion";
 import { LoginLink, StartCta } from "./cta";
 import { PricingPlans, type LandingPlan } from "./pricing";
 import { Faq } from "./faq";
+import { PayChip } from "./brand-icons";
+import { FooterWordmark } from "./footer-wordmark";
+import quotes3d from "./assets/virgolette-3d.webp";
+import personaHero from "./assets/persona-hero.webp";
+import handPhone from "./assets/mano-telefono.webp";
+import teamDesigner from "./assets/team-designer.webp";
+import teamConsulente from "./assets/team-consulente.webp";
+import teamFreelance from "./assets/team-freelance.webp";
 
 const TRIAL = `${TRIAL_DURATION_DAYS} giorni gratis`;
+const SUPPORT_EMAIL = "hello@ctrlagency.dev";
 
 /** Splits a heading into masked lines for the rise-in animation. */
 function Lines({ lines }: { lines: ReactNode[] }) {
@@ -114,83 +123,93 @@ const mockLines = [
 function HeroStage() {
   return (
     <div className="lp-hero-stage" aria-hidden="true">
-      <div className="lp-float lp-float-cover" data-depth="0.6">
-        <div className="lp-bob" style={{ animationDelay: "-2s" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/landing/tpl-bold.webp" alt="" width={320} height={452} fetchPriority="high" />
+      <div className="lp-stage-art">
+        <div className="lp-float lp-float-quotes" data-depth="2.2">
+          <Image src={quotes3d} alt="" sizes="(max-width: 899px) 40vw, 260px" priority />
         </div>
-      </div>
-      <div className="lp-float lp-float-quote" data-depth="1">
-        <div className="lp-bob">
-          <div className="lp-mock">
-            <div className="lp-mock-bar">
-              <span />
-              <span />
-              <span />
-              <p>quotes.ctrlagency.dev/q/…</p>
-            </div>
-            <div className="lp-mock-body">
-              <div className="lp-mock-head">
-                <span className="lp-mock-logo">SE</span>
-                <div>
-                  <p className="lp-mock-from">Studio Esempio</p>
-                  <p className="lp-mock-num">Preventivo PRE-2025-001</p>
+        <div className="lp-float lp-float-cover" data-depth="0.6">
+          <div className="lp-bob" style={{ animationDelay: "-2s" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/landing/tpl-bold.webp" alt="" width={320} height={452} fetchPriority="high" />
+          </div>
+        </div>
+        <div className="lp-float lp-float-quote" data-depth="1">
+          <div className="lp-bob">
+            <div className="lp-mock">
+              <div className="lp-mock-bar">
+                <span />
+                <span />
+                <span />
+                <p>quotes.ctrlagency.dev/q/…</p>
+              </div>
+              <div className="lp-mock-body">
+                <div className="lp-mock-head">
+                  <span className="lp-mock-logo">SE</span>
+                  <div>
+                    <p className="lp-mock-from">Studio Esempio</p>
+                    <p className="lp-mock-num">Preventivo PRE-2025-001</p>
+                  </div>
+                  <span className="lp-mock-chip">Da accettare</span>
                 </div>
-                <span className="lp-mock-chip">Da accettare</span>
-              </div>
-              <p className="lp-mock-title">Nuovo sito web</p>
-              <p className="lp-mock-for">Proposta per Cliente Esempio</p>
-              <ul className="lp-mock-lines">
-                {mockLines.map((line) => (
-                  <li key={line.name}>
-                    <span>{line.name}</span>
-                    <b>€ {line.price}</b>
-                  </li>
-                ))}
-              </ul>
-              <div className="lp-mock-total">
-                <span>Totale imponibile</span>
-                <b>€ 5.500,00</b>
-              </div>
-              <div className="lp-mock-cta">
-                <span className="lp-mock-accept">
-                  <Check size={16} strokeWidth={3} /> Accetta preventivo
-                </span>
-                <span className="lp-mock-pdf">
-                  <FileDown size={16} /> PDF
-                </span>
+                <p className="lp-mock-title">Nuovo sito web</p>
+                <p className="lp-mock-for">Proposta per Cliente Esempio</p>
+                <ul className="lp-mock-lines">
+                  {mockLines.map((line) => (
+                    <li key={line.name}>
+                      <span>{line.name}</span>
+                      <b>€ {line.price}</b>
+                    </li>
+                  ))}
+                </ul>
+                <div className="lp-mock-total">
+                  <span>Totale imponibile</span>
+                  <b>€ 5.500,00</b>
+                </div>
+                <div className="lp-mock-cta">
+                  <span className="lp-mock-accept">
+                    <Check size="1em" strokeWidth={3} /> Accetta preventivo
+                  </span>
+                  <span className="lp-mock-pdf">
+                    <FileDown size="1em" /> PDF
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      <div className="lp-float lp-float-accepted" data-depth="1.6">
-        <div className="lp-bob" style={{ animationDelay: "-1s" }}>
-          <div className="lp-toast is-lime">
-            <span className="lp-toast-ico">
-              <Check size={18} strokeWidth={3} />
-            </span>
-            <div>
-              <p>Preventivo accettato</p>
-              <span>Cliente Esempio · adesso</span>
+        <div className="lp-float lp-float-accepted" data-depth="1.6">
+          <div className="lp-bob" style={{ animationDelay: "-1s" }}>
+            <div className="lp-toast is-lime">
+              <span className="lp-toast-ico">
+                <Check size="1.1em" strokeWidth={3} />
+              </span>
+              <div>
+                <p>Preventivo accettato</p>
+                <span>Cliente Esempio · adesso</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <div className="lp-float lp-float-paid" data-depth="2">
-        <div className="lp-bob" style={{ animationDelay: "-3s" }}>
-          <div className="lp-toast is-glass">
-            <span className="lp-toast-ico is-orange">
-              <Wallet size={18} strokeWidth={2.4} />
-            </span>
-            <div>
-              <p>Acconto ricevuto</p>
-              <span>IBAN · PayPal · Stripe</span>
+        <div className="lp-float lp-float-paid" data-depth="2">
+          <div className="lp-bob" style={{ animationDelay: "-3s" }}>
+            <div className="lp-toast is-glass">
+              <span className="lp-toast-ico is-orange">
+                <Wallet size="1.1em" strokeWidth={2.4} />
+              </span>
+              <div>
+                <p>Acconto ricevuto</p>
+                <span>IBAN · PayPal · Stripe</span>
+              </div>
             </div>
           </div>
         </div>
+        <div className="lp-float lp-float-chips" data-depth="2.6">
+          <PayChip brand="stripe" label="Stripe" className="is-a" />
+          <PayChip brand="paypal" label="PayPal" className="is-b" />
+          <PayChip brand="iban" label="IBAN" className="is-c" />
+        </div>
+        <Badge text="PREVENTIVI CHE CHIUDONO ✺ CTRL® QUOTES ✺ " className="lp-badge-hero" />
       </div>
-      <Badge text="PREVENTIVI CHE CHIUDONO ✺ CTRL® QUOTES ✺ " className="lp-badge-hero" />
     </div>
   );
 }
@@ -201,19 +220,17 @@ function landingPlans(): LandingPlan[] {
   const order: PlanId[] = ["starter", "pro", "business"];
   return order.map((id) => {
     const plan = plans[id];
-    const sellable = id !== "starter";
     return {
       id,
       name: plan.name.replace(/^Piano /, ""),
       line: plan.pickerLine,
       monthlyCents: plan.priceCents,
-      yearlyCents: sellable ? yearlyPriceCents(plan.priceCents) : null,
-      yearlyFullCents: sellable ? yearlyUndiscountedCents(plan.priceCents) : null,
+      yearlyCents: yearlyPriceCents(plan.priceCents),
+      yearlyFullCents: yearlyUndiscountedCents(plan.priceCents),
       limits: [quoteSendDailyLimitLabel(id), teamSeatLimitLabel(id)],
       includes: plan.includes
         .filter((item) => item.icon !== "send" && !/nel workspace/i.test(item.label))
         .map((item) => ({ label: item.label, soon: item.soon })),
-      note: sellable ? undefined : "Il livello base della prova, non si acquista a parte",
     };
   });
 }
@@ -221,11 +238,11 @@ function landingPlans(): LandingPlan[] {
 const faqs = [
   {
     q: "Serve la carta di credito per provarlo?",
-    a: `No. Ti registri e hai ${TRIAL} con i limiti del Piano Pro, senza inserire una carta. Scegli un abbonamento solo se vuoi continuare.`,
+    a: `No. Ti registri e hai ${TRIAL} con i limiti del Piano Starter, senza inserire una carta. Scegli un abbonamento solo se vuoi continuare.`,
   },
   {
     q: "Cosa succede quando finisce la prova?",
-    a: "I tuoi preventivi, clienti e servizi restano dove sono. Per continuare a modificarli e inviarne di nuovi attivi il Piano Pro o il Piano Business, mensile o annuale.",
+    a: "I tuoi preventivi, clienti e servizi restano dove sono. Per continuare a modificarli e inviarne di nuovi scegli il Piano Starter, Pro o Business, mensile o annuale.",
   },
   {
     q: "Il mio cliente deve registrarsi?",
@@ -241,7 +258,7 @@ const faqs = [
   },
   {
     q: "Posso usare il mio brand?",
-    a: "Sì. Carichi logo e colori nel Brand Kit e scegli tra cinque template: Bold Impact, Corporate Executive, Editorial Atelier, Studio Editorial e Swiss Minimal. Ogni preventivo li usa in automatico.",
+    a: "Sì. Carichi logo e colori nel Brand Kit e scegli tra i template già pronti: Bold Impact, Corporate Executive, Editorial Atelier, Studio Editorial e Swiss Minimal, inclusi in ogni piano. Ogni preventivo li usa in automatico.",
   },
   {
     q: "Posso lavorare con il mio team?",
@@ -289,7 +306,7 @@ export function Landing() {
       <a className="skip-link visually-hidden" href="#contenuto">
         Vai al contenuto
       </a>
-      <div className="lp-page">
+      <div className="lp-page" id="top">
         {/* ---------------- HERO ---------------- */}
         <section className="lp-hero" aria-labelledby="lp-hero-title">
           <div className="lp-hero-bg" aria-hidden="true">
@@ -300,10 +317,10 @@ export function Landing() {
             <span className="lp-noise" />
           </div>
           <header className="lp-nav">
-            <Link href="/" className="lp-nav-logo" aria-label="CTRL® Quotes, home">
+            <a href="#top" className="lp-nav-logo" aria-label="CTRL® Quotes, torna su">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/logo.png" alt="" width={150} height={33} />
-            </Link>
+            </a>
             <nav aria-label="Sezioni">
               <a href="#funzionalita">Funzionalità</a>
               <a href="#template">Template</a>
@@ -320,7 +337,7 @@ export function Landing() {
           <div className="lp-hero-inner" id="contenuto">
             <div className="lp-hero-copy">
               <p className="lp-hero-kicker">
-                <span className="lp-dot" /> {TRIAL} con i limiti Pro, senza carta
+                <span className="lp-dot" /> {TRIAL}, senza carta
               </p>
               <h1 id="lp-hero-title">
                 <span className="lp-line">
@@ -359,7 +376,6 @@ export function Landing() {
             </div>
             <HeroStage />
           </div>
-          <Sticker className="lp-sticker-hero-a">Link di accettazione</Sticker>
           <Squiggle className="lp-squiggle-hero" />
         </section>
 
@@ -432,23 +448,38 @@ export function Landing() {
 
               {/* Link di accettazione */}
               <article className="lp-tile is-lime is-link" data-reveal="">
-                <span className="lp-notch" />
-                <Corner tone="dark" />
                 <div className="lp-tile-text">
                   <p className="lp-tile-tag">Accettazione online</p>
                   <h3>Un link, un clic, preventivo accettato</h3>
                   <p>Il cliente apre il link privato, legge, scarica il PDF e accetta. Niente account, niente stampe da firmare.</p>
                 </div>
-                <div className="lp-accept-ui" aria-hidden="true">
-                  <div className="lp-accept-bar">quotes.ctrlagency.dev/q/•••••••</div>
-                  <div className="lp-accept-row">
-                    <span className="lp-accept-total">
+                <div className="lp-phone" aria-hidden="true">
+                  <Image src={handPhone} alt="" sizes="(max-width: 899px) 70vw, 320px" className="lp-phone-img" />
+                  <div className="lp-phone-screen">
+                    <p className="lp-phone-url">quotes.ctrlagency.dev</p>
+                    <div className="lp-phone-head">
+                      <span className="lp-mock-logo">SE</span>
+                      <span>
+                        <b>Studio Esempio</b>
+                        <small>PRE-2025-001</small>
+                      </span>
+                    </div>
+                    <p className="lp-phone-title">Nuovo sito web</p>
+                    <ul className="lp-phone-lines">
+                      {mockLines.map((line) => (
+                        <li key={line.name}>
+                          <span>{line.name}</span>
+                          <b>€ {line.price}</b>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="lp-phone-total">
                       Totale <b>€ 5.500,00</b>
-                    </span>
+                    </p>
                     <span className="lp-accept-btn">
-                      <span className="is-idle">Accetta preventivo</span>
+                      <span className="is-idle">Accetta</span>
                       <span className="is-done">
-                        <Check size={16} strokeWidth={3} /> Accettato
+                        <Check size="1.1em" strokeWidth={3} /> Accettato
                       </span>
                     </span>
                     <MousePointer2 className="lp-accept-cursor" size={22} fill="#111" />
@@ -480,15 +511,19 @@ export function Landing() {
                 </div>
                 <ul className="lp-pay-list">
                   <li>
-                    <Landmark size={18} /> Bonifico IBAN
+                    <PayChip brand="iban" label="IBAN" className="is-inline" /> Bonifico IBAN
                   </li>
                   <li>
-                    <Wallet size={18} /> PayPal
+                    <PayChip brand="paypal" label="PayPal" className="is-inline" /> PayPal
                   </li>
                   <li>
-                    <CreditCard size={18} /> Carta con Stripe
+                    <PayChip brand="stripe" label="Stripe" className="is-inline" /> Carta con Stripe
                   </li>
                 </ul>
+                <div className="lp-pay-stickers" aria-hidden="true">
+                  <PayChip brand="stripe" label="Stripe" className="is-a" />
+                  <PayChip brand="paypal" label="PayPal" className="is-b" />
+                </div>
                 <p className="lp-tile-foot">Scegli i metodi quando invii il preventivo.</p>
               </article>
 
@@ -540,11 +575,12 @@ export function Landing() {
                   <h3>Lavora con il tuo team</h3>
                 </div>
                 <div className="lp-team-av" aria-hidden="true">
-                  {["MR", "GL", "AS", "+"].map((ini, i) => (
-                    <span key={ini} className={`lp-av is-${i}`}>
-                      {ini}
+                  {[teamDesigner, teamConsulente, teamFreelance].map((src, i) => (
+                    <span key={i} className={`lp-av is-photo is-${i}`}>
+                      <Image src={src} alt="" sizes="96px" />
                     </span>
                   ))}
+                  <span className="lp-av is-3">+</span>
                 </div>
                 <p className="lp-tile-foot">
                   Starter {teamSeatLimits.starter} · Pro {teamSeatLimits.pro} · Business illimitati
@@ -603,9 +639,12 @@ export function Landing() {
                 <span>03</span> Template
               </p>
               <h2 id="lp-tpl-title" className="lp-display" data-split="">
-                <Lines lines={[<><span className="lp-pill is-lime">5 template</span></>, "zero impaginazione"]} />
+                <Lines lines={[<><span className="lp-pill is-lime">5+ template</span></>, "già pronti"]} />
               </h2>
-              <p className="lp-tpl-lead">Scegli lo stile, il contenuto si adatta. Logo e colori arrivano dal tuo Brand Kit.</p>
+              <p className="lp-tpl-lead">
+                Zero impaginazione: scegli lo stile, il contenuto si adatta e logo e colori arrivano dal tuo Brand Kit. I cinque stili sono inclusi in ogni piano,
+                Starter compreso, e la libreria cresce: tanti altri in arrivo con il Piano Pro in su.
+              </p>
             </div>
             <div className="lp-tpl-fan">
               {templateOrder.map((key) => (
@@ -683,10 +722,10 @@ export function Landing() {
             <PricingPlans
               plans={pricingPlans}
               savingsLabel={`-${YEARLY_SAVINGS_PERCENT}%`}
-              trialLine={`Ogni account parte con ${TRIAL} ai limiti del Piano Pro. Nessuna carta per iniziare, l'abbonamento parte solo se lo attivi.`}
+              trialLine={`Ogni account parte con ${TRIAL} ai limiti del Piano Starter. Nessuna carta per iniziare, l'abbonamento parte solo se lo attivi.`}
               ctas={{
-                starter: <StartCta label="Inizia gratis" className="lp-btn lp-btn-dark lp-btn-block" />,
-                pro: <StartCta label="Prova Pro gratis" className="lp-btn lp-btn-dark lp-btn-block" />,
+                starter: <StartCta label="Prova gratis" className="lp-btn lp-btn-dark lp-btn-block" />,
+                pro: <StartCta label="Inizia con Pro" className="lp-btn lp-btn-dark lp-btn-block" />,
                 business: <StartCta label="Inizia con la prova" className="lp-btn lp-btn-lime lp-btn-block" />,
               }}
             />
@@ -703,7 +742,9 @@ export function Landing() {
               <h2 id="lp-faq-title" className="lp-display is-sm" data-split="">
                 <Lines lines={["Domande", <><span className="lp-pill is-orange">frequenti</span></>]} />
               </h2>
-              <p className="lp-faq-lead">Non trovi la risposta? Scrivici dal sito di CTRL® Agency.</p>
+              <p className="lp-faq-lead">
+                Non trovi la risposta? Scrivici a <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+              </p>
               <Badge text="RISPOSTE CHIARE ✺ ZERO SORPRESE ✺ " className="lp-badge-faq" />
             </div>
             <Faq items={faqs} />
@@ -716,18 +757,27 @@ export function Landing() {
             <span className="lp-grid is-dark" />
             <span className="lp-blob is-violet-soft" />
           </div>
+          <div className="lp-final-art" aria-hidden="true">
+            <span className="lp-final-shape" />
+            <div className="lp-final-persona" data-speed="0.35">
+              <Image src={personaHero} alt="" sizes="(max-width: 899px) 60vw, 520px" />
+            </div>
+            <div className="lp-final-quotes" data-speed="1.1">
+              <Image src={quotes3d} alt="" sizes="(max-width: 899px) 30vw, 240px" />
+            </div>
+          </div>
           <div className="lp-wrap lp-final-inner">
             <Sticker className="lp-sticker-final">Pronto in pochi minuti</Sticker>
             <h2 id="lp-final-title" className="lp-display is-xl" data-split="">
               <Lines lines={["Il prossimo", <>preventivo <span className="lp-pill is-violet">chiude</span></>]} />
             </h2>
             <p>
-              Prova CTRL® Quotes per {TRIAL}, con tutto il Piano Pro. Senza carta.
+              Prova CTRL® Quotes per {TRIAL}, con i limiti del Piano Starter. Senza carta.
             </p>
             <div className="lp-final-actions">
               <StartCta label="Crea il tuo account" className="lp-btn lp-btn-dark lp-btn-lg" />
             </div>
-            <Badge text="7 GIORNI GRATIS ✺ LIVELLO PRO ✺ SENZA CARTA ✺ " className="lp-badge-final" />
+            <Badge text="7 GIORNI GRATIS ✺ SENZA CARTA ✺ CTRL® QUOTES ✺ " className="lp-badge-final" />
           </div>
         </section>
 
@@ -738,6 +788,9 @@ export function Landing() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/logo.png" alt="CTRL® Quotes" width={150} height={33} loading="lazy" />
               <p>Preventivi interattivi per freelance, studi e piccole imprese.</p>
+              <a className="lp-footer-mail" href={`mailto:${SUPPORT_EMAIL}`}>
+                <Mail size={16} /> {SUPPORT_EMAIL}
+              </a>
             </div>
             <nav aria-label="Link legali" className="lp-footer-links">
               <a href="/privacy">Privacy</a>
@@ -754,9 +807,7 @@ export function Landing() {
               by CTRL® Agency <ArrowUpRight size={14} />
             </a>
           </div>
-          <p className="lp-footer-giant" aria-hidden="true">
-            CTRL® QUOTES
-          </p>
+          <FooterWordmark />
         </footer>
       </div>
     </LandingMotion>

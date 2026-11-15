@@ -194,7 +194,6 @@ export function BillingView({
   notice?: "success" | "cancel" | null;
 }) {
   const [payments, setPayments] = useState(false);
-  const [starterInfo, setStarterInfo] = useState(false);
   const { pending, run } = useAction();
   const m = useBillingMotion();
   const { visit, leaving } = useSectionTransition();
@@ -211,10 +210,7 @@ export function BillingView({
       setPayments(true);
       return;
     }
-    if (!isPaidCheckoutPlan(planId)) {
-      setStarterInfo(true);
-      return;
-    }
+    if (!isPaidCheckoutPlan(planId)) return;
     if (!billing?.isOwner) return;
     if (billing.hasSubscription && billing.paidPlanId === planId) {
       run(() => startPortalAction(), goToUrl);
@@ -284,17 +280,6 @@ export function BillingView({
         </p>
         <div className="dialog-actions">
           <Button onClick={() => setPayments(false)} autoFocus>
-            Ho capito
-          </Button>
-        </div>
-      </Dialog>
-      <Dialog open={starterInfo} title="Piano Starter" onClose={() => setStarterInfo(false)}>
-        <p>
-          Lo Starter è il piano di partenza del Piano di prova e non si acquista a parte. Per sbloccare più posti e invii, attiva il Piano Pro o il
-          Piano Business.
-        </p>
-        <div className="dialog-actions">
-          <Button onClick={() => setStarterInfo(false)} autoFocus>
             Ho capito
           </Button>
         </div>
@@ -385,7 +370,7 @@ function PlanCard({
 function Price({ planId }: { planId: PlanId }) {
   const { interval } = useContext(CycleContext);
   const monthly = plans[planId].priceCents;
-  const showYearly = interval === "yearly" && planId !== "starter";
+  const showYearly = interval === "yearly";
   const main = showYearly ? yearlyMonthlyEquivalentCents(yearlyPriceCents(monthly)) : monthly;
   const yearly = yearlyPriceCents(monthly);
   const fullYear = yearlyUndiscountedCents(monthly);

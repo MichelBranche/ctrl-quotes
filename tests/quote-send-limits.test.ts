@@ -45,10 +45,10 @@ describe("limite giornaliero di invio preventivi", () => {
     await db.update(workspaces).set({ planOverride: plan, planOverrideUntil: null }).where(eq(workspaces.id, alpha.workspaceId));
   }
 
-  it("durante la prova gratuita usa i limiti Pro (15 invii al giorno)", async () => {
+  it("durante la prova gratuita usa i limiti Starter (3 invii al giorno)", async () => {
     const context = must(await getSendContext(db, alpha, quoteId, noonRome));
-    expect(context.quota).toMatchObject({ used: 0, limit: 15, planId: "pro", reached: false, globalBlocked: false });
-    expect(quoteSendQuotaLabel(context.quota.used, context.quota.limit)).toBe("Invii oggi: 0 di 15");
+    expect(context.quota).toMatchObject({ used: 0, limit: 3, planId: "starter", reached: false, globalBlocked: false });
+    expect(quoteSendQuotaLabel(context.quota.used, context.quota.limit)).toBe("Invii oggi: 0 di 3");
   });
 
   it("un override Starter resta a 3 invii al giorno", async () => {

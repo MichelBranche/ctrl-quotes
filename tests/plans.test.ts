@@ -102,11 +102,12 @@ describe("subscription plans", () => {
     expect(quoteSendDailyLimitLabel("business").toLowerCase()).toContain("illimitat");
   });
 
-  it("sets team seat limits: 1 on Starter, 5 on Pro, unlimited on Business, and the trial uses the Pro cap", () => {
+  it("sets team seat limits: 1 on Starter, 5 on Pro, unlimited on Business, and the trial uses the Starter cap", () => {
     expect(teamSeatLimits.starter).toBe(1);
     expect(teamSeatLimits.pro).toBe(5);
     expect(teamSeatLimits.business).toBeNull();
-    expect(workspaceTeamSeatLimit("free")).toBe(5);
+    expect(workspaceTeamSeatLimit("free")).toBe(1);
+    expect(workspaceTeamSeatLimit("starter")).toBe(1);
     expect(workspaceTeamSeatLimit("free", "starter")).toBe(1);
     expect(workspaceTeamSeatLimit("pro")).toBe(5);
     expect(workspaceTeamSeatLimit("studio")).toBeNull();
@@ -118,7 +119,7 @@ describe("subscription plans", () => {
     expect(teamSeatLimitLabel("starter")).toBe(teamSeatLimitLabelFromCap(teamSeatLimits.starter));
     expect(teamSeatLimitLabel("pro")).toBe(teamSeatLimitLabelFromCap(teamSeatLimits.pro));
     expect(teamSeatLimitLabel("business")).toBe(teamSeatLimitLabelFromCap(teamSeatLimits.business));
-    expect(teamSeatLimitLabelFromCap(workspaceTeamSeatLimit("free"))).toBe(teamSeatLimitLabel("pro"));
+    expect(teamSeatLimitLabelFromCap(workspaceTeamSeatLimit("free"))).toBe(teamSeatLimitLabel("starter"));
     const seatsRow = compareRows.find((row) => row.label === "Persone nel workspace");
     expect(seatsRow?.soon).toBe(false);
     expect(seatsRow?.values).toEqual({
