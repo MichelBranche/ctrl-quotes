@@ -30,6 +30,8 @@ export const rateRules = {
   inviteSend: { name: "invite-send", limit: 8, windowSec: 3600 },
   /** Same invite email in the same workspace: daily cap. */
   inviteEmail: { name: "invite-email", limit: 3, windowSec: 86400 },
+  /** Stripe Checkout and Customer Portal sessions: per user. */
+  checkout: { name: "stripe-checkout", limit: 8, windowSec: 600 },
 } as const satisfies Record<string, RateRule>;
 
 export type RateResult = { ok: boolean; remaining: number; resetAt: number };

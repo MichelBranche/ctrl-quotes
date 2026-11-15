@@ -27,6 +27,8 @@ describe("subscription plans", () => {
     expect(effectivePlanId("free", "pro")).toBe("pro");
     expect(effectivePlanId("pro", "starter")).toBe("starter");
     expect(currentPlanLabel("free", "business")).toBe("Piano Business");
+    expect(currentPlanLabel("pro")).toBe("Piano Pro");
+    expect(currentPlanLabel("studio")).toBe("Piano Business");
   });
 
   it("sets daily send limits: 3 on Starter, 15 on Pro, unlimited on Business", () => {

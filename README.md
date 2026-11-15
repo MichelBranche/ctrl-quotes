@@ -75,6 +75,6 @@ Non attivare `ENABLE_COMPONENT_CATALOG` né `ENABLE_DEV_MAILBOX` su Vercel: le r
 - Migrazione additiva `drizzle/0003_template_premium.sql`: aggiunge solo `tpl_studio`. Le chiavi esistenti restano, quindi i preventivi già salvati si aprono con il nuovo stile del template corrispondente.
 - QA: `/dev/templates?t=<chiave>` (solo con `ENABLE_COMPONENT_CATALOG=1`, mai su Vercel) mostra il preventivo di esempio per controllare il layout mobile. `scripts/qa-compare.py` affianca le pagine PDF ai mockup.
 
-## Cosa non è iniziato
+## Pagamenti (Stripe)
 
-Editor dei preventivi, preventivo pubblico, PDF, Stripe, inviti del team via email, import CSV del catalogo. I pulsanti di quelle funzioni sono disabilitati e spiegano perché.
+Checkout e portale cliente si accendono solo se `STRIPE_SECRET_KEY` è impostata. Senza chiave la pagina Abbonamento resta com'è. Dettagli in `docs/stripe.md`.

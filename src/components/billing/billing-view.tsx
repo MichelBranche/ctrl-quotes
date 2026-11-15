@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useAction } from "@/components/data/use-action";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import { ArrowRight, ArrowUpRight, Check, ChartNoAxesColumn, Headset, Layers, LayoutGrid, Minus, Send, ShieldCheck, UserRound, Users } from "lucide-react";
 import { Dialog } from "@/components/ui/overlays";
@@ -10,6 +11,8 @@ import { SectionLink, useMoving, useSectionTransition } from "@/components/motio
 import { PlanHeroEffect } from "@/components/billing/effects/billing-effects";
 import { RedeemButton } from "@/components/billing/redeem-dialog";
 import { compareRows, formatPlanPrice, planIds, plans, quoteSendDailyLimitLabel, teamSeatLimitLabel, type PlanIcon, type PlanId } from "@/domain/plans";
+import { isPaidCheckoutPlan, overSeatCapMessage, type BillingClientState } from "@/domain/stripe-plans";
+import { startCheckoutAction, startPortalAction } from "@/server/actions/billing";
 
 export type BillingViewId = "plans" | "compare" | PlanId;
 
@@ -90,15 +93,73 @@ function useBillingMotion() {
   return { reduced, grid, item, list, row, tick, lift, press };
 }
 
-export function BillingView({ view }: { view: BillingViewId }) {
+export function BillingView({
+  view,
+  billing,
+  notice = null,
+}: {
+  view: BillingViewId;
+  billing?: BillingClientState;
+  notice?: "success" | "cancel" | null;
+}) {
   const [payments, setPayments] = useState(false);
+  const [starterInfo, setStarterInfo] = useState(false);
+  const { pending, run } = useAction();
   const m = useBillingMotion();
   const { visit, leaving } = useSectionTransition();
   const { moving, settle } = useMoving();
-  const activate = () => setPayments(true);
+  const checkoutEnabled = billing?.checkoutEnabled ?? false;
+
+  const goToUrl = (value: { url: string }) => {
+    window.location.href = value.url;
+  };
+
+  const activate = (planId: PlanId) => {
+    if (!checkoutEnabled) {
+      setPayments(true);
+      return;
+    }
+    if (!isPaidCheckoutPlan(planId)) {
+      setStarterInfo(true);
+      return;
+    }
+    if (!billing?.isOwner) return;
+    if (billing.hasSubscription && billing.paidPlanId === planId) {
+      run(() => startPortalAction(), goToUrl);
+      return;
+    }
+    run(() => startCheckoutAction(planId), goToUrl);
+  };
+
+  const manage = () => run(() => startPortalAction(), goToUrl);
 
   return (
     <>
+      {notice === "success" ? (
+        <p className="bl-banner is-ok" role="status">
+          Pagamento ricevuto. L&apos;abbonamento si aggiorna in pochi secondi.
+        </p>
+      ) : null}
+      {notice === "cancel" ? (
+        <p className="bl-banner" role="status">
+          Checkout annullato. Nessun addebito è stato effettuato.
+        </p>
+      ) : null}
+      {checkoutEnabled && billing && billing.status !== "trial" ? (
+        <p className={cn("bl-banner", billing.status === "past_due" && "is-warn", billing.status === "active" && "is-ok")} role="status">
+          {billing.planLabel}: {billing.statusLabel}
+          {billing.isOwner && billing.hasSubscription ? (
+            <Button variant="ghost" className="bl-banner-action" loading={pending} onClick={manage}>
+              Gestisci abbonamento
+            </Button>
+          ) : null}
+        </p>
+      ) : null}
+      {checkoutEnabled && billing?.overSeatCap ? (
+        <p className="bl-banner is-warn" role="status">
+          {overSeatCapMessage}
+        </p>
+      ) : null}
       {/* Keyed on the visit: the cards build up again on every arrival, also when Next reveals a route it kept hidden. */}
       <motion.div
         key={`${view}-${visit}`}
@@ -108,7 +169,7 @@ export function BillingView({ view }: { view: BillingViewId }) {
         animate={leaving ? "exit" : "show"}
         onAnimationComplete={settle}
       >
-        {view === "plans" ? <PlansView /> : view === "compare" ? <CompareView /> : <PlanView id={view} onActivate={activate} />}
+        {view === "plans" ? <PlansView /> : view === "compare" ? <CompareView /> : <PlanView id={view} onActivate={() => activate(view)} pending={pending} />}
       </motion.div>
       <Dialog open={payments} title="Pagamenti in arrivo" onClose={() => setPayments(false)}>
         <p>
@@ -117,6 +178,17 @@ export function BillingView({ view }: { view: BillingViewId }) {
         </p>
         <div className="dialog-actions">
           <Button onClick={() => setPayments(false)} autoFocus>
+            Ho capito
+          </Button>
+        </div>
+      </Dialog>
+      <Dialog open={starterInfo} title="Piano Starter" onClose={() => setStarterInfo(false)}>
+        <p>
+          Lo Starter è il piano di partenza del Piano di prova e non si acquista a parte. Per sbloccare più posti e invii, attiva il Piano Pro o il
+          Piano Business.
+        </p>
+        <div className="dialog-actions">
+          <Button onClick={() => setStarterInfo(false)} autoFocus>
             Ho capito
           </Button>
         </div>
@@ -164,10 +236,10 @@ function ActionLink({ href, children }: { href: string; children: ReactNode }) {
   );
 }
 
-function ActionButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+function ActionButton({ onClick, children, disabled = false }: { onClick: () => void; children: ReactNode; disabled?: boolean }) {
   const m = useBillingMotion();
   return (
-    <motion.button type="button" className="bl-btn" onClick={onClick} whileHover={m.lift ? { y: -2 } : undefined} whileTap={m.press}>
+    <motion.button type="button" className="bl-btn" onClick={onClick} disabled={disabled} whileHover={disabled ? undefined : m.lift ? { y: -2 } : undefined} whileTap={disabled ? undefined : m.press}>
       {children} <ArrowRight size={18} aria-hidden="true" className="bl-btn-arrow" />
     </motion.button>
   );
@@ -333,13 +405,13 @@ function CompareView() {
   );
 }
 
-function PlanView({ id, onActivate }: { id: PlanId; onActivate: () => void }) {
+function PlanView({ id, onActivate, pending = false }: { id: PlanId; onActivate: () => void; pending?: boolean }) {
   const plan = plans[id];
   const next = plans[plan.next.plan];
   const m = useBillingMotion();
   return (
     <>
-      <Hero eyebrow={plan.eyebrow} title={plan.title} body={plan.body} plan={id} dir={dirs.plan.hero} action={<ActionButton onClick={onActivate}>{plan.cta}</ActionButton>} />
+      <Hero eyebrow={plan.eyebrow} title={plan.title} body={plan.body} plan={id} dir={dirs.plan.hero} action={<ActionButton onClick={onActivate} disabled={pending}>{plan.cta}</ActionButton>} />
       <PlanCard plan={id} href={billingHref.compare} className="bl-price-card" dir={dirs.plan.price}>
         <span className="bl-plan-name">{plan.name}</span>
         <Price cents={plan.priceCents} />

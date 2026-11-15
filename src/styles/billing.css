@@ -366,3 +366,18 @@
   .bl-btn.is-ghost:hover .bl-btn-icon, .rd-close:hover, .rd-submit:hover:not(:disabled) { transform: none; }
 }
 .rd-soon { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--cq-surface-sunken); color: var(--cq-muted); font-size: 11px; font-weight: 600; }
+
+.bl-banner {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px;
+  margin: 0 0 4px; padding: 10px 14px; border-radius: 14px;
+  background: var(--cq-surface); border: 1px solid color-mix(in srgb, var(--cq-ink) 8%, transparent);
+  font-size: var(--cq-font-size-sm); font-weight: 550; box-shadow: var(--cq-shadow-sm);
+}
+.bl-banner.is-ok { background: color-mix(in srgb, var(--cq-plan-business) 16%, var(--cq-surface)); }
+.bl-banner.is-warn { background: color-mix(in srgb, #e11d48 8%, var(--cq-surface)); }
+.bl-banner-action { margin-left: auto; }
+.bl-current-status {
+  padding: 4px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--cq-ink) 8%, transparent);
+  font-weight: 650;
+}

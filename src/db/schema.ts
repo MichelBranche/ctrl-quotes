@@ -163,8 +163,19 @@ export const subscriptions = sqliteTable("subscriptions", {
   stripeSubscriptionId: text("stripe_subscription_id"),
   status: text("status").notNull().default("none"),
   periodEnd: timestamp("period_end"),
+  plan: text("plan"),
+  cancelAtPeriodEnd: integer("cancel_at_period_end", { mode: "boolean" }).notNull().default(false),
+  stripePriceId: text("stripe_price_id"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
+});
+
+/** Stripe webhook event ids already applied. workspace_id is nullable so a malformed event can still be recorded. */
+export const stripeProcessedEvents = sqliteTable("stripe_processed_events", {
+  eventId: text("event_id").primaryKey(),
+  type: text("type").notNull(),
+  workspaceId: text("workspace_id"),
+  createdAt: timestamp("created_at").notNull(),
 });
 
 export const subscriptionEvents = sqliteTable("subscription_events", {
@@ -885,6 +896,7 @@ export const schema = {
   workspaceMemberships,
   workspaceInvitations,
   subscriptions,
+  stripeProcessedEvents,
   subscriptionEvents,
   usageCounters,
   clients,

@@ -25,6 +25,7 @@ export const permissionMatrix = {
   "team.invite": "admin",
   "team.remove": "admin",
   "team.role": "owner",
+  "billing.manage": "owner",
 } as const satisfies Record<string, Role>;
 
 export type Permission = keyof typeof permissionMatrix;

@@ -45,9 +45,10 @@ e le togliamo più avanti se decidiamo che non ci interessano. Fonte unica dei t
 Nota: nel mockup la tabella segna "Supporto prioritario" solo per Business, mentre la pagina Pro lo elenca in "Cosa include".
 Riportati entrambi come da mockup: da allineare quando si definiscono i limiti dei piani.
 
-## Da decidere in Fase 5 (Stripe)
+## Stripe (Fase 5)
 
-- Mappatura dei valori di `workspaces.plan` (`free` / `pro` / `studio`) sui piani **Starter / Pro / Business**:
-  rinominare i valori con una migrazione oppure tenere i nomi interni e mapparli solo in UI.
-- Cosa resta del Piano di prova (durata, limiti) quando arriva il checkout.
-- Checkout Stripe, portale cliente, webhook su `subscription_events`, prezzi IVA inclusa o esclusa.
+- Checkout e portale sono attivi solo se `STRIPE_SECRET_KEY` è impostata. Senza chiave l'interfaccia resta com'è.
+- Si vendono Pro e Business, solo mensile (gli importi annuali non sono definiti in `plans.ts`).
+- `workspaces.plan` resta `free` / `pro` / `studio` (Business = `studio`). Il Piano di prova resta invariato finché non c'è un pagamento.
+- Metadata Stripe: `app=ctrl-quotes` e, dove esiste, `workspace_id`. Lookup key: `ctrl_quotes_pro_monthly`, `ctrl_quotes_business_monthly`.
+- Dettagli operativi: `docs/stripe.md`.

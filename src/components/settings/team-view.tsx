@@ -13,6 +13,7 @@ import { can, permissionMatrix } from "@/domain/permissions";
 import { roleLabel, type Role } from "@/domain/roles";
 import { inviteMemberAction, changeRoleAction, removeMemberAction, resendInviteAction, revokeInviteAction } from "@/server/actions/settings";
 import { inviteRoleLabels, type PendingInvite, type SeatUsage } from "@/domain/invites";
+import { overSeatCapMessage } from "@/domain/stripe-plans";
 import type { Member } from "@/server/team";
 
 
@@ -82,6 +83,7 @@ export function TeamView({
       <div className="ss-cols is-team">
       <div className="stack-tight">
       <p className="field-hint ss-note">{inviteHint}</p>
+      {seats.limit != null && seats.used > seats.limit ? <p className="alert" role="status">{overSeatCapMessage}</p> : null}
       <ul className="member-list">
         {members.map((member) => (
           <li key={member.userId} className="card inset member-row">

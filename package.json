@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --experimental-strip-types scripts/migrate.ts",
-    "redeem:create": "node --experimental-strip-types scripts/redeem-code.ts"
+    "redeem:create": "node --experimental-strip-types scripts/redeem-code.ts",
+    "stripe:setup": "node --experimental-strip-types scripts/stripe-setup.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -38,6 +39,7 @@
     "server-only": "^0.0.1",
     "sharp": "^0.35.5",
     "sonner": "^2.0.8",
+    "stripe": "^23.1.0",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7"
   },

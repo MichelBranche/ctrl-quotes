@@ -1,7 +1,7 @@
 /**
  * Subscription plans shown in Impostazioni > Abbonamento. Copy follows Michel's mockups word for word.
  * `soon: true` marks features that do not exist in the app yet: they stay listed with an "In arrivo" tag
- * (see docs/roadmap-abbonamenti.md). No checkout yet: Stripe arrives in Fase 5.
+ * (see docs/roadmap-abbonamenti.md). Stripe checkout is gated on STRIPE_SECRET_KEY.
  */
 
 export const planIds = ["starter", "pro", "business"] as const;
@@ -247,7 +247,8 @@ export function quoteSendQuotaLabel(used: number, limit: number | null): string 
 /** Label for the workspace's current plan. A plan unlocked by a redeem code wins; "free" is shown as a trial. */
 export function currentPlanLabel(plan: string, override: PlanId | null = null): string {
   if (override) return plans[override].name;
-  return plan === "free" ? "Piano di prova" : "Piano attivo";
+  if (plan === "free") return "Piano di prova";
+  return plans[effectivePlanId(plan, override)].name;
 }
 
 /** Every feature still "In arrivo", per plan. Kept in sync with docs/roadmap-abbonamenti.md by a test. */

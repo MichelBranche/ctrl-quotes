@@ -14,7 +14,7 @@ const items: Array<{ id: BillingViewId; label: string }> = [
 ];
 
 /** In-page pills for the subscription views; the active pill slides between them. */
-export function BillingNav({ planLabel, seatLabel }: { planLabel: string; seatLabel?: string }) {
+export function BillingNav({ planLabel, seatLabel, statusLabel }: { planLabel: string; seatLabel?: string; statusLabel?: string }) {
   const pathname = usePathname();
   const reduced = useReducedMotion() ?? false;
   return (
@@ -44,6 +44,7 @@ export function BillingNav({ planLabel, seatLabel }: { planLabel: string; seatLa
       <p className="bl-current">
         Piano attuale: <strong>{planLabel}</strong>
         {seatLabel ? <span className="bl-current-seats">{seatLabel}</span> : null}
+        {statusLabel ? <span className="bl-current-status">{statusLabel}</span> : null}
       </p>
     </motion.div>
   );
