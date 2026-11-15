@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
 import { SectionLink, useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { PlanHeroEffect } from "@/components/billing/effects/billing-effects";
 import { RedeemButton } from "@/components/billing/redeem-dialog";
-import { compareRows, formatPlanPrice, planIds, plans, quoteSendDailyLimitLabel, type PlanIcon, type PlanId } from "@/domain/plans";
+import { compareRows, formatPlanPrice, planIds, plans, quoteSendDailyLimitLabel, teamSeatLimitLabel, type PlanIcon, type PlanId } from "@/domain/plans";
 
 export type BillingViewId = "plans" | "compare" | PlanId;
 
@@ -210,6 +210,15 @@ function Price({ cents }: { cents: number }) {
   );
 }
 
+function PlanLimits({ id }: { id: PlanId }) {
+  return (
+    <span className="bl-plan-limits">
+      <span className="bl-plan-limit">{quoteSendDailyLimitLabel(id)}</span>
+      <span className="bl-plan-limit">{teamSeatLimitLabel(id)}</span>
+    </span>
+  );
+}
+
 function Soon() {
   return <span className="bl-soon">In arrivo</span>;
 }
@@ -235,7 +244,7 @@ function PlansView() {
         <PlanCard key={id} plan={id} href={billingHref[id]} className={`bl-slot-${id}`} dir={dirs.plans[id]}>
           <span className="bl-eyebrow">{plans[id].name}</span>
           <Price cents={plans[id].priceCents} />
-          <span className="bl-plan-limit">{quoteSendDailyLimitLabel(id)}</span>
+          <PlanLimits id={id} />
           <span className="bl-plan-line">{plans[id].pickerLine}</span>
         </PlanCard>
       ))}
@@ -316,7 +325,7 @@ function CompareView() {
       {(["pro", "business"] as const).map((id) => (
         <PlanCard key={id} plan={id} href={billingHref[id]} className="bl-compare-card" dir={dirs.compare[id]}>
           <span className="bl-plan-title">{plans[id].name}</span>
-          <span className="bl-plan-limit">{quoteSendDailyLimitLabel(id)}</span>
+          <PlanLimits id={id} />
           <span className="bl-plan-line">{plans[id].compareLine}</span>
         </PlanCard>
       ))}
@@ -334,6 +343,7 @@ function PlanView({ id, onActivate }: { id: PlanId; onActivate: () => void }) {
       <PlanCard plan={id} href={billingHref.compare} className="bl-price-card" dir={dirs.plan.price}>
         <span className="bl-plan-name">{plan.name}</span>
         <Price cents={plan.priceCents} />
+        <PlanLimits id={id} />
         <span className="bl-plan-line">{plan.priceLine}</span>
       </PlanCard>
       <motion.section className={cn("bl-card bl-includes", tone[id])} variants={m.item} custom={dirs.plan.includes} aria-labelledby={`bl-includes-${id}`}>

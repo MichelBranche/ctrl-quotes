@@ -19,8 +19,7 @@ e le togliamo più avanti se decidiamo che non ci interessano. Fonte unica dei t
 - Tutte le funzionalità Starter (Pro)
 - Tutte le funzionalità Pro (Business): disponibili solo le parti già presenti in Pro
 - Collaborazione team (inviti via email, ruoli owner/admin/member, reinvio e revoca)
-- Posti nel team: 1 su Starter, 5 su Pro, illimitati su Business. Durante il Piano di prova si applicano i 5 posti del Piano Pro, finché non esiste il checkout.
-- Utenti illimitati (Piano Business)
+- Persone nel workspace: 1 su Starter, 5 su Pro, illimitate su Business, titolare compreso, incluse nell'abbonamento. Durante il Piano di prova si applica il limite Pro (5), finché non esiste il checkout.
 
 ## In arrivo, per piano
 
@@ -40,7 +39,7 @@ e le togliamo più avanti se decidiamo che non ci interessano. Fonte unica dei t
 ### Tabella "Confronta i piani"
 - Template personalizzati (Pro, Business)
 - Collaborazione team (Pro, Business): ora disponibile
-- Posti nel team (1 / 5 / illimitati)
+- Persone nel workspace (1 / 5 / illimitate, incluse nell'abbonamento)
 - Supporto prioritario (Business)
 
 Nota: nel mockup la tabella segna "Supporto prioritario" solo per Business, mentre la pagina Pro lo elenca in "Cosa include".

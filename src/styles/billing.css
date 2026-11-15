@@ -158,8 +158,11 @@
 .bl-price strong { font-size: clamp(30px, 2.5vw, 42px); font-weight: 600; letter-spacing: -0.03em; }
 .bl-price span { font-size: var(--cq-font-size-lg); font-weight: 500; }
 .bl-plan-line { font-size: var(--cq-font-size-md); line-height: 1.5; max-width: 260px; }
-.bl-plan-limit { font-size: var(--cq-font-size-sm); font-weight: 550; line-height: 1.4; }
-.bl-compare-value { display: inline-block; max-width: 10.5rem; font-size: 12px; font-weight: 550; line-height: 1.35; color: var(--cq-ink); }
+.bl-plan-limits { display: flex; flex-direction: column; gap: 2px; }
+.bl-plan-limit { font-size: var(--cq-font-size-sm); font-weight: 550; line-height: 1.35; max-width: 280px; }
+.bl-compare-value { display: inline-block; max-width: 12rem; font-size: 12px; font-weight: 550; line-height: 1.35; color: var(--cq-ink); text-wrap: pretty; }
+.bl-current { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.bl-current-seats { color: var(--cq-ink-soft); font-weight: 500; }
 .bl-plan-name { font-size: var(--cq-font-size-lg); font-weight: 600; }
 .bl-plan-title { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
 .bl-plan-title.is-large { font-size: clamp(26px, 2.2vw, 34px); }

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { compareRows, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, planIds, plans, quoteSendDailyLimitLabel, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, teamSeatLimitLabel, teamSeatLimits, teamSeatQuotaLabel, upcomingFeatures, workspaceTeamSeatLimit, type PlanId } from "@/domain/plans";
+import { compareRows, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, planIds, plans, quoteSendDailyLimitLabel, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, teamSeatLimitLabel, teamSeatLimitLabelFromCap, teamSeatLimits, teamSeatQuotaLabel, upcomingFeatures, workspaceTeamSeatLimit, type PlanId } from "@/domain/plans";
 
 describe("subscription plans", () => {
   it("formats prices the Italian way", () => {
@@ -96,10 +96,14 @@ describe("subscription plans", () => {
     expect(workspaceTeamSeatLimit("studio")).toBeNull();
     expect(teamSeatQuotaLabel(2, 5)).toBe("Posti: 2 di 5");
     expect(teamSeatQuotaLabel(3, null)).toBe("Posti usati: 3, illimitati");
-    expect(teamSeatLimitLabel("starter")).toBe("1 posto nel team");
-    expect(teamSeatLimitLabel("pro")).toBe("5 posti nel team");
-    expect(teamSeatLimitLabel("business")).toBe("Utenti illimitati");
-    const seatsRow = compareRows.find((row) => row.label === "Posti nel team");
+    expect(teamSeatLimitLabel("starter")).toBe("1 persona nel workspace, inclusa nell'abbonamento");
+    expect(teamSeatLimitLabel("pro")).toBe("Fino a 5 persone nel workspace, incluse nell'abbonamento");
+    expect(teamSeatLimitLabel("business")).toBe("Persone illimitate nel workspace, incluse nell'abbonamento");
+    expect(teamSeatLimitLabel("starter")).toBe(teamSeatLimitLabelFromCap(teamSeatLimits.starter));
+    expect(teamSeatLimitLabel("pro")).toBe(teamSeatLimitLabelFromCap(teamSeatLimits.pro));
+    expect(teamSeatLimitLabel("business")).toBe(teamSeatLimitLabelFromCap(teamSeatLimits.business));
+    expect(teamSeatLimitLabelFromCap(workspaceTeamSeatLimit("free"))).toBe(teamSeatLimitLabel("pro"));
+    const seatsRow = compareRows.find((row) => row.label === "Persone nel workspace");
     expect(seatsRow?.soon).toBe(false);
     expect(seatsRow?.values).toEqual({
       starter: teamSeatLimitLabel("starter"),
@@ -107,5 +111,14 @@ describe("subscription plans", () => {
       business: teamSeatLimitLabel("business"),
     });
     expect(compareRows.find((row) => row.label === "Collaborazione team")?.soon).toBe(false);
+    for (const id of planIds) {
+      expect(plans[id].includes.some((item) => item.label === teamSeatLimitLabel(id) && !item.soon)).toBe(true);
+    }
+    const billing = readFileSync("src/components/billing/billing-view.tsx", "utf8");
+    const nav = readFileSync("src/components/billing/billing-nav.tsx", "utf8");
+    expect(billing).toContain("teamSeatLimitLabel");
+    expect(nav).toContain("seatLabel");
+    expect(billing).not.toMatch(/Fino a 5 persone/);
+    expect(billing).not.toMatch(/1 persona nel workspace/);
   });
 });

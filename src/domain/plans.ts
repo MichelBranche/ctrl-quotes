@@ -48,11 +48,15 @@ export function workspaceTeamSeatLimit(plan: string, override: PlanId | null = n
   return teamSeatLimits[effectivePlanId(plan, override)];
 }
 
+/** Marketing line for plan cards, "Cosa include" and the comparison table. Numbers come from `teamSeatLimits`. */
+export function teamSeatLimitLabelFromCap(limit: number | null): string {
+  if (limit == null) return "Persone illimitate nel workspace, incluse nell'abbonamento";
+  if (limit === 1) return "1 persona nel workspace, inclusa nell'abbonamento";
+  return `Fino a ${limit} persone nel workspace, incluse nell'abbonamento`;
+}
+
 export function teamSeatLimitLabel(id: PlanId): string {
-  const limit = teamSeatLimits[id];
-  if (limit == null) return "Utenti illimitati";
-  if (limit === 1) return "1 posto nel team";
-  return `${limit} posti nel team`;
+  return teamSeatLimitLabelFromCap(teamSeatLimits[id]);
 }
 
 export function teamSeatQuotaLabel(used: number, limit: number | null): string {
@@ -155,11 +159,11 @@ export type CompareRow = {
   icon: PlanIcon;
   included: Record<PlanId, boolean>;
   soon: boolean;
-  /** Per-plan text (daily send limits). When set, the table shows the text instead of a tick. */
+  /** Per-plan text (send limits, seats). When set, the table shows the text instead of a tick. */
   values?: Record<PlanId, string>;
 };
 
-/** "Confronta i piani" table. The send-limit row reads `quoteSendDailyLimits` through `quoteSendDailyLimitLabel`. */
+/** "Confronta i piani" table. Limit rows read `quoteSendDailyLimits` and `teamSeatLimits` through their label helpers. */
 export const compareRows: CompareRow[] = [
   {
     label: "Invio preventivi",
@@ -177,7 +181,7 @@ export const compareRows: CompareRow[] = [
   { label: "Gestione clienti", icon: "user", included: { starter: true, pro: true, business: true }, soon: false },
   { label: "Collaborazione team", icon: "users", included: { starter: false, pro: true, business: true }, soon: false },
   {
-    label: "Posti nel team",
+    label: "Persone nel workspace",
     icon: "users",
     included: { starter: true, pro: true, business: true },
     soon: false,
