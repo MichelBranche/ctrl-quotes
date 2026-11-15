@@ -90,6 +90,9 @@ test("il menu account si apre sotto l'avatar", async ({ page }, testInfo) => {
   const menu = page.locator("#account-menu");
   await expect(menu).toBeVisible();
   await expect(menu.getByRole("button", { name: "Esci" })).toBeVisible();
+  const manage = menu.getByRole("link", { name: "Gestisci workspace" });
+  await expect(manage).toBeVisible();
+  await expect(manage).toBeEnabled();
   const avatarBox = await avatar.boundingBox();
   const menuBox = await menu.boundingBox();
   expect(avatarBox).toBeTruthy();
@@ -104,6 +107,20 @@ test("il menu account si apre sotto l'avatar", async ({ page }, testInfo) => {
 
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
+  await avatar.focus();
+  await page.keyboard.press("Enter");
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await avatar.focus();
+  await page.keyboard.press("Space");
+  await expect(menu).toBeVisible();
+  await manage.click();
+  await expect(page).toHaveURL(/\/app\/workspace/);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+  await page.goto("/app/overview");
+  await expect(page.getByRole("button", { name: /Account$/ })).toBeVisible();
   const bell = page.getByRole("button", { name: "Notifiche" });
   await bell.click();
   const notes = page.locator("#notifications");
