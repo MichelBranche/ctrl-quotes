@@ -24,6 +24,8 @@ export type PublicQuoteView =
   | ({ kind: "expired"; expiredOn: Date | null } & Studio)
   | ({
       kind: "active";
+      workspaceId: string;
+      quoteId: string;
       snapshot: QuoteSnapshot;
       versionNo: number;
       sentAt: Date | null;
@@ -86,7 +88,7 @@ export async function loadPublicQuote(db: AppDatabase, token: string, ip: string
   const times = await quoteTimes(db, resolved);
   const expiresAt = resolved.link.expiresAt;
   const daysLeft = expiresAt ? Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / 86_400_000) - 1) : null;
-  return { kind: "active", snapshot: sent.snapshot, versionNo: sent.versionNo, sentAt: times.sentAt, decidedAt: times.decidedAt, status: resolved.quote.status, daysLeft, ...studio };
+  return { kind: "active", workspaceId: resolved.quote.workspaceId, quoteId: resolved.quote.id, snapshot: sent.snapshot, versionNo: sent.versionNo, sentAt: times.sentAt, decidedAt: times.decidedAt, status: resolved.quote.status, daysLeft, ...studio };
 }
 
 async function quoteTimes(db: AppDatabase, resolved: Exclude<ResolvedLink, { state: "invalid" }>) {

@@ -43,4 +43,8 @@ describe("log senza dati personali", () => {
     expect(deviceClass("Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0)")).toBe("computer");
     expect(storedUserAgent("x".repeat(2000))).toHaveLength(512);
   });
+
+  it("maschera l'IBAN nei log", () => {
+    expect(redact("Bonifico su IT60X0542811101000000123456")).toBe("Bonifico su [iban]");
+  });
 });

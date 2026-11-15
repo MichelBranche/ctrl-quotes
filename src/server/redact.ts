@@ -10,6 +10,7 @@ const patterns: Array<[RegExp, string]> = [
   [/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, "[ip]"],
   [/\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b/g, "[ip]"],
   [/(?:\b[0-9a-fA-F]{1,4})?(?::[0-9a-fA-F]{1,4}){0,6}::(?:[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4}){0,6})?\b/g, "[ip]"],
+  [ /\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/gi, "[iban]" ],
   // Long opaque strings (tokens, keys). UUIDs stay readable: they are our own ids.
   [/\b(?![0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b)[A-Za-z0-9_-]{32,}/g, "[segreto]"],
 ];

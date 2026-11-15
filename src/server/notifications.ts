@@ -120,7 +120,8 @@ export async function listNotifications(db: AppDatabase, userId: string, workspa
     .orderBy(desc(notifications.createdAt))
     .limit(limit);
   return rows.map((row) => {
-    const type: OwnerNoticeType = row.type === "quote_accepted" || row.type === "quote_rejected" || row.type === "quote_viewed" ? row.type : "quote_viewed";
+    const known = ["quote_accepted", "quote_rejected", "quote_viewed", "quote_paid", "quote_deposit_paid"] as const;
+    const type: OwnerNoticeType = (known as readonly string[]).includes(row.type) ? (row.type as OwnerNoticeType) : "quote_viewed";
     return {
       id: row.id,
       type,

@@ -14,6 +14,7 @@ import { emailDeliveryLive } from "@/server/email";
 import { getQuoteSendQuota, releaseQuoteSend, reserveQuoteSend, type QuoteSendQuota } from "@/server/quote-send-quota";
 import { enqueueJob } from "@/server/outbox";
 import { createPublicLink, regeneratePublicLink, revealPublicLinkUrl, revokePublicLink } from "@/server/public-links";
+import { freezeQuotePaymentSnapshot } from "@/server/payments";
 import { createVersion, findDraft, findQuote, getDraftSnapshot } from "@/server/quotes";
 
 /**
@@ -358,6 +359,7 @@ async function performSendQuote(
     latest.id,
     now,
   );
+  await freezeQuotePaymentSnapshot(db, actor.workspaceId, quoteId);
   await writeAuditLog(db, {
     workspaceId: actor.workspaceId,
     actorUserId: actor.userId,

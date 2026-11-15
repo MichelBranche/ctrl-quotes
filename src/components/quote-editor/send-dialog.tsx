@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { BILLING_PATH, quoteSendQuotaLabel } from "@/domain/plans";
 import { buttonColor, defaultMessage, defaultSubject, EMAIL_LIMITS, emailFooterLines, emailHeading, firstName } from "@/domain/quote-email";
+import { QuotePaymentsPanel } from "@/components/quotes/payment-options";
 import { copyQuoteLinkAction, getSendContextAction, regenerateQuoteLinkAction, revokeQuoteLinkAction, sendQuoteAction } from "@/server/actions/send";
 import type { SendContext, SendResult } from "@/server/quote-send";
 import { cn } from "@/lib/cn";
@@ -286,6 +287,10 @@ function SendForm({
           </div>
 
           <LinkBox quoteId={quoteId} context={context} onContextChange={onContextChange} />
+
+          <div className="send-pay">
+            <QuotePaymentsPanel quoteId={quoteId} />
+          </div>
 
           <AnimatePresence mode="wait" initial={false}>
             {mode === "email" ? (

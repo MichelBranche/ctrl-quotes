@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { Check, ChevronLeft, FileText, Hash, Layers, Lock, Palette, Percent, Users } from "lucide-react";
+import { Banknote, Check, ChevronLeft, FileText, Hash, Layers, Lock, Palette, Percent, Users } from "lucide-react";
 import { SectionLink, useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -14,7 +14,7 @@ import { cn } from "@/lib/cn";
  * (section-transition.tsx). Only presentation lives here: forms keep their own state, fields and actions.
  */
 
-export type SettingsSection = "profile" | "brand" | "fiscal" | "numbering" | "terms" | "team";
+export type SettingsSection = "profile" | "brand" | "fiscal" | "numbering" | "terms" | "team" | "payments";
 
 type Dir = { x: number; y: number };
 const FROM_TOP: Dir = { x: 0, y: -140 };
@@ -30,6 +30,7 @@ const sections: Record<SettingsSection, { tone: "grey" | "brand" | "lime" | "vio
   numbering: { tone: "violet", icon: <Hash size={24} />, art: "sfere", tagline: "Un codice chiaro e progressivo per ogni preventivo.", hero: FROM_LEFT, body: FROM_RIGHT },
   terms: { tone: "dark", icon: <FileText size={24} />, art: "blocchi", tagline: "Il testo che chiude ogni proposta, pronto in partenza.", hero: FROM_BOTTOM, body: FROM_LEFT },
   team: { tone: "lime", icon: <Users size={24} />, art: "archi", tagline: "Chi lavora con te e cosa può fare.", hero: FROM_RIGHT, body: FROM_LEFT },
+  payments: { tone: "violet", icon: <Banknote size={24} />, art: "sfere", tagline: "Come il cliente ti paga il preventivo: bonifico, PayPal o carta.", hero: FROM_LEFT, body: FROM_BOTTOM },
 };
 
 const artSrc: Record<Art, string> = {

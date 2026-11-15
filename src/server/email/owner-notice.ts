@@ -5,7 +5,7 @@
 
 import { emailAssetBase, emailCtaButton, escapeHtml, renderSystemEmail, SYSTEM_EMAIL, type RenderedEmail } from "@/server/email/system-layout";
 
-export type OwnerNoticeType = "quote_viewed" | "quote_accepted" | "quote_rejected";
+export type OwnerNoticeType = "quote_viewed" | "quote_accepted" | "quote_rejected" | "quote_paid" | "quote_deposit_paid";
 
 export type OwnerNoticeInput = {
   type: OwnerNoticeType;
@@ -40,12 +40,28 @@ const copy: Record<OwnerNoticeType, { subject: string; titleHtml: string; titleT
     subtitle: "La proposta è stata rifiutata. Puoi vederne lo stato nell'app.",
     verb: "ha rifiutato",
   },
+  quote_paid: {
+    subject: "Hai ricevuto il pagamento di un preventivo",
+    titleHtml: "Hai ricevuto<br>il pagamento",
+    titleText: "Hai ricevuto il pagamento di un preventivo",
+    subtitle: "Il pagamento del preventivo è stato registrato. Puoi vederne lo stato nell'app.",
+    verb: "ha pagato",
+  },
+  quote_deposit_paid: {
+    subject: "Hai ricevuto l'acconto di un preventivo",
+    titleHtml: "Hai ricevuto<br>un acconto",
+    titleText: "Hai ricevuto l'acconto di un preventivo",
+    subtitle: "L'acconto del preventivo è stato registrato. Puoi vederne lo stato nell'app.",
+    verb: "ha versato un acconto su",
+  },
 };
 
 export function ownerNoticeTitle(type: OwnerNoticeType, quoteNumber: string | null, quoteTitle: string): string {
   const label = [quoteNumber, quoteTitle].filter(Boolean).join(" · ") || "un preventivo";
   if (type === "quote_viewed") return `Un cliente ha aperto il preventivo ${label}`;
   if (type === "quote_accepted") return `Il preventivo ${label} è stato accettato`;
+  if (type === "quote_paid") return `Hai ricevuto il pagamento del preventivo ${label}`;
+  if (type === "quote_deposit_paid") return `Hai ricevuto l'acconto del preventivo ${label}`;
   return `Il preventivo ${label} è stato rifiutato`;
 }
 

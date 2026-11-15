@@ -4,9 +4,11 @@ import { headers } from "next/headers";
 import { connection } from "next/server";
 import { Clock, Download, Lock, Mail } from "lucide-react";
 import { PublicDecisionForm } from "@/components/public-quote/decision-form";
+import { PublicPaymentSection } from "@/components/public-quote/payment-section";
 import { QuoteDocumentView } from "@/components/quote-render/quote-document";
 import { ensureMigrated, getDb } from "@/db/client";
 import { headlineTotal, logoSrc } from "@/domain/quote-snapshot";
+import { loadQuotePaymentForPublic } from "@/server/payments";
 import { loadPublicQuote, type PublicQuoteView } from "@/server/public-quote";
 import { clientIp } from "@/server/request-meta";
 import { LegalLinks } from "@/components/legal/legal-links";
@@ -44,6 +46,7 @@ async function PublicQuoteContent({ params }: { params: Params }) {
   const daysLeft = view.daysLeft;
   const accepted = view.status === "accepted";
   const total = headlineTotal(snapshot.totals);
+  const payment = await loadQuotePaymentForPublic(getDb(), view.workspaceId, view.quoteId, accepted);
   const contactFirst = view.contactName?.trim().split(/\s+/)[0] ?? null;
   const subtitle = [snapshot.client ? `Per ${snapshot.client.name}` : null, `versione ${versionNo}${view.sentAt ? ` del ${longDate.format(view.sentAt)}` : ""}`].filter(Boolean).join(" · ");
 
@@ -118,6 +121,7 @@ async function PublicQuoteContent({ params }: { params: Params }) {
               <Download size={16} aria-hidden="true" /> Scarica il PDF
             </a>
           </section>
+          {payment ? <PublicPaymentSection token={clean} payment={payment} /> : null}
           {view.contactEmail ? (
             <a className="pq-contact" href={`mailto:${view.contactEmail}?subject=${encodeURIComponent(`Preventivo ${snapshot.quote.number ?? ""} ${snapshot.quote.title}`.trim())}`}>
               <span className="pq-av" aria-hidden="true">

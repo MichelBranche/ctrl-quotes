@@ -51,6 +51,7 @@ import { ModeToggle } from "./mode-toggle";
 import { VisualeView } from "./visuale/visuale-view";
 import { imagePlaceholder } from "./image-placeholder";
 import { SendDialog } from "./send-dialog";
+import { QuotePaymentsPanel } from "@/components/quotes/payment-options";
 
 type Tab = "editor" | "details" | "versions";
 type Pane = "structure" | "content" | "preview";
@@ -484,6 +485,7 @@ export function QuoteEditor({
           <p className="muted small">
             Il numero viene assegnato alla creazione secondo la <Link href="/app/settings/numbering">numerazione del workspace</Link> e non viene mai riutilizzato.
           </p>
+          <QuotePaymentsPanel quoteId={data.quote.id} disabled={readOnly} showMarkPaid />
         </section>
       ) : null}
 

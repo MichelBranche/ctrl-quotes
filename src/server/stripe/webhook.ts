@@ -199,8 +199,13 @@ async function applyRecordedStripeEvent(
   let applied = false;
 
   if (event.type === "checkout.session.completed") {
+    const meta = metadataOf(object);
+    // Quote payments on a connected account belong to the Connect webhook.
+    if (meta.quote_id || asString(object.mode) === "payment") {
+      return { applied: false, skipped: true, workspaceId: meta.workspace_id ?? null };
+    }
     workspaceId = await findWorkspaceId(db, object);
-    const metaPlan = metadataOf(object).plan;
+    const metaPlan = meta.plan;
     const plan = isPaidCheckoutPlan(metaPlan) ? metaPlan : planFromStripeObject(object, env);
     const subscriptionId = asString(object.subscription);
     const customerId = asString(object.customer);

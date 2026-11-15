@@ -175,6 +175,7 @@ export const messages = {
     brand: "Brand Kit",
     numbering: "Numerazione",
     terms: "Condizioni e note",
+    payments: "Pagamenti",
     billing: "Fatturazione",
     nav: "Sezioni impostazioni",
     name: "Nome del workspace",

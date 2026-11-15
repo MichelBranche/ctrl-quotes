@@ -887,6 +887,92 @@ export const quoteSendDailyCounts = sqliteTable(
   ],
 );
 
+
+export const workspacePaymentSettings = sqliteTable(
+  "workspace_payment_settings",
+  {
+    workspaceId: text("workspace_id")
+      .primaryKey()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    ibanEnabled: integer("iban_enabled", { mode: "boolean" }).notNull().default(false),
+    ibanHolder: text("iban_holder"),
+    iban: text("iban"),
+    bic: text("bic"),
+    ibanCausaleTemplate: text("iban_causale_template").notNull().default("Preventivo {numero}"),
+    paypalEnabled: integer("paypal_enabled", { mode: "boolean" }).notNull().default(false),
+    paypalMode: text("paypal_mode"),
+    paypalValue: text("paypal_value"),
+    stripeAccountId: text("stripe_account_id"),
+    stripeAccountStatus: text("stripe_account_status").notNull().default("none"),
+    defaultMethods: text("default_methods").notNull().default("[]"),
+    showBeforeAcceptance: integer("show_before_acceptance", { mode: "boolean" }).notNull().default(false),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (table) => [
+    check("ws_pay_paypal_mode_chk", sql`${table.paypalMode} is null or ${table.paypalMode} in ('me', 'email')`),
+    check(
+      "ws_pay_stripe_status_chk",
+      sql`${table.stripeAccountStatus} in ('none', 'pending', 'active')`,
+    ),
+  ],
+);
+
+export const quotePaymentSettings = sqliteTable(
+  "quote_payment_settings",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    quoteId: text("quote_id").notNull(),
+    methods: text("methods").notNull().default("[]"),
+    depositMode: text("deposit_mode").notNull().default("full"),
+    depositBp: integer("deposit_bp"),
+    depositCents: integer("deposit_cents"),
+    showBeforeAcceptance: integer("show_before_acceptance", { mode: "boolean" }).notNull().default(false),
+    snapshotJson: text("snapshot_json"),
+    paymentStatus: text("payment_status").notNull().default("none"),
+    amountDueCents: integer("amount_due_cents"),
+    amountPaidCents: integer("amount_paid_cents").notNull().default(0),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.quoteId] }),
+    foreignKey({
+      columns: [table.workspaceId, table.quoteId],
+      foreignColumns: [quotes.workspaceId, quotes.id],
+    }).onDelete("cascade"),
+    check("quote_pay_deposit_mode_chk", sql`${table.depositMode} in ('full', 'percent', 'amount')`),
+    check("quote_pay_status_chk", sql`${table.paymentStatus} in ('none', 'awaiting', 'deposit_paid', 'paid')`),
+  ],
+);
+
+export const quotePaymentEvents = sqliteTable(
+  "quote_payment_events",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    quoteId: text("quote_id").notNull(),
+    method: text("method").notNull(),
+    kind: text("kind").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    stripeSessionId: text("stripe_session_id"),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+    actorUserId: text("actor_user_id"),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (table) => [
+    index("quote_payment_events_quote_idx").on(table.workspaceId, table.quoteId, table.createdAt),
+    index("quote_payment_events_session_idx").on(table.stripeSessionId),
+    foreignKey({
+      columns: [table.workspaceId, table.quoteId],
+      foreignColumns: [quotes.workspaceId, quotes.id],
+    }).onDelete("cascade"),
+    check("quote_payment_events_method_chk", sql`${table.method} in ('iban', 'paypal', 'stripe')`),
+    check(
+      "quote_payment_events_kind_chk",
+      sql`${table.kind} in ('checkout_created', 'paid', 'deposit_paid', 'marked_paid')`,
+    ),
+  ],
+);
+
 export const schema = {
   user,
   session,
@@ -931,4 +1017,7 @@ export const schema = {
   redeemCodes,
   redeemCodeUses,
   quoteSendDailyCounts,
+  workspacePaymentSettings,
+  quotePaymentSettings,
+  quotePaymentEvents,
 };

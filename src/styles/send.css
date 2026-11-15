@@ -449,3 +449,5 @@ textarea.send-input:focus {
   from { transform: translateY(24px); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
+
+.send-pay { margin-top: 16px; padding-top: 16px; border-top: 1px solid color-mix(in srgb, var(--cq-ink) 8%, transparent); }

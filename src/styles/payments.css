@@ -1,0 +1,76 @@
+/* Workspace payments + public / send payment blocks. */
+
+.pay-cols { display: grid; gap: 16px; }
+@media (min-width: 1024px) {
+  .pay-cols { grid-template-columns: 1fr 1fr; }
+  .pay-cols > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+.pay-status { margin: 0; font-size: 14px; color: var(--cq-ink-soft); }
+.pay-status strong { color: var(--cq-ink); font-weight: 650; }
+
+.pay-connect-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pay-connect-help { margin: 8px 0 0; font-size: 13px; color: var(--cq-ink-soft); }
+.pay-connect-help summary { cursor: pointer; font-weight: 550; color: var(--cq-ink); }
+.pay-connect-help ol { margin: 8px 0 0; padding-left: 1.2em; display: grid; gap: 6px; }
+
+.pay-defaults { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pay-defaults label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--cq-ink) 8%, transparent);
+  background: var(--cq-surface);
+  cursor: pointer;
+}
+.pay-defaults label.is-disabled { opacity: 0.55; cursor: not-allowed; }
+.pay-defaults input { margin-top: 3px; accent-color: var(--brand); }
+.pay-defaults span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pay-defaults small { color: var(--cq-ink-soft); font-size: 12.5px; }
+
+.pay-options { display: flex; flex-direction: column; gap: 12px; }
+.pay-options-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.pq-pay { margin-top: 16px; }
+.pq-pay .pq-total small { display: block; margin-top: 4px; font-size: 13px; font-weight: 500; color: var(--cq-ink-soft); }
+.pq-pay-method { margin: 16px 0; }
+.pq-pay-method h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.pq-pay-facts { margin: 0; display: grid; gap: 10px; }
+.pq-pay-facts > div { display: grid; gap: 4px; }
+.pq-pay-facts dt { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--cq-ink-soft); }
+.pq-pay-facts dd { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 550; }
+.pq-pay-iban { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; word-break: break-all; }
+.pq-pay-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: var(--cq-surface-sunken, color-mix(in srgb, var(--cq-ink) 6%, transparent));
+  color: var(--cq-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.pq-pay-copy:hover { background: color-mix(in srgb, var(--brand) 12%, transparent); }
+.pq-pay-btn { margin-top: 8px; width: 100%; justify-content: center; }
