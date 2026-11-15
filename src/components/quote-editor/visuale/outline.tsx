@@ -18,7 +18,7 @@ import {
   StarIcon,
   TextIcon,
 } from "@hugeicons/core-free-icons";
-import { Eye, EyeOff, Lock, LockOpen, Plus, Trash2 } from "lucide-react";
+import { EyeOff, Lock, MoreHorizontal, Plus } from "lucide-react";
 import { spanLabel, unitsOf } from "@/domain/columns";
 import { blockLabel, type BlockType, type QuoteBlock } from "@/domain/quote-document";
 import { cn } from "@/lib/cn";
@@ -94,7 +94,7 @@ type RowActions = {
   onSelect: (id: string) => void;
   onToggle: (id: string) => void;
   onLock: (id: string, locked: boolean) => void;
-  onRemove: (id: string) => void;
+  onRemove?: (id: string) => void;
   onMove: (id: string, delta: -1 | 1) => void;
   /** Right click (or the menu key) on a row: the same block menu as on the sheet. */
   onMenu?: (id: string, x: number, y: number) => void;
@@ -113,7 +113,6 @@ export function Outline({
   onSelect,
   onToggle,
   onLock,
-  onRemove,
   onMove,
   onMenu,
 }: RowActions & {
@@ -145,7 +144,7 @@ export function Outline({
         meta: column ? `Col. ${spanLabel(column.span)}` : undefined,
         muted: !block.visible,
         fixed: block.type === "cover" || readOnly || Boolean(draggingId),
-        title: `${blockLabel[block.type]}${block.visible ? "" : " · nascosto"}${block.locked ? " · bloccato" : ""}`,
+        title: `${blockTitle(block)} (${blockLabel[block.type]}${block.visible ? "" : ", nascosto"}${block.locked ? ", bloccato" : ""})`,
       };
     }),
   }));
@@ -162,11 +161,15 @@ export function Outline({
           defaultOpen={items.map((_, index) => index)}
           active={selectedId}
           width="100%"
-          rowHeight={34}
-          indent={34}
-          trunk={10}
-          radius={9}
-          fontSize={13}
+          rowHeight={36}
+          indent={40}
+          trunk={14}
+          radius={10}
+          lineWidth={1.5}
+          fontSize={14}
+          drawDuration={400}
+          foldDuration={300}
+          lineColor="#d4d4d8"
           onSelect={(value) => {
             if (byId.has(value)) onSelect(value);
           }}
@@ -199,38 +202,32 @@ export function Outline({
                   const locked = Boolean(block.locked);
                   return (
                     <>
-                      <button
-                        type="button"
-                        className="ve-outline-act"
-                        aria-label={block.visible ? `Nascondi ${title}` : `Mostra ${title}`}
-                        title={block.visible ? "Nascondi nel documento" : "Mostra nel documento"}
-                        aria-pressed={!block.visible}
-                        data-on={!block.visible || undefined}
-                        onClick={() => onToggle(block.id)}
-                      >
-                        {block.visible ? <Eye size={13} aria-hidden="true" /> : <EyeOff size={13} aria-hidden="true" />}
-                      </button>
-                      <button
-                        type="button"
-                        className="ve-outline-act"
-                        aria-label={locked ? `Sblocca ${title}` : `Blocca ${title}`}
-                        title={locked ? "Contenuto bloccato: clic per sbloccare" : "Blocca il contenuto contro le modifiche"}
-                        aria-pressed={locked}
-                        data-on={locked || undefined}
-                        onClick={() => onLock(block.id, !locked)}
-                      >
-                        {locked ? <Lock size={13} aria-hidden="true" /> : <LockOpen size={13} aria-hidden="true" />}
-                      </button>
-                      <button
-                        type="button"
-                        className="ve-outline-act is-danger"
-                        aria-label={`Elimina ${title}`}
-                        title={locked ? "Sblocca il blocco per eliminarlo" : "Elimina (Ctrl+Z per annullare)"}
-                        disabled={locked}
-                        onClick={() => onRemove(block.id)}
-                      >
-                        <Trash2 size={13} aria-hidden="true" />
-                      </button>
+                      {/* Hidden or locked: a small state toggle stays on the row. */}
+                      {block.visible ? null : (
+                        <button type="button" className="ve-outline-act" data-on aria-pressed="true" aria-label={`Mostra ${title}`} title="Nascosto: clic per mostrarlo" onClick={() => onToggle(block.id)}>
+                          <EyeOff size={13} aria-hidden="true" />
+                        </button>
+                      )}
+                      {locked ? (
+                        <button type="button" className="ve-outline-act" data-on aria-pressed="true" aria-label={`Sblocca ${title}`} title="Contenuto bloccato: clic per sbloccare" onClick={() => onLock(block.id, false)}>
+                          <Lock size={13} aria-hidden="true" />
+                        </button>
+                      ) : null}
+                      {onMenu ? (
+                        <button
+                          type="button"
+                          className="ve-outline-act is-more"
+                          aria-label={`Azioni su ${title}`}
+                          aria-haspopup="menu"
+                          title="Nascondi, blocca, sposta, elimina"
+                          onClick={(event) => {
+                            const box = event.currentTarget.getBoundingClientRect();
+                            onMenu(block.id, box.right - 4, box.bottom + 4);
+                          }}
+                        >
+                          <MoreHorizontal size={15} aria-hidden="true" />
+                        </button>
+                      ) : null}
                     </>
                   );
                 }

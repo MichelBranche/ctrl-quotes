@@ -160,9 +160,7 @@ export function BranchedMenu({
   const endX = indent - 8;
   const rowY = (k: number) => PAD + k * rowHeight + rowHeight / 2;
   const branch = (k: number) => `M ${trunk} ${rowY(k) - r} A ${r} ${r} 0 0 0 ${trunk + r} ${rowY(k)} H ${endX}`;
-  const branchLength = (Math.PI * r) / 2 + (endX - trunk - r);
   const reach = (k: number) => `M ${trunk} 0 V ${rowY(k) - r} A ${r} ${r} 0 0 0 ${trunk + r} ${rowY(k)} H ${endX}`;
-  const reachLength = (k: number) => rowY(k) - r + branchLength;
 
   return (
     <nav
@@ -206,26 +204,19 @@ export function BranchedMenu({
               data-active={leafActive ? "" : undefined}
               onClick={() => (kids ? toggle(index) : select(leafValue, item))}
             >
-              <span className="branched-menu__chev" aria-hidden="true" />
-              <span className="branched-menu__head-label">{item.label}</span>
-              {kids ? <span className="branched-menu__count">{kids.length}</span> : null}
+              {item.label}
             </button>
             {kids ? (
               <div className="branched-menu__body" inert={!isOpen || undefined}>
                 <div className="branched-menu__fold">
                   <div className="branched-menu__tree" style={{ height: bodyHeight }}>
                     <svg className="branched-menu__lines" width={indent} height={bodyHeight} aria-hidden="true">
-                      <path className="branched-menu__base is-trunk" d={`M ${trunk} 0 V ${trunkLength}`} style={{ strokeDasharray: trunkLength, strokeDashoffset: isOpen ? 0 : trunkLength }} />
+                      {kids.length ? <path className="branched-menu__base" pathLength={1} d={`M ${trunk} 0 V ${trunkLength}`} /> : null}
                       {kids.map((kid, k) => (
-                        <path
-                          key={kid.value}
-                          className="branched-menu__base"
-                          d={branch(k)}
-                          style={{ strokeDasharray: branchLength, strokeDashoffset: isOpen ? 0 : branchLength, transitionDelay: isOpen ? `${Math.min(k, 8) * 35 + 80}ms` : "0ms" }}
-                        />
+                        <path key={kid.value} className="branched-menu__base" pathLength={1} d={branch(k)} />
                       ))}
                       {kids.map((kid, k) => (
-                        <path key={`r-${kid.value}`} className="branched-menu__reach" d={reach(k)} style={{ strokeDasharray: reachLength(k), strokeDashoffset: kid.value === active && isOpen ? 0 : reachLength(k) }} />
+                        <path key={`r-${kid.value}`} className="branched-menu__reach" pathLength={1} d={reach(k)} data-on={kid.value === active && isOpen ? "" : undefined} />
                       ))}
                     </svg>
                     <Reorder.Group

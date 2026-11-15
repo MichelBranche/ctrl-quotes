@@ -101,9 +101,9 @@ test("pannello e menu contestuale: azioni sui blocchi, inserisci qui, tastiera, 
   await shot(page, "pannello-documento", testInfo);
   await panel.getByRole("tab", { name: "Stile" }).click();
   await expect(panel.getByRole("heading", { name: "Tutto il documento" })).toBeVisible();
-  // The template is not a Stile choice: it lives in Dettagli.
+  // The template is not a Stile choice: it lives in Contenuto.
   await expect(panel.getByRole("radiogroup", { name: "Template" })).toHaveCount(0);
-  await expect(panel.getByRole("button", { name: "Cambia in Dettagli" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Cambia in Contenuto" })).toBeVisible();
   await expect(panel.getByText("Questo blocco")).toHaveCount(0);
   // Tabs work with the arrows.
   await panel.getByRole("tab", { name: "Stile" }).press("ArrowLeft");

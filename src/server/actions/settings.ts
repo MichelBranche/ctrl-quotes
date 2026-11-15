@@ -2,7 +2,8 @@
 
 import { refresh } from "next/cache";
 import { requireContext } from "@/server/context";
-import { removeLogo, saveBrand, saveFiscal, saveNumbering, saveTerms, setLogo } from "@/server/settings";
+import { removeLogo, saveBrand, saveFiscal, saveNumbering, saveTerms, saveTextStyles, setLogo } from "@/server/settings";
+import type { TextStyles } from "@/domain/text-styles";
 import { changeMemberRole, removeMember } from "@/server/team";
 import { createWorkspaceInvite, resendWorkspaceInvite, revokeWorkspaceInvite, inviteRoleSchema } from "@/server/invites";
 import { setDefaultTemplate, toggleFavorite } from "@/server/templates";
@@ -18,6 +19,12 @@ export async function saveBrandAction(input: unknown): Promise<ActionResult> {
   const result = await saveBrand(db, actor, input);
   if (result.ok) refresh();
   return toAction(result, "Brand Kit salvato.");
+}
+
+export async function saveTextStylesAction(input: unknown): Promise<ActionResult<TextStyles>> {
+  const { db, actor } = await requireContext();
+  const result = await saveTextStyles(db, actor, input);
+  return toAction(result, "Stili di testo salvati.");
 }
 
 export async function uploadLogoAction(formData: FormData): Promise<ActionResult<{ assetId: string }>> {

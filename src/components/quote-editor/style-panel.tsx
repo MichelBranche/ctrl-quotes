@@ -3,6 +3,9 @@
 import { useId } from "react";
 import Link from "next/link";
 import { Check, ImageIcon } from "lucide-react";
+import { fontStack } from "@/domain/brand";
+import { textStyleKeys, textStyleLabel } from "@/domain/text-styles";
+import { useTextStyles } from "./text/text-styles-context";
 import { TemplateCover } from "@/components/templates/template-cover";
 import { contrastRatio } from "@/domain/brand";
 import type { DocumentStyle, QuoteDocument } from "@/domain/quote-document";
@@ -40,7 +43,7 @@ export function StylePanel({
   onStyle: (style: DocumentStyle) => void;
   /** Inside the visual editor's side panel: no card, a "whole document" heading. */
   embedded?: boolean;
-  /** Embedded only: the template is chosen in the Dettagli tab, not in Stile. */
+  /** Embedded only: the template is chosen in Contenuto (Documento), not in Stile. */
   onOpenDetails?: () => void;
   /** Brand Kit fonts ("template" or a font ref), shown as document settings when embedded. */
   brandFonts?: { heading: string; body: string };
@@ -106,7 +109,7 @@ export function StylePanel({
                 <>
                   {" "}
                   <button type="button" className="link-btn" onClick={onOpenDetails}>
-                    Cambia in Dettagli
+                    Cambia in Contenuto
                   </button>
                 </>
               ) : null}
@@ -188,6 +191,7 @@ export function StylePanel({
           <p className="muted small">Si cambiano per tutti i preventivi nel <Link href="/app/settings/brand">Brand Kit</Link>; per un solo testo usa Stile sul blocco.</p>
         </div>
       ) : null}
+      {embedded ? <SavedStyles /> : null}
       <p className="muted small">
         Logo e dati aziendali arrivano dal <Link href="/app/settings/brand">Brand Kit</Link>.
       </p>
@@ -226,4 +230,46 @@ function fontLabel(value: string) {
   if (value.startsWith("g:")) return value.slice(2);
   if (value.startsWith("fs:")) return value.slice(3).split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
   return "Del template";
+}
+
+/** The workspace text styles, previewed; they are saved from a text on the sheet (Altro in the toolbar). */
+function SavedStyles() {
+  const { styles, canEdit, reset } = useTextStyles();
+  return (
+    <div className="style-field saved-styles">
+      <p className="style-legend">Stili di testo del workspace</p>
+      <ul>
+        {textStyleKeys.map((key) => {
+          const style = styles[key];
+          return (
+            <li key={key}>
+              <span
+                className="saved-style-sample"
+                style={{
+                  fontFamily: style.font ? fontStack(style.font) : undefined,
+                  fontWeight: style.weight,
+                  fontStyle: style.italic ? "italic" : undefined,
+                  color: style.color,
+                  textTransform: style.case === "upper" ? "uppercase" : undefined,
+                  letterSpacing: style.tracking ? `${style.tracking}em` : undefined,
+                }}
+              >
+                {textStyleLabel[key]}
+              </span>
+              <span className="muted small">
+                {style.size ? `${String(style.size).replace(".", ",")} pt` : "Template"}
+                {style.font ? `, ${fontLabel(style.font)}` : ""}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="muted small">Si applicano con un clic dalla barra del testo (Altro) o da Stile sul blocco. Per cambiarne uno, formatta un testo e scegli «Salva questo testo come stile».</p>
+      {canEdit ? (
+        <button type="button" className="link-btn" onClick={reset}>
+          Ripristina gli stili predefiniti
+        </button>
+      ) : null}
+    </div>
+  );
 }

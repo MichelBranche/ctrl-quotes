@@ -57,6 +57,14 @@ export default function TermsPage() {
         avvio: limiti e condizioni economiche possono ancora cambiare.
       </p>
 
+      <h3>Disdetta</h3>
+      <p>
+        Puoi annullare l&apos;abbonamento in qualsiasi momento da Impostazioni &gt; Abbonamento &gt; Annulla
+        abbonamento. La disdetta ha effetto alla fine del periodo già pagato: fino a quella data il piano resta
+        attivo, poi non si rinnova e non ci sono altri addebiti. Non sono previsti rimborsi per periodi parziali,
+        salvo i casi in cui la legge li richiede. Prima della scadenza puoi riattivare l&apos;abbonamento dalla stessa pagina.
+      </p>
+
       <h2>5. Email e link pubblici</h2>
       <p>
         Se invii un preventivo, il destinatario riceve un link personale. Chi possiede il link può vedere quella

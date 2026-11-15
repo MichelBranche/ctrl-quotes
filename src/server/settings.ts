@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { assetBlobs, assets, brandKits, workspaceSettings, workspaces } from "@/db/schema";
 import { asBrandFont, brandInputSchema, sniffLogo, type BrandFont } from "@/domain/brand";
+import { defaultTextStyles, parseTextStyles, textStylesSchema, type TextStyles } from "@/domain/text-styles";
 import { firstIssue } from "@/domain/clients";
 import { createId } from "@/domain/ids";
 import type { PriceMode, TaxProfile } from "@/domain/pricing";
@@ -27,6 +28,7 @@ export type BrandKit = {
   quoteNumberFormat: string;
   defaultTerms: string | null;
   applyAutomatically: boolean;
+  textStyles: TextStyles;
   logo: { assetId: string; mime: string; filename: string; updatedAt: number } | null;
 };
 
@@ -57,6 +59,7 @@ export const defaultBrand: Omit<BrandKit, "logo"> = {
   quoteNumberFormat: "QT-{YYYY}-{0000}",
   defaultTerms: null,
   applyAutomatically: true,
+  textStyles: defaultTextStyles,
 };
 
 export const defaultSettings: WorkspaceSettings = {
@@ -97,6 +100,7 @@ export async function loadBrand(db: AppDatabase, workspaceId: string): Promise<B
     quoteNumberFormat: row.quoteNumberFormat,
     defaultTerms: row.defaultTerms,
     applyAutomatically: row.applyAutomatically,
+    textStyles: parseTextStyles(row.textStyles),
     logo,
   };
 }
@@ -160,6 +164,17 @@ export async function saveBrand(db: AppDatabase, actor: Actor, raw: unknown): Pr
   await upsertBrand(db, actor.workspaceId, parsed.data);
   await audit(db, actor, "brand.updated");
   return ok(null);
+}
+
+/** Saved text styles of the workspace (Titolo, Sottotitolo, Testo, Evidenza). */
+export async function saveTextStyles(db: AppDatabase, actor: Actor, raw: unknown): Promise<Result<TextStyles>> {
+  const access = await authorize(db, actor, "brand.write");
+  if (!access.ok) return access;
+  const parsed = textStylesSchema.safeParse(raw);
+  if (!parsed.success) return invalid("Stile di testo non valido.");
+  await upsertBrand(db, actor.workspaceId, { textStyles: JSON.stringify(parsed.data) });
+  await audit(db, actor, "brand.updated");
+  return ok(parsed.data);
 }
 
 export async function saveFiscal(db: AppDatabase, actor: Actor, raw: unknown): Promise<Result<null>> {

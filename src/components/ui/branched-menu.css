@@ -1,9 +1,10 @@
-/* Branched menu, after React Bits (reactbits.dev, MIT). Colours follow the app tokens. */
+/* Branched menu, after React Bits "BranchedMenu" (reactbits.dev, MIT). Same geometry and motion as
+   the original; extended with row actions, a drag grip and light theme defaults. */
 .branched-menu {
   --bm-w: 240px;
-  --bm-ink: var(--cq-ink, #1a1a1e);
+  --bm-ink: var(--cq-ink, #18181b);
   --bm-accent: var(--cq-accent, #6d28d9);
-  --bm-line: var(--cq-border-strong, #d1d1d6);
+  --bm-line: #d4d4d8;
   --bm-font: 14px;
   --bm-row: 36px;
   --bm-indent: 40px;
@@ -11,18 +12,22 @@
   --bm-draw: 400ms;
   --bm-fold: 300ms;
   --bm-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --bm-muted: color-mix(in srgb, var(--bm-ink) 62%, transparent);
+  --bm-muted: color-mix(in srgb, var(--bm-ink) 55%, transparent);
 
   position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: var(--bm-w);
-  padding-left: 12px;
+  padding-left: 14px;
+  box-sizing: border-box;
   color: var(--bm-ink);
+  font-family: inherit;
   font-size: var(--bm-font);
   line-height: 1.2;
 }
+
+/* The rail on the left, fading out at the bottom. */
 .branched-menu::before {
   content: "";
   position: absolute;
@@ -33,6 +38,8 @@
   border-radius: 1px;
   background: linear-gradient(to bottom, var(--bm-line) 0%, var(--bm-line) 55%, transparent 100%);
 }
+
+/* Marks the section holding the active item, gliding between heads. */
 .branched-menu__marker {
   position: absolute;
   top: -1px;
@@ -46,48 +53,36 @@
   transition: top 220ms var(--bm-ease-out), opacity 150ms ease;
 }
 .branched-menu__marker[data-on] { opacity: 1; }
+
 .branched-menu__section { display: flex; flex-direction: column; }
+
 .branched-menu__head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: block;
+  width: 100%;
   margin: 0;
-  padding: 9px 4px 9px 0;
+  padding: 9px 0;
   border: 0;
   background: none;
   color: var(--bm-muted);
   font: inherit;
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: calc(var(--bm-font) + 1px);
+  font-weight: 500;
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
-  border-radius: 6px;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
   transition: color 200ms ease;
 }
-.branched-menu__head:focus-visible { outline: 2px solid var(--bm-accent); outline-offset: 2px; }
-.branched-menu__chev {
-  width: 6px;
-  height: 6px;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(-45deg);
-  transition: transform var(--bm-fold) var(--bm-ease-out);
-}
-.branched-menu__section[data-open] .branched-menu__chev { transform: rotate(45deg) translate(-1px, -1px); }
-.branched-menu__count {
-  margin-left: auto;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0;
-  color: var(--cq-faint, #8e8e93);
-}
+.branched-menu__head:focus-visible { outline: 2px solid var(--bm-accent); outline-offset: 2px; border-radius: 6px; }
 .branched-menu__section[data-open] .branched-menu__head,
 .branched-menu__head[data-active] { color: var(--bm-ink); }
 @media (hover: hover) and (pointer: fine) {
   .branched-menu__head:hover { color: var(--bm-ink); }
 }
+
 .branched-menu__body {
   display: grid;
   grid-template-rows: 0fr;
@@ -95,8 +90,27 @@
 }
 .branched-menu__section[data-open] .branched-menu__body { grid-template-rows: 1fr; }
 .branched-menu__fold { min-height: 0; overflow: hidden; }
-.branched-menu__tree { position: relative; padding: 6px 0; box-sizing: border-box; }
-.branched-menu__lines { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
+
+.branched-menu__tree {
+  position: relative;
+  padding: 6px 0;
+  box-sizing: border-box;
+}
+
+.branched-menu__lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+.branched-menu__section[data-open] .branched-menu__lines {
+  opacity: 1;
+  transition: opacity 250ms ease 100ms;
+}
+
 .branched-menu__base,
 .branched-menu__reach {
   fill: none;
@@ -104,25 +118,41 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* Base lines draw in when the section opens (pathLength 1: offset 1 hidden, 0 drawn). */
 .branched-menu__base {
   stroke: var(--bm-line);
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
   transition: stroke-dashoffset var(--bm-draw) var(--bm-ease-out);
 }
-.branched-menu__section:not([data-open]) .branched-menu__base { transition-duration: var(--bm-fold); }
+.branched-menu__section[data-open] .branched-menu__base { stroke-dashoffset: 0; }
+/* The way to the active item, traced from the top of the trunk. */
 .branched-menu__reach {
   stroke: var(--bm-accent);
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
   transition: stroke-dashoffset var(--bm-draw) var(--bm-ease-out);
 }
-.branched-menu__list { list-style: none; margin: 0; padding: 0; }
+.branched-menu__reach[data-on] { stroke-dashoffset: 0; }
+
+.branched-menu .branched-menu__list { display: block; list-style: none; margin: 0; padding: 0; }
+
 .branched-menu__row {
   position: relative;
   display: flex;
   align-items: center;
   height: var(--bm-row);
   border-radius: 10px;
-  background: var(--cq-surface, #fff);
+  background: transparent;
+  list-style: none;
 }
-.branched-menu__row[data-muted] .branched-menu__label { text-decoration: line-through; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); opacity: 0.6; }
+.branched-menu__row[data-dragging] {
+  z-index: 3;
+  background: var(--cq-surface, #fff);
+  box-shadow: 0 6px 18px -8px rgb(24 24 27 / 0.28), 0 0 0 1px color-mix(in srgb, var(--bm-accent) 30%, transparent);
+}
+.branched-menu__fold:has(.branched-menu__row[data-dragging]) { overflow: visible; }
+
 .branched-menu__item {
   display: flex;
   align-items: center;
@@ -131,46 +161,46 @@
   min-width: 0;
   height: 100%;
   margin: 0;
-  padding: 0 6px 0 var(--bm-indent);
+  padding: 0 4px 0 var(--bm-indent);
   border: 0;
   background: none;
   color: var(--bm-muted);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
   border-radius: 10px;
-  transition: color 200ms ease, background-color 200ms ease;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 200ms ease;
 }
 .branched-menu__item:focus-visible { outline: 2px solid var(--bm-accent); outline-offset: -2px; }
 @media (hover: hover) and (pointer: fine) {
   .branched-menu__item:hover { color: var(--bm-ink); }
 }
-.branched-menu__item[data-active] {
-  color: var(--bm-accent);
-  font-weight: 600;
-  background: linear-gradient(90deg, transparent calc(var(--bm-indent) - 6px), color-mix(in srgb, var(--bm-accent) 9%, transparent) calc(var(--bm-indent) - 6px));
-}
+.branched-menu__item[data-active] { color: var(--bm-accent); font-weight: 500; }
 .branched-menu__icon { display: inline-flex; flex: none; }
 .branched-menu__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.branched-menu__meta { flex: none; margin-left: auto; font-size: 10.5px; font-weight: 600; color: var(--cq-faint, #8e8e93); }
-.branched-menu__actions {
-  display: inline-flex;
-  gap: 1px;
-  padding-right: 2px;
-  opacity: 0;
-  transition: opacity 160ms ease;
+.branched-menu__row[data-muted] .branched-menu__label {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  opacity: 0.6;
 }
-.branched-menu__row:hover .branched-menu__actions,
-.branched-menu__row:focus-within .branched-menu__actions,
-.branched-menu__row[data-active] .branched-menu__actions { opacity: 1; }
+.branched-menu__meta { flex: none; margin-left: auto; font-size: 10.5px; font-weight: 600; color: var(--cq-faint, #8e8e93); }
+
+.branched-menu__actions { display: inline-flex; flex: none; align-items: center; gap: 1px; }
+
+/* Drag grip: takes no room until the row is hovered or focused. */
 .branched-menu__grip {
   order: 3;
   display: inline-grid;
+  flex: none;
   place-items: center;
-  width: 18px;
+  width: 0;
   height: 26px;
-  margin-right: 2px;
+  margin: 0;
   padding: 0;
+  overflow: hidden;
   border: 0;
   border-radius: 6px;
   background: none;
@@ -183,7 +213,8 @@
 .branched-menu__grip svg { fill: currentColor; }
 .branched-menu__grip.is-off { cursor: default; }
 .branched-menu__row:hover .branched-menu__grip:not(.is-off),
-.branched-menu__grip:focus-visible { opacity: 1; }
+.branched-menu__row[data-dragging] .branched-menu__grip,
+.branched-menu__grip:focus-visible { width: 16px; opacity: 1; }
 .branched-menu__grip:focus-visible { outline: 2px solid var(--bm-accent); }
 .branched-menu__grip:active { cursor: grabbing; }
 
@@ -191,13 +222,8 @@
   .branched-menu__marker { transition: opacity 150ms ease; }
   .branched-menu__body,
   .branched-menu__base,
-  .branched-menu__reach,
-  .branched-menu__chev { transition: none; }
+  .branched-menu__reach { transition: none; }
 }
 .branched-menu.is-reduced .branched-menu__body,
 .branched-menu.is-reduced .branched-menu__base,
 .branched-menu.is-reduced .branched-menu__reach { transition: none; }
-
-/* While a row is dragged it may travel past its page's fold: keep it visible above the rest. */
-.branched-menu__fold:has(.branched-menu__row[data-dragging]) { overflow: visible; }
-.branched-menu__row[data-dragging] { position: relative; z-index: 3; }

@@ -4,7 +4,7 @@
   z-index: 80;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 2px;
   min-height: 42px;
   padding: 4px 6px;
@@ -215,36 +215,41 @@
 .cq-status .status-mark__label { color: inherit; opacity: 1; }
 .cq-status[data-status='failed'] .status-mark__label { color: var(--cq-danger, #b91c1c); }
 
-/* Outline row actions (eye, lock, trash) inside the BranchedMenu: revealed on hover/focus, pinned when on. */
-.branched-menu__actions { flex: none; opacity: 1; }
-.branched-menu__actions .ve-outline-act { display: grid; opacity: 0; transition: opacity 160ms ease, background-color 120ms ease-out, color 120ms ease-out; }
-.branched-menu__row:hover .ve-outline-act,
-.branched-menu__row:focus-within .ve-outline-act,
-.branched-menu__row[data-active] .ve-outline-act,
-.branched-menu__actions .ve-outline-act[data-on] { opacity: 1; }
-@media (hover: none) { .branched-menu__actions .ve-outline-act { opacity: 1; } }
+/* Outline row actions (eye, lock, trash): a compact trailing area, shown on hover, focus and on the
+   active row. They sit in the flow, so the title truncates before them and is never covered. */
+.branched-menu__actions .ve-outline-act { display: grid; width: 22px; height: 22px; }
+.branched-menu__actions .ve-outline-act.is-more { display: none; }
+.branched-menu__row:hover .ve-outline-act.is-more,
+.branched-menu__row:focus-within .ve-outline-act.is-more,
+.branched-menu__row[data-active] .ve-outline-act.is-more { display: grid; }
 
-/* Outline rows: the actions float over the label instead of reserving space, so titles use the whole row. */
-.branched-menu__row .branched-menu__item { padding-right: 24px; }
-.branched-menu__row .branched-menu__grip { position: absolute; right: 0; top: 50%; translate: 0 -50%; margin: 0; }
-.branched-menu__row .branched-menu__actions {
-  position: absolute;
-  right: 20px;
-  top: 0;
-  bottom: 0;
-  align-items: center;
-  padding-left: 18px;
-  pointer-events: none;
-}
-.branched-menu__row .branched-menu__actions > * { pointer-events: auto; }
-.branched-menu__row:hover .branched-menu__actions,
-.branched-menu__row:focus-within .branched-menu__actions {
-  background: linear-gradient(90deg, transparent, var(--cq-surface, #fff) 16px);
-}
-.branched-menu__row[data-active] .branched-menu__actions {
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bm-accent) 9%, var(--cq-surface, #fff)) 16px);
-  border-radius: 0 10px 10px 0;
-}
-@media (hover: none) {
-  .branched-menu__row .branched-menu__actions { background: linear-gradient(90deg, transparent, var(--cq-surface, #fff) 16px); }
-}
+/* One-row toolbar: the less used commands live in "Altro". */
+.tt.is-tight .tt-scope, .tt.is-tight .tt-scope + .tt-sep { display: none; }
+.tt-font { max-width: 132px; }
+.tt-more { display: flex; flex-direction: column; gap: 1px; min-width: 232px; }
+.tt-more-head { margin: 2px 6px 4px; font-size: 11px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cq-muted); }
+.tt-styles { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 0 2px 4px; }
+.tt-style { height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--cq-surface-sunken); color: var(--cq-ink); font: inherit; font-size: 12.5px; font-weight: 600; text-align: left; cursor: pointer; transition: background-color 120ms ease, box-shadow 120ms ease; }
+.tt-style:hover { background: color-mix(in srgb, var(--cq-accent) 10%, var(--cq-surface)); }
+.tt-style.is-on { box-shadow: inset 0 0 0 1.5px var(--cq-accent); color: var(--cq-accent); }
+.tt-style.is-save { font-weight: 500; background: transparent; box-shadow: inset 0 0 0 1px var(--cq-border); }
+.tt-save summary { margin: 0 6px 4px; font-size: 12px; color: var(--cq-accent); cursor: pointer; list-style: none; }
+.tt-save summary::-webkit-details-marker { display: none; }
+.tt-more-sep { height: 1px; margin: 4px 0; background: var(--cq-border); }
+.tt-more-item { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border: 0; border-radius: 8px; background: none; color: var(--cq-ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background-color 120ms ease; }
+.tt-more-item:hover { background: var(--cq-surface-sunken); }
+.tt-more-item.is-on { color: var(--cq-accent); }
+.tt-more-item.is-on::after { content: "✓"; margin-left: auto; font-size: 12px; }
+.bs-styles { display: flex; flex-direction: column; gap: 6px; }
+.saved-styles ul { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 2px; }
+.saved-styles li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--cq-surface-sunken); }
+.saved-style-sample { font-size: 14px; color: var(--cq-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Documento panel: the quote details (formerly the Dettagli tab). */
+.ve-doc { display: flex; flex-direction: column; gap: 12px; }
+.ve-doc-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ve-doc-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.ve-doc-facts div { padding: 8px 10px; border-radius: 10px; background: var(--cq-surface-sunken); min-width: 0; }
+.ve-doc-facts dt { font-size: 11px; color: var(--cq-muted); }
+.ve-doc-facts dd { margin: 2px 0 0; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ve-doc-more summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--cq-ink); padding: 6px 0; }
+.ve-doc-more[open] > :not(summary) { animation: style-more-in 200ms ease both; }

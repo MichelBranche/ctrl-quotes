@@ -46,6 +46,7 @@ async function EditorContent({ params }: { params: Params }) {
       logoUrl={config.value.brand.logo ? `/api/assets/${config.value.brand.logo.assetId}` : null}
       visuale={editorVisualeEnabled()}
       sending={quoteSendingEnabled()}
+      textStyles={config.value.brand.textStyles}
     />
   );
 }

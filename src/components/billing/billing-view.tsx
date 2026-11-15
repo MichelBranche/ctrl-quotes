@@ -255,6 +255,24 @@ export function BillingView({
           ) : null}
         </p>
       ) : null}
+      {checkoutEnabled && billing?.isOwner && billing.hasSubscription && (billing.status === "active" || billing.status === "past_due") ? (
+        <div className="bl-cancel">
+          <p className="muted small">Resti attivo fino alla fine del periodo già pagato, poi non si rinnova.</p>
+          <Button variant="secondary" className="btn-sm" loading={pending} onClick={manage}>
+            Annulla abbonamento
+          </Button>
+        </div>
+      ) : null}
+      {checkoutEnabled && billing?.isOwner && billing.hasSubscription && billing.status === "canceling" ? (
+        <div className="bl-cancel">
+          <p className="small">
+            <strong>Annullato:</strong> attivo fino al {billing.periodEndLabel ?? "termine del periodo pagato"}, poi non si rinnova.
+          </p>
+          <Button variant="secondary" className="btn-sm" loading={pending} onClick={manage}>
+            Riattiva
+          </Button>
+        </div>
+      ) : null}
       {checkoutEnabled && billing?.overSeatCap ? (
         <p className="bl-banner is-warn" role="status">
           {overSeatCapMessage}

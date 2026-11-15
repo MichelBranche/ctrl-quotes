@@ -8,6 +8,8 @@ import type { QuoteBlock } from "@/domain/quote-document";
 import type { BlockLook, TextFormat } from "@/domain/text-format";
 import { cn } from "@/lib/cn";
 import { FontSelect } from "../text/font-select";
+import { useTextStyles } from "../text/text-styles-context";
+import { matchingStyle, stylePatch, textStyleKeys, textStyleLabel } from "@/domain/text-styles";
 
 /**
  * "Stile" tab for the selected block: the type of one of its texts and the look of the block on
@@ -100,6 +102,8 @@ export function BlockStyle({
   const chips = field && !fields.includes(field) ? [...fields, field] : fields;
   const format: TextFormat = (field && block.fmt?.[field]) || {};
   const look: BlockLook = block.look ?? {};
+  const textStyles = useTextStyles();
+  const savedStyle = matchingStyle(textStyles.styles, format);
   const patch = (next: Partial<TextFormat>, live = false) => {
     if (!field) return;
     const merged = { ...format, ...next } as Record<string, unknown>;
@@ -129,6 +133,23 @@ export function BlockStyle({
               ))}
             </div>
           ) : null}
+          <div className="bs-styles" role="group" aria-label="Stili di testo del workspace">
+            <span className="bs-label">Stile salvato</span>
+            <div className="bs-fields">
+              {textStyleKeys.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={cn("bs-chip", savedStyle === key && "is-on")}
+                  aria-pressed={savedStyle === key}
+                  title={`Applica ${textStyleLabel[key]}: uguale nel link e nel PDF`}
+                  onClick={() => patch(stylePatch(textStyles.styles[key]))}
+                >
+                  {textStyleLabel[key]}
+                </button>
+              ))}
+            </div>
+          </div>
           <FontSelect label="Font" value={(format.font as FontRef | undefined) ?? null} brand={brandFonts} onChange={(ref) => patch({ font: ref ?? undefined })} emptyLabel="Del template o del Brand Kit" />
           <div className="bs-grid">
             <label className="bs-field">

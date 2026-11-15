@@ -137,8 +137,8 @@ export function VisualeView({
   defaults: { taxRateBp: number; priceMode: PriceMode };
   /** Client, validity and the other quote details, for the panel when nothing is selected. */
   documentFields: React.ReactNode;
-  /** Template, cover photo and accent: the whole-document style controls. */
-  documentStyle: React.ReactNode;
+  /** Template, cover photo and accent: the whole-document style controls. Gets a way to open Contenuto. */
+  documentStyle: React.ReactNode | ((openContent: () => void) => React.ReactNode);
 }) {
   const { document, run, totals, totalsFromServer, selection, setSelectedId, unsaved, lastStep } = draft;
   const reduced = Boolean(useReducedMotion());
@@ -388,6 +388,44 @@ export function VisualeView({
   const moveBlock = (id: string, delta: -1 | 1) => {
     const result = exec({ kind: "moveUnit", blockId: id, delta });
     if (result.ok) tellMoved(id, result.value.blocks);
+  };
+
+  /**
+   * "Sposta a pagina N": the pages come from the document order (cover, content, from the
+   * Riepilogo), so a move is a reorder that lands the block at the end of the target page, or
+   * right after the Riepilogo when the end is not allowed (e.g. the signature stays last).
+   */
+  const pageTargets = (id: string): Array<{ key: string; label: string; ids: string[] | null; current: boolean }> => {
+    const block = byId.get(id);
+    if (!block || block.type === "cover" || block.type === "summary" || rowOf(document.blocks, id)) return [];
+    const groups = outlineGroups(document.blocks).filter((group) => group.key !== "cover" && group.label.startsWith("Pagina"));
+    const without = document.blocks.filter((entry) => entry.id !== id).map((entry) => entry.id);
+    return groups.map((group) => {
+      const current = group.blocks.some((entry) => entry.id === id);
+      let ids: string[] | null = null;
+      if (!current) {
+        const summaryAt = without.findIndex((entryId) => byId.get(entryId)?.type === "summary");
+        const candidates: number[] =
+          group.key === "content" ? [summaryAt < 0 ? without.length : summaryAt] : summaryAt < 0 ? [] : [without.length, summaryAt + 1];
+        for (const at of candidates) {
+          const next = [...without.slice(0, at), id, ...without.slice(at)];
+          if (allowed({ kind: "reorderBlocks", ids: next })) {
+            ids = next;
+            break;
+          }
+        }
+      }
+      return { key: group.key, label: group.label, ids, current };
+    });
+  };
+  const moveToPage = (id: string, key: string) => {
+    const target = pageTargets(id).find((entry) => entry.key === key);
+    if (!target?.ids) return;
+    const result = exec({ kind: "reorderBlocks", ids: target.ids });
+    if (!result.ok) return;
+    tellMoved(id, result.value.blocks);
+    announce(`${blockTitle(byId.get(id) as QuoteBlock)} spostato in ${target.label.split(" · ")[0]}`);
+    select(id);
   };
 
   /** Side by side with an existing block (drag on its edge). */
@@ -729,6 +767,20 @@ export function VisualeView({
       { kind: "separator", id: "s1" },
       { kind: "item", id: "up", label: row ? "Sposta su la riga" : "Sposta su", icon: ArrowUp, keys: "Alt ↑", disabled: !can.moveUp },
       { kind: "item", id: "down", label: row ? "Sposta giù la riga" : "Sposta giù", icon: ArrowDown, keys: "Alt ↓", disabled: !can.moveDown },
+      ...(() => {
+        const pages = pageTargets(block.id);
+        if (pages.length < 2) return [] as MenuEntry[];
+        return [
+          {
+            kind: "submenu",
+            id: "topage",
+            label: "Sposta a pagina",
+            icon: FileText,
+            disabled: readOnly || !pages.some((page) => page.ids),
+            entries: pages.map((page): MenuEntry => ({ kind: "item", id: `topage:${page.key}`, label: page.label, icon: FileText, disabled: !page.ids, note: page.current ? "Attuale" : page.ids ? undefined : "Non consentito dal template" })),
+          },
+        ] as MenuEntry[];
+      })(),
       { kind: "item", id: "duplicate", label: "Duplica", icon: Copy, keys: "Ctrl D", disabled: !can.duplicate },
       { kind: "separator", id: "s2" },
       { kind: "item", id: "toggle", label: block.visible ? "Nascondi nel documento" : "Mostra nel documento", icon: block.visible ? EyeOff : Eye, disabled: !can.toggle },
@@ -768,6 +820,10 @@ export function VisualeView({
     }
     if (action === "leave") {
       leaveRow(id);
+      return;
+    }
+    if (where === "topage" && type) {
+      moveToPage(id, String(type));
       return;
     }
     const block = byId.get(id);
@@ -1375,7 +1431,7 @@ export function VisualeView({
                   </fieldset>
                 </section>
               ) : null}
-              {selected ? null : documentStyle}
+              {selected ? null : typeof documentStyle === "function" ? documentStyle(() => setPanelTab("content")) : documentStyle}
             </>
           }
         />

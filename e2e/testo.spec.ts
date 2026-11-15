@@ -66,13 +66,13 @@ test("testo ricco: barra, segni, font della libreria e resa uguale ovunque", asy
   await expect(visuale.locator(".ve-panel-crumbs")).toContainText("Pagina 1");
   await expect(visuale.locator(".ve-panel-title h2")).toHaveText("Copertina");
 
-  // Nothing selected: document settings; the template is chosen in Dettagli, never in Stile.
+  // Nothing selected: document settings; the template is chosen in Contenuto, never in Stile.
   await visuale.locator(".ve-canvas").click({ position: { x: 12, y: 300 } });
   await expect(visuale.locator(".ve-panel-title h2")).toHaveText("Documento");
   await visuale.getByRole("tab", { name: "Stile" }).click();
   await expect(visuale.getByText("A4 verticale, uguale nel link e nel PDF")).toBeVisible();
   await expect(visuale.getByRole("radiogroup", { name: "Template" })).toHaveCount(0);
-  await expect(visuale.getByRole("button", { name: "Cambia in Dettagli" })).toBeVisible();
+  await expect(visuale.getByRole("button", { name: "Cambia in Contenuto" })).toBeVisible();
   await shot(page, "pannello-documento");
 
   // Click the title: the toolbar slides in above it, inside the page.

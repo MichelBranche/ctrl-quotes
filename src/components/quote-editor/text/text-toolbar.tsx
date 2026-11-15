@@ -22,7 +22,9 @@ import {
   TextTrackingIcon,
   TextUnderlineIcon,
 } from "@hugeicons/core-free-icons";
-import { ChevronDown, Minus, Plus } from "lucide-react";
+import { ChevronDown, Minus, MoreHorizontal, Plus } from "lucide-react";
+import { matchingStyle, stylePatch, textStyleKeys, textStyleLabel, type TextStyle } from "@/domain/text-styles";
+import { useTextStyles } from "./text-styles-context";
 import type { FontRef } from "@/domain/fonts";
 import { linkSchema, markKeys, markValueIn, type MarkAttrs, type TextFormat } from "@/domain/text-format";
 import { cn } from "@/lib/cn";
@@ -37,7 +39,7 @@ import { FontPicker, useCatalog } from "./font-picker";
  * keeps the full style of the block.
  */
 
-type Pop = "font" | "size" | "color" | "highlight" | "align" | "spacing" | "link" | null;
+type Pop = "font" | "size" | "color" | "highlight" | "align" | "spacing" | "link" | "more" | null;
 const sizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 56, 64, 72, 96];
 const alignIcon: Record<NonNullable<TextFormat["align"]>, IconSvgElement> = {
   left: TextAlignLeftIcon,
@@ -91,6 +93,8 @@ export function TextToolbar({
   const [link, setLink] = useState("");
   const [linkError, setLinkError] = useState<string | null>(null);
   const catalog = useCatalog();
+  const textStyles = useTextStyles();
+  const styleKeys = textStyleKeys;
   const hasSel = Boolean(selection && selection.e > selection.s);
   const marks = api.current?.marks() ?? [];
   void tick;
@@ -104,9 +108,11 @@ export function TextToolbar({
       if (box && bar) {
         const rect = box.getBoundingClientRect();
         const area = bounds() ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight);
-        // A narrow canvas (both side panels open) wraps the bar onto two rows instead of covering the panel.
-        const room = `${Math.max(240, Math.min(area.right, window.innerWidth) - Math.max(area.left, 0) - 16)}px`;
-        if (bar.style.maxWidth !== room) bar.style.maxWidth = room;
+        // Always one row: on a narrow canvas the scope label steps aside first.
+        const room = Math.min(area.right, window.innerWidth) - Math.max(area.left, 0) - 16;
+        const tight = bar.classList.contains("is-tight");
+        if (!tight && bar.scrollWidth > room) bar.classList.add("is-tight");
+        else if (tight && bar.scrollWidth + 90 < room) bar.classList.remove("is-tight");
         const width = bar.offsetWidth;
         const height = bar.offsetHeight;
         const top = Math.max(area.top, 0) + 8;
@@ -192,6 +198,27 @@ export function TextToolbar({
     </button>
   );
   const openPop = (key: Pop) => setPop((current) => (current === key ? null : key));
+  const moreItem = (text: string, icon: ReactNode, onClick: () => void, on?: boolean) => (
+    <button type="button" className={cn("tt-more-item", on && "is-on")} aria-pressed={on === undefined ? undefined : on} onMouseDown={(event) => event.preventDefault()} onClick={onClick}>
+      {icon}
+      <span>{text}</span>
+    </button>
+  );
+  const currentStyle = matchingStyle(textStyles.styles, format);
+  // The text as it looks now, as a saved style (element properties only; inline marks stay out).
+  const currentAsStyle = (): TextStyle => {
+    const style: TextStyle = {};
+    if (format?.font) style.font = format.font;
+    style.size = format?.size ?? baseSize;
+    const weight = format?.weight ?? (format?.bold ?? baseBold ? 700 : undefined);
+    if (weight) style.weight = weight;
+    if (format?.italic) style.italic = true;
+    if (format?.color) style.color = format.color;
+    if (format?.lineHeight !== undefined) style.lineHeight = format.lineHeight;
+    if (format?.tracking !== undefined) style.tracking = format.tracking;
+    if (format?.case) style.case = format.case;
+    return style;
+  };
 
   const panel = (key: Pop, body: ReactNode, wide = false) =>
     pop === key ? (
@@ -256,7 +283,6 @@ export function TextToolbar({
       {button({ label: "Grassetto", keys: "Ctrl+B", pressed: state.b, onClick: () => toggle("b"), children: <Icon icon={TextBoldIcon} /> })}
       {button({ label: "Corsivo", keys: "Ctrl+I", pressed: state.i, onClick: () => toggle("i"), children: <Icon icon={TextItalicIcon} /> })}
       {button({ label: "Sottolineato", keys: "Ctrl+U", pressed: state.u, onClick: () => toggle("u"), children: <Icon icon={TextUnderlineIcon} /> })}
-      {button({ label: "Barrato", pressed: state.x, onClick: () => toggle("x"), children: <Icon icon={TextStrikethroughIcon} /> })}
       <span className="tt-sep" aria-hidden="true" />
       {button({
         label: "Colore del testo",
@@ -269,21 +295,8 @@ export function TextToolbar({
           </span>
         ),
       })}
-      {button({
-        label: "Evidenziatore",
-        popKey: "highlight",
-        onClick: () => openPop("highlight"),
-        children: (
-          <span className="tt-color">
-            <Icon icon={HighlighterIcon} />
-            <i style={{ background: highlight ?? "transparent", boxShadow: highlight ? undefined : "inset 0 0 0 1px var(--cq-border-strong)" }} />
-          </span>
-        ),
-      })}
       <span className="tt-sep" aria-hidden="true" />
       {button({ label: `Allineamento: ${alignLabel[elementAlign].toLowerCase()}`, popKey: "align", onClick: () => openPop("align"), children: <Icon icon={alignIcon[elementAlign]} /> })}
-      {button({ label: "Interlinea e spaziatura", popKey: "spacing", onClick: () => openPop("spacing"), children: <Icon icon={TextTrackingIcon} /> })}
-      {button({ label: upper ? "Testo normale" : "Tutto maiuscolo", pressed: upper, onClick: () => onFormat({ case: upper ? "none" : "upper" }), children: <Icon icon={TextAllCapsIcon} /> })}
       {multiline ? (
         <>
           {button({ label: "Elenco puntato", onClick: () => (api.current?.list("bullet"), refresh()), children: <Icon icon={LeftToRightListBulletIcon} /> })}
@@ -302,16 +315,70 @@ export function TextToolbar({
         },
         children: <Icon icon={Link01Icon} />,
       })}
-      {button({
-        label: hasSel ? "Togli la formattazione dalla selezione" : "Togli tutta la formattazione",
-        onClick: () => {
-          if (hasSel && selection) api.current?.mark(Object.fromEntries(markKeys.map((key) => [key, undefined])), selection);
-          else onClear();
-          refresh();
-        },
-        children: <Icon icon={TextClearIcon} />,
-      })}
+      <span className="tt-sep" aria-hidden="true" />
+      {button({ label: "Altro", popKey: "more", onClick: () => openPop("more"), children: <MoreHorizontal size={16} aria-hidden="true" /> })}
 
+      {panel(
+        "more",
+        <div className="tt-more" role="group" aria-label="Altri comandi">
+          {styleKeys.length ? (
+            <>
+              <p className="tt-more-head">Stili di testo</p>
+              <div className="tt-styles">
+                {styleKeys.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={cn("tt-style", currentStyle === key && "is-on")}
+                    aria-pressed={currentStyle === key}
+                    title={`Applica lo stile ${textStyleLabel[key]} a tutto il testo`}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      onFormat(stylePatch(textStyles.styles[key]));
+                      setPop(null);
+                      refresh();
+                    }}
+                  >
+                    {textStyleLabel[key]}
+                  </button>
+                ))}
+              </div>
+              {textStyles.canEdit ? (
+                <details className="tt-save">
+                  <summary>Salva questo testo come stile</summary>
+                  <div className="tt-styles">
+                    {styleKeys.map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className="tt-style is-save"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          textStyles.save(key, currentAsStyle());
+                          setPop(null);
+                        }}
+                      >
+                        {textStyleLabel[key]}
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              ) : null}
+              <span className="tt-more-sep" aria-hidden="true" />
+            </>
+          ) : null}
+          {moreItem("Barrato", <Icon icon={TextStrikethroughIcon} />, () => toggle("x"), state.x)}
+          {moreItem(upper ? "Testo normale" : "Tutto maiuscolo", <Icon icon={TextAllCapsIcon} />, () => onFormat({ case: upper ? "none" : "upper" }), upper)}
+          {moreItem("Evidenziatore", <Icon icon={HighlighterIcon} />, () => setPop("highlight"))}
+          {moreItem("Interlinea e spaziatura", <Icon icon={TextTrackingIcon} />, () => setPop("spacing"))}
+          {moreItem(hasSel ? "Togli la formattazione dalla selezione" : "Togli tutta la formattazione", <Icon icon={TextClearIcon} />, () => {
+            if (hasSel && selection) api.current?.mark(Object.fromEntries(markKeys.map((key) => [key, undefined])), selection);
+            else onClear();
+            setPop(null);
+            refresh();
+          })}
+        </div>,
+      )}
       {panel(
         "font",
         <FontPicker

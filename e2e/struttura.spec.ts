@@ -49,7 +49,7 @@ const outlineTitles = (page: Page) => page.locator(".branched-menu__label").allT
 const outlinePages = (page: Page) =>
   page.locator(".branched-menu__section").evaluateAll((sections) =>
     sections.flatMap((section) => {
-      const group = section.querySelector(".branched-menu__head-label")?.textContent ?? "";
+      const group = section.querySelector(".branched-menu__head")?.textContent ?? "";
       return [...section.querySelectorAll(".branched-menu__row")].map((row) => `${group} > ${row.querySelector(".branched-menu__label")?.textContent ?? ""}`);
     }),
   );
@@ -86,6 +86,15 @@ async function dragRow(page: Page, from: Locator, to: Locator, onTheWay?: () => 
   await page.waitForTimeout(400);
 }
 
+/** Opens a row's "⋯" menu and picks an entry (the block menu, the same as right click on the sheet). */
+async function rowAction(page: Page, item: Locator, entry: RegExp) {
+  await item.hover();
+  await item.getByRole("button", { name: /^Azioni su/ }).click();
+  const menu = page.getByRole("menu").first();
+  await expect(menu).toBeVisible();
+  await menu.getByRole("menuitem", { name: entry }).first().click();
+}
+
 test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocchi", async ({ page }, testInfo) => {
   test.setTimeout(240_000);
   const mobile = testInfo.project.name.includes("mobile");
@@ -113,13 +122,14 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
   const titles = await outlineTitles(page);
   expect(titles.length).toBeGreaterThan(4);
 
-  // Every row shows hide, lock and delete on hover; the cover has a fixed-position pin, not a grip.
+  // Every row shows its "⋯" actions on hover, the title is never covered; the cover has no grip.
   for (const title of titles) {
     const item = row(page, title);
     await item.hover();
-    await expect(item.getByRole("button", { name: new RegExp(`^Nascondi ${escape(title)}`) })).toBeVisible();
-    await expect(item.getByRole("button", { name: new RegExp(`^Blocca ${escape(title)}`) })).toBeVisible();
-    await expect(item.getByRole("button", { name: new RegExp(`^Elimina ${escape(title)}`) })).toBeVisible();
+    await expect(item.getByRole("button", { name: new RegExp(`^Azioni su ${escape(title)}`) })).toBeVisible();
+    const label = await item.locator(".branched-menu__label").boundingBox();
+    const more = await item.getByRole("button", { name: /^Azioni su/ }).boundingBox();
+    expect(label && more && label.x + label.width <= more.x + 1).toBeTruthy();
   }
   const cover = page.locator(".branched-menu__row").first();
   await expect(cover.locator(".branched-menu__grip.is-off")).toHaveCount(1);
@@ -131,8 +141,7 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
   const pagesBefore = await outlinePages(page);
   const late = titles[titles.length - 1] ?? "";
   expect(pagesBefore.at(-1)).toContain("dal Riepilogo");
-  await row(page, late).hover();
-  await row(page, late).getByRole("button", { name: /^Nascondi/ }).click();
+  await rowAction(page, row(page, late), /^Nascondi/);
   await expect(row(page, late)).toHaveAttribute("data-muted", "");
   expect(await outlinePages(page)).toEqual(pagesBefore);
   await shot(page, "struttura-nascosto", testInfo);
@@ -172,15 +181,13 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     const addedRow = page.locator(`.branched-menu__row[data-value="${id}"]`);
-    await addedRow.hover();
-    await addedRow.getByRole("button", { name: /^Elimina/ }).click();
+    await rowAction(page, addedRow, /^Elimina/);
     await expect(addedRow).toHaveCount(0);
   }
   await expect.poll(() => outlineTitles(page)).toEqual(titles);
 
   // Quick delete, then "Annulla" in the toast puts it back in place.
-  await row(page, "Il progetto").hover();
-  await row(page, "Il progetto").getByRole("button", { name: /^Elimina/ }).click();
+  await rowAction(page, row(page, "Il progetto"), /^Elimina/);
   const toast = page.locator("[data-sonner-toast]").filter({ hasText: "Blocco eliminato: Il progetto" });
   await expect(toast).toBeVisible();
   await expect.poll(() => outlineTitles(page)).not.toContain("Il progetto");
@@ -217,12 +224,29 @@ test("struttura: trascinare, aggiungere, nascondere, bloccare ed eliminare blocc
   await expect.poll(async () => (await outlineTitles(page)).indexOf(moving)).toBe(before + 1);
   await expect.poll(async () => (await sheetOrder(page)).join()).toBe((await outlinePrintedOrder(page)).join());
 
+  // "Sposta a pagina": Tempistiche goes from the Riepilogo page to page 2, and back.
+  const timeline = row(page, "Tempistiche");
+  await timeline.hover();
+  await timeline.getByRole("button", { name: /^Azioni su/ }).click();
+  await page.getByRole("menuitem", { name: /^Sposta a pagina/ }).click();
+  await page.getByRole("menuitem", { name: /^Pagina 2/ }).click();
+  await expect.poll(async () => (await outlinePages(page)).find((entry) => entry.endsWith("> Tempistiche"))).toMatch(/^Pagina 2 >/);
+  await expect.poll(async () => (await sheetOrder(page)).join()).toBe((await outlinePrintedOrder(page)).join());
+  await shot(page, "struttura-sposta-pagina", testInfo);
+  await row(page, "Tempistiche").hover();
+  await row(page, "Tempistiche").getByRole("button", { name: /^Azioni su/ }).click();
+  await page.getByRole("menuitem", { name: /^Sposta a pagina/ }).click();
+  await page.getByRole("menuitem", { name: /dal Riepilogo/ }).click();
+  await expect.poll(async () => (await outlinePages(page)).find((entry) => entry.endsWith("> Tempistiche"))).toMatch(/dal Riepilogo >/);
+  await saved(page);
+
   // Lock: the content stops taking edits, the cover's pin is a different thing.
   const intro = row(page, "Il progetto");
-  await intro.hover();
-  await intro.getByRole("button", { name: /^Blocca/ }).click();
+  await rowAction(page, intro, /^Blocca/);
   await expect(intro.getByRole("button", { name: /^Sblocca/ })).toHaveAttribute("aria-pressed", "true");
-  await expect(intro.getByRole("button", { name: /^Elimina/ })).toBeDisabled();
+  await intro.getByRole("button", { name: /^Azioni su/ }).click();
+  await expect(page.getByRole("menu").first().getByRole("menuitem", { name: /^Elimina/ })).toHaveAttribute("aria-disabled", "true");
+  await page.keyboard.press("Escape");
   const introId = await intro.getAttribute("data-value");
   const introText = sheet.locator(`[data-edit-block="${introId}"]`).first();
   await introText.click();

@@ -373,6 +373,8 @@ export const brandKits = sqliteTable("brand_kits", {
   quoteNumberFormat: text("quote_number_format").notNull().default("QT-{YYYY}-{0000}"),
   defaultTerms: text("default_terms"),
   applyAutomatically: integer("apply_automatically", { mode: "boolean" }).notNull().default(true),
+  /** Saved text styles (JSON, see domain/text-styles); null means the defaults. */
+  textStyles: text("text_styles"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });

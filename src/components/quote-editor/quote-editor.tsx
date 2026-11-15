@@ -40,6 +40,8 @@ import { cn } from "@/lib/cn";
 import { BlockForm } from "./block-form";
 import { BlockList, blockIcon, blockTitle } from "./block-list";
 import { StylePanel } from "./style-panel";
+import { TextStylesProvider } from "./text/text-styles-context";
+import { defaultTextStyles, type TextStyles } from "@/domain/text-styles";
 import { Status } from "@/components/ui/async-status";
 import { PercentInput } from "./inputs";
 import { useQuoteDraft, useUndoShortcuts, type SaveState } from "./state/use-quote-draft";
@@ -66,6 +68,7 @@ export function QuoteEditor({
   logoUrl,
   visuale: visualeEnabled = false,
   sending = false,
+  textStyles = defaultTextStyles,
 }: {
   data: QuoteEditorData;
   clients: ClientOption[];
@@ -77,6 +80,8 @@ export function QuoteEditor({
   visuale?: boolean;
   /** Phase 4 sending flag, read on the server. */
   sending?: boolean;
+  /** Saved text styles of the workspace. */
+  textStyles?: TextStyles;
 }) {
   const router = useRouter();
   const readOnly = !data.canEdit;
@@ -176,6 +181,7 @@ export function QuoteEditor({
   const lockBlock = (id: string, locked: boolean) => run({ kind: "lockBlock", blockId: id, locked });
 
   return (
+    <TextStylesProvider initial={textStyles} canEdit={!readOnly}>
     <div className="editor">
       <header className="editor-head">
         <div className="editor-title">
@@ -263,7 +269,10 @@ export function QuoteEditor({
               ["details", "Dettagli", Settings2],
               ["versions", `Versioni${data.versions.length ? ` (${data.versions.length})` : ""}`, History],
             ] as const
-          ).map(([id, label, Icon]) => (
+          )
+            // In the visual editor the details live in the Documento panel: only Editor and Versioni.
+            .filter(([id]) => !(visuale && id === "details"))
+            .map(([id, label, Icon]) => (
             <button key={id} type="button" role="tab" className="tab" aria-selected={tab === id} id={`editor-tab-${id}`} aria-controls={`editor-panel-${id}`} onClick={() => setTab(id)}>
               <Icon size={15} aria-hidden="true" /> {label}
             </button>
@@ -293,30 +302,51 @@ export function QuoteEditor({
             items={items}
             defaults={defaults}
             documentFields={
-              <fieldset disabled={readOnly} className="ve-doc-fields">
-                <legend className="visually-hidden">Dettagli del preventivo</legend>
-                <SelectField
-                  label="Cliente"
-                  value={meta.clientId ?? ""}
-                  options={clientOptions}
-                  onChange={(event) => changeMeta({ clientId: event.target.value || null })}
-                />
-                <div className="field">
-                  <label htmlFor="ve-valid-until">Valido fino al</label>
-                  <input id="ve-valid-until" type="date" value={meta.validUntil ?? ""} onChange={(event) => changeMeta({ validUntil: event.target.value || null })} />
-                </div>
-                {fiscal.taxProfile === "ordinario" ? (
-                  <PercentInput label="Ritenuta d'acconto (informativa)" bp={document.withholdingBp} max={5000} onBp={(bp) => run({ kind: "setWithholding", bp }, { group: "withholding" })} />
-                ) : null}
-                <button type="button" className="link-btn" onClick={() => setTab("details")}>
-                  Titolo, numero e altri dettagli
-                </button>
-              </fieldset>
+              <div className="ve-doc">
+                <fieldset disabled={readOnly} className="ve-doc-fields">
+                  <legend className="visually-hidden">Dettagli del preventivo</legend>
+                  <TextField label="Titolo" value={meta.title} maxLength={140} onChange={(event) => changeMeta({ title: event.target.value })} error={meta.title.trim().length < 2 ? "Il titolo deve avere almeno 2 caratteri." : undefined} />
+                  <SelectField
+                    label="Cliente"
+                    value={meta.clientId ?? ""}
+                    options={clientOptions}
+                    onChange={(event) => changeMeta({ clientId: event.target.value || null })}
+                  />
+                  <div className="ve-doc-pair">
+                    <div className="field">
+                      <label htmlFor="ve-valid-until">Valido fino al</label>
+                      <input id="ve-valid-until" type="date" value={meta.validUntil ?? ""} onChange={(event) => changeMeta({ validUntil: event.target.value || null })} />
+                    </div>
+                    <SelectField label="Template" value={meta.templateId} options={templates.map((template) => ({ value: template.id, label: template.name }))} onChange={(event) => changeMeta({ templateId: event.target.value })} />
+                  </div>
+                  {fiscal.taxProfile === "ordinario" ? (
+                    <PercentInput label="Ritenuta d'acconto (informativa)" bp={document.withholdingBp} max={5000} onBp={(bp) => run({ kind: "setWithholding", bp }, { group: "withholding" })} />
+                  ) : null}
+                </fieldset>
+                <dl className="ve-doc-facts">
+                  <div>
+                    <dt>Numero</dt>
+                    <dd>{data.quote.number ?? "Non assegnato"}</dd>
+                  </div>
+                  <div>
+                    <dt>Creato</dt>
+                    <dd>{dateTimeFormat.format(data.quote.createdAt)}</dd>
+                  </div>
+                  <div>
+                    <dt>Regime</dt>
+                    <dd>{fiscal.taxProfile === "ordinario" ? "Ordinario" : fiscal.taxProfile === "forfettario" ? "Forfettario" : "Estero"}</dd>
+                  </div>
+                </dl>
+                <details className="ve-doc-more">
+                  <summary>Pagamenti del preventivo</summary>
+                  <QuotePaymentsPanel quoteId={data.quote.id} disabled={readOnly} showMarkPaid />
+                </details>
+              </div>
             }
             documentStyle={
-              <StylePanel
+              (openContent: () => void) => <StylePanel
                 embedded
-                onOpenDetails={() => setTab("details")}
+                onOpenDetails={openContent}
                 brandFonts={{ heading: data.snapshot.brand.fontHeading, body: data.snapshot.brand.fontBody }}
                 templates={templates}
                 templateId={meta.templateId}
@@ -569,6 +599,7 @@ export function QuoteEditor({
         </div>
       </Dialog>
     </div>
+    </TextStylesProvider>
   );
 }
 
