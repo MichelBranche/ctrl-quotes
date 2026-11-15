@@ -69,11 +69,7 @@ async function applyRecordedConnectEvent(
     const accountId = asString(object.id);
     const workspaceId = await workspaceIdFromAccount(db, accountId);
     if (!workspaceId || !accountId) return { applied: false, skipped: false, workspaceId };
-    const status = statusFromAccount({
-      details_submitted: Boolean(object.details_submitted),
-      charges_enabled: Boolean(object.charges_enabled),
-      payouts_enabled: Boolean(object.payouts_enabled),
-    });
+    const status = statusFromAccount(object);
     await db
       .update(workspacePaymentSettings)
       .set({ stripeAccountStatus: status, updatedAt: now })

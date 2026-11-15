@@ -1,6 +1,6 @@
 import "server-only";
-import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
+import { eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { workspacePaymentSettings } from "@/db/schema";
 import { CONNECT_APPLICATION_FEE_AMOUNT, CONNECT_ENABLE_STEPS, asStripeConnectStatus, type StripeConnectStatus } from "@/domain/payments";
@@ -14,6 +14,16 @@ export { CONNECT_ENABLE_STEPS };
 
 export const CONNECT_NOT_ENABLED_CODE = "connect_not_enabled";
 
+/** Express + Managed Risk (losses_collector = stripe) requires the preview Accounts v2 version. The SDK default (`2026-10-28.endive`) rejects this combination. */
+export const CONNECT_ACCOUNTS_API_VERSION = "2026-10-28.preview";
+
+export const CONNECT_ONBOARDING_REFRESH_PATH = "/app/settings/payments?stripe=riparti";
+export const CONNECT_ONBOARDING_RETURN_PATH = "/app/settings/payments?stripe=ritorno";
+
+export function connectRequestOptions(): Stripe.RequestOptions {
+  return { apiVersion: CONNECT_ACCOUNTS_API_VERSION } as Stripe.RequestOptions;
+}
+
 export function connectWebhookSecretConfigured(env: Record<string, string | undefined> = process.env): boolean {
   return Boolean(env.STRIPE_CONNECT_WEBHOOK_SECRET?.trim());
 }
@@ -21,6 +31,95 @@ export function connectWebhookSecretConfigured(env: Record<string, string | unde
 export function appBaseUrl(): string {
   const raw = process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? "https://quotes.ctrlagency.dev";
   return raw.replace(/\/$/, "");
+}
+
+export function connectAccountCreateParams(input: {
+  workspaceId: string;
+  name: string;
+  email?: string | null;
+}): Stripe.V2.Core.AccountCreateParams {
+  return {
+    display_name: input.name,
+    contact_email: input.email?.trim() || undefined,
+    dashboard: "express",
+    identity: { country: "IT" },
+    defaults: {
+      currency: "eur",
+      responsibilities: {
+        fees_collector: "stripe",
+        losses_collector: "stripe",
+      },
+    },
+    configuration: {
+      merchant: {
+        capabilities: {
+          card_payments: { requested: true },
+        },
+      },
+    },
+    metadata: stripeAppMetadata({ workspace_id: input.workspaceId }),
+  };
+}
+
+export function connectAccountLinkCreateParams(
+  accountId: string,
+  baseUrl = appBaseUrl(),
+): Stripe.V2.Core.AccountLinkCreateParams {
+  return {
+    account: accountId,
+    use_case: {
+      type: "account_onboarding",
+      account_onboarding: {
+        refresh_url: `${baseUrl}${CONNECT_ONBOARDING_REFRESH_PATH}`,
+        return_url: `${baseUrl}${CONNECT_ONBOARDING_RETURN_PATH}`,
+      },
+    },
+  };
+}
+
+export async function createConnectedExpressAccount(
+  stripe: Stripe,
+  input: { workspaceId: string; name: string; email?: string | null },
+): Promise<Stripe.V2.Core.Account> {
+  return stripe.v2.core.accounts.create(connectAccountCreateParams(input), connectRequestOptions());
+}
+
+export async function createConnectOnboardingLink(stripe: Stripe, accountId: string, baseUrl = appBaseUrl()): Promise<string> {
+  const link = await stripe.v2.core.accountLinks.create(connectAccountLinkCreateParams(accountId, baseUrl), connectRequestOptions());
+  if (!link.url) throw new Error("Stripe non ha restituito l'indirizzo di onboarding.");
+  return link.url;
+}
+
+export async function retrieveConnectedAccount(stripe: Stripe, accountId: string): Promise<unknown> {
+  try {
+    return await stripe.v2.core.accounts.retrieve(
+      accountId,
+      { include: ["configuration.merchant", "defaults", "identity", "requirements"] },
+      connectRequestOptions(),
+    );
+  } catch {
+    return stripe.accounts.retrieve(accountId);
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function cardPaymentsStatus(account: unknown): string | null {
+  const root = asRecord(account);
+  if (!root) return null;
+  const merchant = asRecord(asRecord(root.configuration)?.merchant);
+  const capabilities = asRecord(merchant?.capabilities);
+  const card = asRecord(capabilities?.card_payments);
+  const status = card?.status;
+  return typeof status === "string" ? status : null;
+}
+
+export function statusFromAccount(account: unknown): StripeConnectStatus {
+  const root = asRecord(account) ?? {};
+  if (root.charges_enabled === true || cardPaymentsStatus(account) === "active") return "active";
+  return "pending";
 }
 
 export function isConnectNotEnabledError(error: unknown): boolean {
@@ -35,10 +134,25 @@ export function isConnectNotEnabledError(error: unknown): boolean {
   );
 }
 
-export function statusFromAccount(account: { details_submitted?: boolean | null; charges_enabled?: boolean | null; payouts_enabled?: boolean | null }): StripeConnectStatus {
-  if (account.charges_enabled) return "active";
-  if (account.details_submitted) return "pending";
-  return "pending";
+function isChargesDisabledError(error: unknown): boolean {
+  const lower = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return (
+    lower.includes("cannot currently make charges") ||
+    lower.includes("charges are disabled") ||
+    lower.includes("account cannot currently") ||
+    (lower.includes("card_payments") && lower.includes("restrict"))
+  );
+}
+
+function connectOnboardingErrorMessage(error: unknown): string {
+  if (isConnectNotEnabledError(error)) {
+    return "Stripe Connect non è ancora attivo su questo account piattaforma. Aprilo dalla Dashboard in modalità test (Impostazioni, Connect) e accetta i termini. I passaggi precisi sono nella guida in pagina.";
+  }
+  const lower = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  if (lower.includes("legacy") && lower.includes("type")) {
+    return "Stripe ha aggiornato Connect: riprova. Se il problema continua, scrivici.";
+  }
+  return "Non è stato possibile avviare il collegamento Stripe. Riprova tra poco.";
 }
 
 async function upsertStripeAccount(
@@ -71,7 +185,7 @@ export async function refreshConnectedAccountStatus(
   const row = await getWorkspacePaymentRow(db, workspaceId);
   if (!row?.stripeAccountId || !stripeConfigured()) return asStripeConnectStatus(row?.stripeAccountStatus);
   try {
-    const account = await getStripe().accounts.retrieve(row.stripeAccountId);
+    const account = await retrieveConnectedAccount(getStripe(), row.stripeAccountId);
     const status = statusFromAccount(account);
     if (status !== row.stripeAccountStatus) {
       await db
@@ -96,20 +210,14 @@ export async function startConnectOnboarding(db: AppDatabase, actor: Actor, emai
   if (!access.ok) return access;
   if (!stripeConfigured()) return invalid("Stripe non è configurato sulla piattaforma.");
   const stripe = getStripe();
-  let row = await getWorkspacePaymentRow(db, access.value.id);
+  const row = await getWorkspacePaymentRow(db, access.value.id);
   let accountId = row?.stripeAccountId ?? null;
   try {
     if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: "express",
-        country: "IT",
-        email: email?.trim() || undefined,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        metadata: stripeAppMetadata({ workspace_id: access.value.id }),
-        business_profile: { name: access.value.name, product_description: "Incasso preventivi tramite CTRL Quotes" },
+      const account = await createConnectedExpressAccount(stripe, {
+        workspaceId: access.value.id,
+        name: access.value.name,
+        email,
       });
       accountId = account.id;
       await upsertStripeAccount(db, access.value.id, accountId, statusFromAccount(account));
@@ -122,22 +230,12 @@ export async function startConnectOnboarding(db: AppDatabase, actor: Actor, emai
         meta: { stripeAccountId: accountId },
       });
     }
-    const link = await stripe.accountLinks.create({
-      account: accountId,
-      refresh_url: `${appBaseUrl()}/app/settings/payments?stripe=riparti`,
-      return_url: `${appBaseUrl()}/app/settings/payments?stripe=ritorno`,
-      type: "account_onboarding",
-    });
+    const url = await createConnectOnboardingLink(stripe, accountId);
     const status = await refreshConnectedAccountStatus(db, access.value.id);
-    return ok({ url: link.url, status });
+    return ok({ url, status });
   } catch (error) {
-    if (isConnectNotEnabledError(error)) {
-      return invalid(
-        "Stripe Connect non è ancora attivo su questo account piattaforma. Aprilo dalla Dashboard in modalità test (Impostazioni, Connect) e accetta i termini. I passaggi precisi sono nella guida in pagina.",
-      );
-    }
     safeLog("error", "Stripe Connect: onboarding non riuscito", { workspaceId: access.value.id });
-    return invalid("Non è stato possibile avviare il collegamento Stripe. Riprova tra poco.");
+    return invalid(connectOnboardingErrorMessage(error));
   }
 }
 
@@ -185,6 +283,9 @@ export async function createQuoteCheckoutSession(input: {
   } catch (error) {
     if (isConnectNotEnabledError(error)) {
       return invalid("Stripe Connect non è attivo sulla piattaforma. Il pagamento con carta non è disponibile.");
+    }
+    if (isChargesDisabledError(error)) {
+      return invalid("L'account Stripe non può ancora accettare pagamenti con carta. Completa la verifica in Impostazioni, Pagamenti.");
     }
     safeLog("error", "Stripe Connect: checkout non riuscito", { workspaceId: input.workspaceId, quoteId: input.quoteId });
     return invalid("Non è stato possibile aprire il pagamento con carta. Riprova tra poco.");

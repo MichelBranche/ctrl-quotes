@@ -33,7 +33,7 @@ Un downgrade o una disdetta non rimuove i membri: se i posti superano il nuovo l
 
 I pagamenti dei preventivi non passano dal conto di CTRL: ogni workspace collega il **proprio** account Stripe (Connect Express, Italia / EUR) e incassa con un Checkout in modalità direct charge (`Stripe-Account`). `application_fee_amount` è la costante `CONNECT_APPLICATION_FEE_AMOUNT` (oggi 0).
 
-Onboarding: da Impostazioni, Pagamenti, il proprietario o un amministratore avvia Account Links (`/app/settings/payments?stripe=ritorno` e `?stripe=riparti`).
+Onboarding in-app («Collega Stripe»): Accounts v2 (`POST /v2/core/accounts`), versione `2026-10-28.preview` (necessaria per dashboard Express con Managed Risk: `fees_collector` e `losses_collector` = `stripe`). Paese IT, valuta EUR, capability `card_payments`, metadata `app=ctrl-quotes` e `workspace_id`. Poi Account Link v2 (`POST /v2/core/account_links`, use_case `account_onboarding`) con ritorno `/app/settings/payments?stripe=ritorno` e ripartenza `?stripe=riparti`. Lo stato (non collegato / in verifica / attivo) si legge dalla capability `card_payments` (o da `charges_enabled` se l'oggetto è ancora in forma v1). Il Checkout resta un direct charge (`Stripe-Account`).
 
 Webhook dedicato (eventi degli account collegati): `https://quotes.ctrlagency.dev/api/stripe/connect/webhook`
 
