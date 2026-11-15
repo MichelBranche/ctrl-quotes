@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { compareRows, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, planIds, plans, quoteSendDailyLimitLabel, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, teamSeatLimitLabel, teamSeatLimitLabelFromCap, teamSeatLimits, teamSeatQuotaLabel, upcomingFeatures, workspaceTeamSeatLimit, yearlyMonthlyEquivalentCents, yearlyPriceCents, yearlySavingsLabel, yearlyUndiscountedCents, type PlanId } from "@/domain/plans";
+import { compareRows, avatarPlanRing, avatarPlanTooltip, currentPlanLabel, effectivePlanId, formatPlanPrice, globalQuoteSendDailyCap, planIds, plans, quoteSendDailyLimitLabel, quoteSendDailyLimits, quoteSendLimitReachedMessage, quoteSendQuotaLabel, romeCalendarDay, teamSeatLimitLabel, teamSeatLimitLabelFromCap, teamSeatLimits, teamSeatQuotaLabel, upcomingFeatures, workspaceTeamSeatLimit, yearlyMonthlyEquivalentCents, yearlyPriceCents, yearlySavingsLabel, yearlyUndiscountedCents, type PlanId } from "@/domain/plans";
 
 describe("subscription plans", () => {
   it("formats prices the Italian way", () => {
@@ -136,5 +136,24 @@ describe("subscription plans", () => {
     expect(nav).toContain("seatLabel");
     expect(billing).not.toMatch(/Fino a 5 persone/);
     expect(billing).not.toMatch(/1 persona nel workspace/);
+  });
+
+  it("sceglie l'anello e il tooltip dell'avatar in base al piano, con la prova tratteggiata", () => {
+    const trial = { plan: "free", planOverride: null, trialActive: true, trialExpired: false, trialDaysLeft: 7 };
+    expect(avatarPlanRing(trial)).toBe("trial");
+    expect(avatarPlanTooltip(trial)).toBe("Prova gratuita, 7 giorni");
+    expect(avatarPlanTooltip({ ...trial, trialDaysLeft: 1 })).toBe("Prova gratuita, 1 giorno");
+
+    const expired = { plan: "free", planOverride: null, trialActive: false, trialExpired: true, trialDaysLeft: 0 };
+    expect(avatarPlanRing(expired)).toBe("starter");
+    expect(avatarPlanTooltip(expired)).toBe("Prova terminata");
+
+    const pro = { plan: "pro", planOverride: null, trialActive: false, trialExpired: false, trialDaysLeft: 0 };
+    expect(avatarPlanRing(pro)).toBe("pro");
+    expect(avatarPlanTooltip(pro)).toBe("Pro");
+
+    const lifetime = { plan: "free", planOverride: "business" as const, trialActive: false, trialExpired: true, trialDaysLeft: 0 };
+    expect(avatarPlanRing(lifetime)).toBe("business");
+    expect(avatarPlanTooltip(lifetime)).toBe("Business");
   });
 });

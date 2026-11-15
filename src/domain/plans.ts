@@ -331,6 +331,39 @@ export function currentPlanLabel(plan: string, override: PlanId | null = null): 
   return plans[effectivePlanId(plan, override)].name;
 }
 
+export type AvatarPlanRing = "starter" | "pro" | "business" | "trial";
+
+const avatarPlanShortName: Record<PlanId, string> = {
+  starter: "Starter",
+  pro: "Pro",
+  business: "Business",
+};
+
+/** Ring around the header avatar: trial stays dashed even though limits are Pro. Lifetime Business uses the Business ring. */
+export function avatarPlanRing(input: {
+  trialActive: boolean;
+  plan: string;
+  planOverride: PlanId | null;
+}): AvatarPlanRing {
+  if (input.trialActive) return "trial";
+  return effectivePlanId(input.plan, input.planOverride);
+}
+
+export function avatarPlanTooltip(input: {
+  trialActive: boolean;
+  trialExpired?: boolean;
+  trialDaysLeft: number;
+  plan: string;
+  planOverride: PlanId | null;
+}): string {
+  if (input.trialActive) {
+    if (input.trialDaysLeft === 1) return "Prova gratuita, 1 giorno";
+    return `Prova gratuita, ${input.trialDaysLeft} giorni`;
+  }
+  if (input.trialExpired && !input.planOverride && input.plan === "free") return "Prova terminata";
+  return avatarPlanShortName[effectivePlanId(input.plan, input.planOverride)];
+}
+
 /** Every feature still "In arrivo", per plan. Kept in sync with docs/roadmap-abbonamenti.md by a test. */
 export function upcomingFeatures(): Record<PlanId, string[]> {
   return {

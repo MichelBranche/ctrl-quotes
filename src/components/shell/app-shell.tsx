@@ -9,6 +9,7 @@ import { AnchoredPopover } from "@/components/ui/anchored-popover";
 import { Drawer } from "@/components/ui/overlays";
 import { SideNav } from "@/components/shell/nav";
 import { BILLING_PATH, currentPlanLabel, trialDaysRemainingLabel } from "@/domain/plans";
+import { AccountAvatar } from "@/components/shell/account-avatar";
 import type { ShellData } from "@/components/shell/types";
 import { messages } from "@/i18n/it";
 import { cn } from "@/lib/cn";
@@ -93,16 +94,21 @@ export function AppShell({ data, children }: { data: ShellData; children: React.
             <AnchoredPopover
               id="account-menu"
               trigger={
-                <button type="button" className="avatar" aria-label={`${data.user.initials}, ${messages.shell.account}`}>
-                  {data.user.initials}
-                </button>
+                <AccountAvatar
+                  initials={data.user.initials}
+                  workspace={data.workspace}
+                  ariaLabel={`${data.user.initials}, ${messages.shell.account}`}
+                />
               }
             >
-              <p style={{ margin: "8px 10px" }}>
-                <strong>{data.user.name}</strong>
-                <br />
-                <span className="muted">{data.user.email}</span>
-              </p>
+              <div className="account-menu-head">
+                <AccountAvatar initials={data.user.initials} workspace={data.workspace} compact as="span" />
+                <p>
+                  <strong>{data.user.name}</strong>
+                  <br />
+                  <span className="muted">{data.user.email}</span>
+                </p>
+              </div>
               <p className="menu-label">{messages.shell.workspace}</p>
               {data.workspaces.map((workspace) => {
                 const isCurrent = workspace.id === data.workspace.id;
