@@ -9,13 +9,18 @@
  */
 import Stripe from "stripe";
 import { plans } from "../src/domain/plans.ts";
-import {
-  STRIPE_APP,
-  paidCheckoutPlanIds,
-  stripePriceLookupKeys,
-  stripeProductName,
-  type PaidCheckoutPlanId,
-} from "../src/domain/stripe-plans.ts";
+
+/** Keep these in sync with src/domain/stripe-plans.ts. The script cannot import that file: Node does not resolve the app path alias. */
+const STRIPE_APP = "ctrl-quotes";
+const paidCheckoutPlanIds = ["pro", "business"] as const;
+type PaidCheckoutPlanId = (typeof paidCheckoutPlanIds)[number];
+const stripePriceLookupKeys: Record<PaidCheckoutPlanId, { monthly: string }> = {
+  pro: { monthly: "ctrl_quotes_pro_monthly" },
+  business: { monthly: "ctrl_quotes_business_monthly" },
+};
+function stripeProductName(planId: PaidCheckoutPlanId): string {
+  return plans[planId].name;
+}
 
 const key = process.env.STRIPE_SECRET_KEY?.trim();
 if (!key) {
