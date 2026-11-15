@@ -290,3 +290,38 @@
   .pro-card:hover, .pro-mini:hover { transform: none; }
   .pro-btn:active, .pro-mini:active { transform: none; }
 }
+
+/* Shared sliding pill for the app sidebar. Lives in .side-nav so other navs stay unchanged. */
+.side-nav { position: relative; }
+.nav-pill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  background: var(--brand);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--brand) 35%, transparent);
+  pointer-events: none;
+  z-index: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  backface-visibility: hidden;
+  opacity: 0;
+}
+.side-nav .nav-list { position: relative; z-index: 1; }
+.side-nav .nav-link { position: relative; z-index: 1; }
+.side-nav .nav-link[aria-current="page"],
+.side-nav .nav-link.is-active {
+  background: transparent;
+  box-shadow: none;
+  color: white;
+  font-weight: 650;
+}
+.side-nav .nav-link[aria-current="page"]:hover,
+.side-nav .nav-link.is-active:hover {
+  background: transparent;
+}
+.side-nav .nav-link[aria-current="page"] svg { color: white; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-pill { transition: none; }
+}
