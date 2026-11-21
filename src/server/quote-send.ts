@@ -16,6 +16,7 @@ import { getQuoteSendQuota, releaseQuoteSend, reserveQuoteSend, type QuoteSendQu
 import { enqueueJob } from "@/server/outbox";
 import { createPublicLink, regeneratePublicLink, revealPublicLinkUrl, revokePublicLink } from "@/server/public-links";
 import { freezeQuotePaymentSnapshot } from "@/server/payments";
+import { recordSentLines } from "@/server/sent-lines";
 import { createVersion, findDraft, findQuote, getDraftSnapshot } from "@/server/quotes";
 
 /**
@@ -298,6 +299,7 @@ async function performSendQuote(
     .where(and(eq(quotes.workspaceId, actor.workspaceId), eq(quotes.id, quoteId), eq(quotes.status, from)))
     .returning({ id: quotes.id });
   if (updated.length === 0) return conflict("Il preventivo è cambiato nel frattempo. Ricarica la pagina e riprova.");
+  await recordSentLines(db, actor.workspaceId, quoteId, latest.id);
 
   let emailQueued = false;
   if (input.mode === "email") {

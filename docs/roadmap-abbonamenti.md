@@ -18,6 +18,7 @@ e le togliamo più avanti se decidiamo che non ci interessano. Fonte unica dei t
 - Template standard (5 template)
 - Tutte le funzionalità Starter (Pro)
 - Tutte le funzionalità Pro (Business): disponibili solo le parti già presenti in Pro
+- Analytics avanzate in Workspace > Analytics avanzate: imbuto con periodo su tutti i piani, tempi di risposta, valore nel tempo, pipeline, coinvolgimento, template e clienti su Pro, servizi più venduti, team e incassi su Business
 - Collaborazione team (inviti via email, ruoli owner/admin/member, reinvio e revoca)
 - Persone nel workspace: 1 su Starter, 5 su Pro, illimitate su Business, titolare compreso, incluse nell'abbonamento. Durante il Piano di prova si applica il limite Starter (1): chi ha già più persone le tiene, ma non può invitarne altre.
 
@@ -27,7 +28,6 @@ e le togliamo più avanti se decidiamo che non ci interessano. Fonte unica dei t
 - Nessuna funzionalità in arrivo.
 
 ### Pro
-- Analytics avanzate
 - Template personalizzati (esiste il brand kit, non i template su misura)
 - Supporto prioritario
 
