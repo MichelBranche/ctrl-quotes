@@ -52,6 +52,13 @@ export const messages = {
     invalidForm: "Controlla i campi evidenziati.",
     captchaFailed: "Verifica anti-bot non riuscita o scaduta. Riprova.",
     captchaLabel: "Verifica anti-bot",
+    captchaPending: "Completa la verifica anti-bot qui sopra, poi premi di nuovo il pulsante.",
+    captchaBlocked:
+      "La verifica anti-bot di Cloudflare non si carica. Di solito la blocca un adblock, una VPN o la rete aziendale: disattivali per questo sito oppure prova un altro browser.",
+    captchaRefused:
+      "La verifica anti-bot di Cloudflare non è riuscita. Riprova; se succede ancora, disattiva per questo sito adblock e protezioni anti-tracciamento oppure prova un altro browser",
+    captchaCode: "codice",
+    captchaRetry: "Riprova la verifica",
     passwordStrength: "Sicurezza della password",
     strengthDebole: "Debole",
     strengthDiscreta: "Discreta",

@@ -111,6 +111,23 @@ describe("attivazione condizionale di Google e Turnstile", () => {
     expect(unused).not.toHaveBeenCalled();
   });
 
+  it("una verifica rifiutata lascia nei log i codici Cloudflare, mai token o secret", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const rejected = vi.fn(
+      async () => new Response(JSON.stringify({ success: false, "error-codes": ["timeout-or-duplicate"], hostname: "quotes.ctrlagency.dev" })),
+    );
+    expect(await verifyTurnstileToken({ secretKey: TEST_SECRET, token: "tok-segreto", fetchImpl: rejected })).toBe(false);
+    expect(warn).toHaveBeenCalledWith("[turnstile] verifica rifiutata", {
+      reason: "cloudflare",
+      codes: ["timeout-or-duplicate"],
+      hostname: "quotes.ctrlagency.dev",
+    });
+    const logged = JSON.stringify(warn.mock.calls);
+    expect(logged).not.toContain("tok-segreto");
+    expect(logged).not.toContain(TEST_SECRET);
+    warn.mockRestore();
+  });
+
   it("le server action passano senza Turnstile e senza token falliscono quando è attivo", async () => {
     const form = new FormData();
     vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "");

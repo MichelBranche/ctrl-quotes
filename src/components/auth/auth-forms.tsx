@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { safeInvitePath } from "@/domain/invite-path";
@@ -8,7 +8,7 @@ import { messages } from "@/i18n/it";
 import { AuthSubmit } from "@/components/auth/auth-submit";
 import { GoogleSignIn } from "@/components/auth/google-button";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength";
-import { TurnstileWidget } from "@/components/auth/turnstile";
+import { TurnstileWidget, type TurnstileProblem } from "@/components/auth/turnstile";
 import { PasswordField, TextField } from "@/components/ui/fields";
 import { forgotAction, loginAction, registerAction, resetAction, type FormState } from "@/server/actions";
 
@@ -20,14 +20,64 @@ export type AuthTab = "login" | "register";
 /**
  * Turnstile for one form. The token counts only for the reset key it was issued with:
  * after an error the action returns a new state, the widget resets and the submit waits for a fresh token.
+ * The submit button stays clickable: without a token, guard() stops the submit and says why,
+ * instead of a grey button that silently does nothing. When Cloudflare fails or is blocked,
+ * the message explains what to try and offers "Riprova".
  */
-function useCaptcha(siteKey: string | null, resetKey: unknown): { widget: ReactNode; ready: boolean } {
+function useCaptcha(siteKey: string | null, resetKey: unknown): { widget: ReactNode; ready: boolean; guard: (event: FormEvent<HTMLFormElement>) => void } {
   const [captcha, setCaptcha] = useState<{ token: string; key: unknown } | null>(null);
-  if (!siteKey) return { widget: null, ready: true };
+  const [problem, setProblem] = useState<TurnstileProblem | null>(null);
+  const [pendingHint, setPendingHint] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  if (!siteKey) return { widget: null, ready: true, guard: () => {} };
   const ready = Boolean(captcha && captcha.key === resetKey && captcha.token);
+  const retry = () => {
+    setProblem(null);
+    setPendingHint(false);
+    setCaptcha(null);
+    setAttempt((value) => value + 1);
+  };
+  const message = problem
+    ? problem.kind === "blocked"
+      ? messages.auth.captchaBlocked
+      : `${messages.auth.captchaRefused}${problem.code ? ` (${messages.auth.captchaCode} ${problem.code})` : ""}.`
+    : pendingHint && !ready
+      ? messages.auth.captchaPending
+      : null;
   return {
     ready,
-    widget: <TurnstileWidget siteKey={siteKey} resetKey={resetKey} onToken={(token) => setCaptcha(token ? { token, key: resetKey } : null)} />,
+    guard: (event) => {
+      if (ready) return;
+      event.preventDefault();
+      setPendingHint(true);
+    },
+    widget: (
+      <>
+        <TurnstileWidget
+          siteKey={siteKey}
+          resetKey={resetKey}
+          attempt={attempt}
+          onToken={(token) => {
+            setCaptcha(token ? { token, key: resetKey } : null);
+            if (token) {
+              setProblem(null);
+              setPendingHint(false);
+            }
+          }}
+          onProblem={setProblem}
+        />
+        {message ? (
+          <div className="alert captcha-alert" role="alert">
+            <p>{message}</p>
+            {problem ? (
+              <button type="button" className="captcha-retry" onClick={retry}>
+                {messages.auth.captchaRetry}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </>
+    ),
   };
 }
 
@@ -90,7 +140,7 @@ function AuthSessionFields({
   ) : undefined} /> : null;
 
   return (
-    <form action={tab === "login" ? loginFormAction : registerFormAction} className="stack auth-session">
+    <form action={tab === "login" ? loginFormAction : registerFormAction} onSubmit={captcha.guard} className="stack auth-session">
       {next ? <input type="hidden" name="next" value={next} /> : null}
       {swap(
         <>
@@ -124,7 +174,7 @@ function AuthSessionFields({
         </>,
       )}
       {captcha.widget}
-      <AuthSubmit loading={pending} disabled={!captcha.ready}>
+      <AuthSubmit loading={pending}>
         {tab === "login" ? messages.auth.submitLogin : messages.auth.submitRegister} →
       </AuthSubmit>
     </form>
@@ -138,11 +188,11 @@ export function ForgotForm({ turnstileSiteKey }: { turnstileSiteKey: string | nu
     <>
       <h1>{messages.auth.forgotTitle}</h1>
       <p className="lede">{messages.auth.forgotSubtitle}</p>
-      <form action={action} className="stack">
+      <form action={action} onSubmit={captcha.guard} className="stack">
         {state.error ? <p className="alert" role="alert">{state.error}</p> : null}
         <TextField label={messages.auth.email} name="email" type="email" autoComplete="email" required icon="mail" />
         {captcha.widget}
-        <AuthSubmit loading={pending} disabled={!captcha.ready}>
+        <AuthSubmit loading={pending}>
           {messages.auth.sendLink}
         </AuthSubmit>
       </form>
@@ -158,12 +208,12 @@ export function ResetForm({ token, turnstileSiteKey }: { token: string; turnstil
     <>
       <h1>{messages.auth.resetTitle}</h1>
       <p className="lede">{messages.auth.resetSubtitle}</p>
-      <form action={action} className="stack">
+      <form action={action} onSubmit={captcha.guard} className="stack">
         <input type="hidden" name="token" value={token} />
         {state.error ? <p className="alert" role="alert">{state.error}</p> : null}
         <PasswordField label={messages.auth.newPassword} name="password" autoComplete="new-password" required minLength={8} hint={messages.auth.passwordHint} />
         {captcha.widget}
-        <AuthSubmit loading={pending} disabled={!captcha.ready}>
+        <AuthSubmit loading={pending}>
           {messages.auth.savePassword}
         </AuthSubmit>
       </form>
