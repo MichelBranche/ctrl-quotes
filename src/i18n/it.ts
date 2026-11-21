@@ -195,12 +195,6 @@ export const messages = {
     futureTitle: "Non ancora disponibile",
     futureBody: "Questa sezione fa parte di una fase successiva. Nessun dato viene salvato da questa schermata.",
   },
-  help: {
-    title: "Aiuto",
-    subtitle: "Orientamento sulla versione attuale del prodotto.",
-    body: "In questa versione di CTRL® Quotes sono attivi account, workspace, clienti, catalogo, Brand Kit, galleria template e impostazioni. Editor dei preventivi e pagina pubblica arrivano nelle prossime fasi.",
-    contact: "Per segnalazioni usa l'indirizzo del progetto quando sarà pubblicato. Non inviare dati personali in questa fase.",
-  },
   future: {
     action: "Disponibile in una fase successiva.",
   },
