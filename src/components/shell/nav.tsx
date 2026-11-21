@@ -223,6 +223,7 @@ export function SideNav({ onNavigate, compact = false }: { onNavigate?: () => vo
   const activeHref = allItems.find((item) => isCurrent(pendingHref ?? pathname, item.href))?.href;
 
   useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear the optimistic highlight once the router pathname catches up
     if (pendingHref && isCurrent(pathname, pendingHref)) setPendingHref(null);
   }, [pathname, pendingHref]);
 

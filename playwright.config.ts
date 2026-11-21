@@ -48,7 +48,8 @@ export default defineConfig({
     },
     {
       name: "testo-desktop",
-      dependencies: ["setup"],
+      // After the app projects: they check the empty states of the shared account, which this project fills.
+      dependencies: ["app-mobile"],
       testMatch: /testo\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
@@ -68,7 +69,7 @@ export default defineConfig({
     },
     {
       name: "app-mobile",
-      dependencies: ["setup"],
+      dependencies: ["app-desktop"],
       testMatch: /app\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
@@ -78,7 +79,8 @@ export default defineConfig({
     },
     {
       name: "fase2-desktop",
-      dependencies: ["setup"],
+      // Same reason as testo-desktop: the empty states must be checked before quotes are created.
+      dependencies: ["app-mobile"],
       testMatch: /fase2\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],

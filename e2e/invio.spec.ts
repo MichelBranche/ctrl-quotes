@@ -53,7 +53,7 @@ test("invio: modale, link, email in coda e Invia aggiornamento", async ({ page, 
   await expect(dialog.getByLabel("A", { exact: true })).toHaveValue("progetti@atelier.example");
   await expect(dialog.getByLabel("Oggetto")).toHaveValue(`Il tuo preventivo per ${title}`);
   await expect(dialog.getByText("Il link viene creato all'invio")).toBeVisible();
-  await expect(dialog.getByText("Il tuo preventivo è pronto")).toBeVisible();
+  await expect(dialog.getByText("Hai ricevuto un preventivo")).toBeVisible();
   await expect(dialog.getByText(/Modalità prova/)).toBeVisible();
   expect(await seriousA11y(page)).toEqual([]);
   await shot(page, "01-invia", testInfo);
