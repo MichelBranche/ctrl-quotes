@@ -174,7 +174,7 @@ export const plans: Record<PlanId, Plan> = {
     includes: [
       { label: quoteSendDailyLimitLabel("pro"), icon: "send", soon: false },
       { label: "Tutte le funzionalità Starter", icon: "layers", soon: false },
-      { label: "Analytics avanzate", icon: "chart", soon: true },
+      { label: "Analytics avanzate", icon: "chart", soon: false },
       { label: "Collaborazione team", icon: "users", soon: false },
       { label: teamSeatLimitLabel("pro"), icon: "users", soon: false },
       { label: "Template personalizzati", icon: "grid", soon: true },

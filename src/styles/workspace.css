@@ -147,7 +147,7 @@
   grid-column: 1 / -1;
   grid-row: 3;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   min-height: 0;
 }
@@ -225,6 +225,7 @@
   .ws-list-body { overflow: visible; }
   .ws-row { flex-wrap: wrap; }
   .ws-row-acts { width: 100%; justify-content: flex-end; }
+  .ws-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 720px) {

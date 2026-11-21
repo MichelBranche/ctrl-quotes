@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, Building2, Palette, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { ArrowRight, BarChart3, Building2, Palette, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { FROM_BOTTOM, FROM_LEFT, FROM_RIGHT, FROM_TOP, useCardMotion } from "@/components/motion/card-motion";
 import { SectionLink, useMoving, useSectionTransition } from "@/components/motion/section-transition";
 import { DeleteWorkspaceDialog, type DeleteWorkspaceTarget } from "@/components/workspace/delete-workspace-dialog";
@@ -169,6 +169,7 @@ export function WorkspaceView({
         </motion.section>
 
         <motion.div className="ws-links" variants={m.item} custom={FROM_BOTTOM}>
+          <QuickLink href="/app/workspace/analytics" icon={<BarChart3 size={22} />} title={messages.workspace.analyticsLink} body={messages.workspace.analyticsBody} />
           <QuickLink href="/app/settings/profile" icon={<Building2 size={22} />} title={messages.workspace.profileLink} body={messages.workspace.profileBody} />
           <QuickLink href="/app/settings/team" icon={<Users size={22} />} title={messages.workspace.teamLink} body={messages.workspace.teamBody} />
           <QuickLink href="/app/settings/brand" icon={<Palette size={22} />} title={messages.workspace.brandLink} body={messages.workspace.brandBody} />

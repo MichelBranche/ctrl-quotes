@@ -117,6 +117,8 @@ export const messages = {
     plan: "Piano",
     members: "Membri",
     managePlan: "Vai ad Abbonamenti",
+    analyticsLink: "Analytics avanzate",
+    analyticsBody: "Conversioni, valore, clienti e team.",
     profileLink: "Profilo workspace",
     profileBody: "Nome, slug e preferenze generali.",
     teamLink: "Team e ruoli",
