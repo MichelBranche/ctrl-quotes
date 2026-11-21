@@ -37,6 +37,7 @@ export function AuthTabs({ initial, ui, notice }: { initial: Tab; ui: AuthUi; no
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from the router pathname (external), runs only when it changes
     if (fromPath && fromPath !== tab) setTab(fromPath);
     // pathname updates (Next navigation) win; pushState is handled locally in select.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only sync from the router, not from local tab
@@ -104,6 +105,7 @@ function AuthSwap({ tab, reduce, login, register }: { tab: Tab; reduce: boolean;
   useEffect(() => {
     pendingRef.current = tab;
     if (reduce) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reduced motion: jump straight to the new tab, no animation phases
       setDisplayed(tab);
       setHeight("auto");
       setPhase("idle");
