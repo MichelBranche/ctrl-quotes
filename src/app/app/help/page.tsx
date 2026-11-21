@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, BookOpen, CircleHelp, Headset, LifeBuoy, Megaphone, PlayCircle, Activity, Mail } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, CircleHelp, Headset, LifeBuoy, Megaphone, PlayCircle, Activity, MessageCircle } from "lucide-react";
 import { HelpHero } from "@/components/help/help-hero";
 import { topicIcons } from "@/components/help/help-icons";
 import { LegalLinks } from "@/components/legal/legal-links";
@@ -21,26 +21,32 @@ export default function HelpPage() {
       <div className="hp-quick">
         <Link href="/app/help/guide" className="hp-quick-card card">
           <span className="hp-quick-icon"><BookOpen size={20} aria-hidden="true" /></span>
-          <h3>Guide rapide</h3>
-          <p>Impara le basi in pochi minuti, dal primo workspace al preventivo accettato.</p>
-          <span className="hp-quick-link">Apri le guide <ArrowRight size={16} aria-hidden="true" /></span>
+          <span className="hp-quick-body">
+            <strong>Guide rapide</strong>
+            <span>Impara le basi in pochi minuti.</span>
+          </span>
+          <span className="hp-quick-arrow"><ArrowRight size={16} aria-hidden="true" /></span>
         </Link>
-        <div className="hp-quick-card hp-quick-lime" aria-describedby="hp-video-soon">
+        <div className="hp-quick-card hp-quick-lime" title="I video tutorial sono in arrivo">
           <span className="hp-quick-icon"><PlayCircle size={20} aria-hidden="true" /></span>
-          <h3>Video tutorial</h3>
-          <p>Brevi video passo passo su editor, invio e pagamenti.</p>
-          <span id="hp-video-soon" className="hp-soon">In arrivo</span>
+          <span className="hp-quick-body">
+            <strong>Video tutorial <span className="hp-soon">In arrivo</span></strong>
+            <span>Brevi video su editor, invio e pagamenti.</span>
+          </span>
+          <span className="hp-quick-arrow is-off" aria-hidden="true"><ArrowRight size={16} /></span>
         </div>
         <a href={supportMailto("Supporto CTRL® Quotes")} className="hp-quick-card card">
           <span className="hp-quick-icon"><Headset size={20} aria-hidden="true" /></span>
-          <h3>Contatta il supporto</h3>
-          <p>Scrivici e ti rispondiamo il prima possibile.</p>
-          <span className="hp-quick-link">{SUPPORT_EMAIL} <ArrowUpRight size={16} aria-hidden="true" /></span>
+          <span className="hp-quick-body">
+            <strong>Contatta il supporto</strong>
+            <span>{SUPPORT_EMAIL}</span>
+          </span>
+          <span className="hp-quick-arrow"><ArrowUpRight size={16} aria-hidden="true" /></span>
         </a>
       </div>
 
       <div className="hp-grid">
-        <section className="hp-topics" aria-labelledby="hp-topics-title">
+        <section className="hp-topics card" aria-labelledby="hp-topics-title">
           <div className="hp-section-head">
             <h2 id="hp-topics-title">Esplora gli argomenti</h2>
             <Link href="/app/help/guide" className="hp-section-link">
@@ -52,7 +58,7 @@ export default function HelpPage() {
               const Icon = topicIcons[topic.id];
               return (
                 <li key={topic.id}>
-                  <Link href={`/app/help/${topic.id}`} className="hp-topic card">
+                  <Link href={`/app/help/${topic.id}`} className="hp-topic">
                     <span className="hp-topic-icon"><Icon size={20} aria-hidden="true" /></span>
                     <span className="hp-topic-body">
                       <strong>{topic.title}</strong>
@@ -103,19 +109,17 @@ export default function HelpPage() {
               </a>
             </li>
           </ul>
+          <section className="hp-cta card" aria-labelledby="hp-cta-title">
+            <span className="hp-cta-icon"><MessageCircle size={20} aria-hidden="true" /></span>
+            <h2 id="hp-cta-title">Hai ancora bisogno di aiuto?</h2>
+            <p>Scrivici: indica il preventivo o la pagina e cosa vedi sullo schermo.</p>
+            <a href={supportMailto("Richiesta di supporto CTRL® Quotes")} className="btn btn-primary hp-cta-btn">
+              <MessageCircle size={16} aria-hidden="true" /> Apri una richiesta
+            </a>
+          </section>
         </section>
       </div>
 
-      <section className="hp-cta card" aria-labelledby="hp-cta-title">
-        <span className="hp-cta-icon"><Mail size={22} aria-hidden="true" /></span>
-        <div className="hp-cta-copy">
-          <h2 id="hp-cta-title">Hai ancora bisogno di aiuto?</h2>
-          <p>Raccontaci cosa succede: se puoi, indica il preventivo o la pagina e cosa vedi sullo schermo.</p>
-        </div>
-        <a href={supportMailto("Richiesta di supporto CTRL® Quotes")} className="btn btn-primary btn-pill hp-cta-btn">
-          Apri una richiesta
-        </a>
-      </section>
 
       <LegalLinks className="help-legal" />
     </div>

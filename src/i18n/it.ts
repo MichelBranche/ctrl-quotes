@@ -85,7 +85,7 @@ export const messages = {
     templates: "Template",
     settings: "Impostazioni",
     billing: "Fatturazione",
-    help: "Aiuto",
+    help: "Aiuto e Supporto",
     primaryNav: "Principale",
     secondaryNav: "Secondaria",
     planBody: "Scopri i piani e scegli quello giusto per il tuo lavoro.",

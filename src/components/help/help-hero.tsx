@@ -50,10 +50,11 @@ export function HelpHero({ items }: { items: HelpSearchItem[] }) {
             ) : null}
           </form>
         </div>
+        <span className="hp-hero-orb" aria-hidden="true" />
         <picture className="hp-hero-art">
-          <source type="image/avif" srcSet="/help/hero-440.avif 440w, /help/hero-800.avif 800w" sizes="(max-width: 720px) 160px, 320px" />
-          <source type="image/webp" srcSet="/help/hero-440.webp 440w, /help/hero-800.webp 800w" sizes="(max-width: 720px) 160px, 320px" />
-          <img src="/help/hero-440.webp" alt="" width={440} height={302} />
+          <source type="image/avif" srcSet="/help/stack-360.avif 360w, /help/stack-640.avif 640w" sizes="(max-width: 720px) 110px, 220px" />
+          <source type="image/webp" srcSet="/help/stack-360.webp 360w, /help/stack-640.webp 640w" sizes="(max-width: 720px) 110px, 220px" />
+          <img src="/help/stack-360.webp" alt="" width={360} height={413} />
         </picture>
       </section>
 
