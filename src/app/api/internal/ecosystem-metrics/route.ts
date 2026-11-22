@@ -2,8 +2,6 @@ import { connection, NextResponse } from "next/server";
 import { collectEcosystemMetrics } from "@/server/ecosystem-metrics";
 import { bearerAuth } from "@/server/internal-auth";
 
-export const dynamic = "force-dynamic";
-
 /**
  * Read-only aggregates for the CTRL admin Ecosistema section. No PII.
  * Authorization: Bearer ECOSYSTEM_METRICS_SECRET.
