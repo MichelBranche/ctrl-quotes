@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, gt } from "drizzle-orm";
 import { z } from "zod";
 import type { AppDatabase } from "@/db/client";
 import { subscriptions, user, workspaceInvitations, workspaceMemberships, workspaces } from "@/db/schema";
@@ -403,6 +403,14 @@ export async function acceptInvite(
     .where(eq(workspaceInvitations.tokenHash, hashLinkToken(input.token)))
     .limit(1);
   if (!invite) return invalid("Invito non valido o scaduto.");
+  return acceptInviteRow(db, invite, input.userId, now);
+}
+
+type InviteRow = typeof workspaceInvitations.$inferSelect;
+type AcceptResult = Result<{ workspaceId: string; workspaceName: string; alreadyMember: boolean }>;
+
+async function acceptInviteRow(db: AppDatabase, invite: InviteRow, userId: string, now: Date): Promise<AcceptResult> {
+  const input = { userId };
   if (invite.status === "revoked") return conflict("Questo invito è stato revocato.");
   if (invite.status === "accepted") {
     if (invite.acceptedByUserId === input.userId) {
@@ -464,6 +472,78 @@ export async function acceptInvite(
 
   const [workspace] = await db.select({ name: workspaces.name }).from(workspaces).where(eq(workspaces.id, invite.workspaceId)).limit(1);
   return ok({ workspaceId: invite.workspaceId, workspaceName: workspace?.name ?? "Workspace", alreadyMember: false });
+}
+
+/**
+ * Accepts every live invite addressed to the user's (verified) email, newest first.
+ * Covers invitees who registered without the link, on another device, or with Google.
+ * Returns the workspaces joined; failures (seat limit, odd rows) are skipped, never thrown.
+ */
+export async function acceptPendingInvitesForUser(db: AppDatabase, userId: string, now = new Date()): Promise<string[]> {
+  const [account] = await db.select({ email: user.email, emailVerified: user.emailVerified }).from(user).where(eq(user.id, userId)).limit(1);
+  if (!account?.emailVerified) return [];
+  const rows = await db
+    .select()
+    .from(workspaceInvitations)
+    .where(
+      and(
+        eq(workspaceInvitations.email, normalizeInviteEmail(account.email)),
+        eq(workspaceInvitations.status, "pending"),
+        gt(workspaceInvitations.expiresAt, now),
+      ),
+    )
+    .orderBy(desc(workspaceInvitations.createdAt));
+  const joined: string[] = [];
+  for (const row of rows) {
+    const result = await acceptInviteRow(db, row, userId, now);
+    if (result.ok && !joined.includes(result.value.workspaceId)) joined.push(result.value.workspaceId);
+  }
+  return joined;
+}
+
+export type InviteWelcome = {
+  workspaceId: string;
+  workspaceName: string;
+  role: InviteRole;
+  roleLabel: string;
+  inviterName: string | null;
+  welcomed: boolean;
+};
+
+/** Data for the invited-member welcome tour. Null when the user is not a non-owner member of the workspace. */
+export async function getInviteWelcome(db: AppDatabase, userId: string, workspaceId: string): Promise<InviteWelcome | null> {
+  const [membership] = await db
+    .select({ role: workspaceMemberships.role, welcomedAt: workspaceMemberships.welcomedAt, workspaceName: workspaces.name })
+    .from(workspaceMemberships)
+    .innerJoin(workspaces, eq(workspaces.id, workspaceMemberships.workspaceId))
+    .where(and(eq(workspaceMemberships.workspaceId, workspaceId), eq(workspaceMemberships.userId, userId)))
+    .limit(1);
+  if (!membership || !isInviteRole(membership.role)) return null;
+  const [invite] = await db
+    .select({ inviterName: user.name })
+    .from(workspaceInvitations)
+    .innerJoin(user, eq(user.id, workspaceInvitations.invitedByUserId))
+    .where(and(eq(workspaceInvitations.workspaceId, workspaceId), eq(workspaceInvitations.acceptedByUserId, userId)))
+    .orderBy(desc(workspaceInvitations.acceptedAt))
+    .limit(1);
+  return {
+    workspaceId,
+    workspaceName: membership.workspaceName,
+    role: membership.role,
+    roleLabel: inviteRoleLabels[membership.role],
+    inviterName: invite?.inviterName ?? null,
+    welcomed: membership.welcomedAt != null,
+  };
+}
+
+/** Marks the welcome tour as seen for this membership. Idempotent. */
+export async function markWelcomed(db: AppDatabase, userId: string, workspaceId: string, now = new Date()): Promise<boolean> {
+  const rows = await db
+    .update(workspaceMemberships)
+    .set({ welcomedAt: now })
+    .where(and(eq(workspaceMemberships.workspaceId, workspaceId), eq(workspaceMemberships.userId, userId)))
+    .returning({ workspaceId: workspaceMemberships.workspaceId });
+  return rows.length > 0;
 }
 
 export type { PendingInvite, SeatUsage } from "@/domain/invites";

@@ -39,7 +39,8 @@ export async function loadShell(): Promise<ShellData> {
   if (!workspace) redirect("/onboarding/trial");
   const requested = (await cookies()).get("cq_workspace")?.value;
   const chosen = workspaces.find((item) => item.id === requested) ?? workspace;
-  if (!chosen.onboardingCompletedAt) redirect("/onboarding/setup");
+  if (chosen.role !== "owner" && chosen.welcomedAt == null) redirect(`/onboarding/invito?w=${encodeURIComponent(chosen.id)}`);
+  if (!chosen.onboardingCompletedAt && chosen.role === "owner") redirect("/onboarding/setup");
   const access = await loadWorkspaceEntitlement(getDb(), chosen);
   return {
     user: {

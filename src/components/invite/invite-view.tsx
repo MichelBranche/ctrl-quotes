@@ -5,7 +5,7 @@ import Link from "next/link";
 import { invitePath } from "@/domain/invite-path";
 import { inviteRoleLabels, type InviteRole } from "@/domain/invites";
 import { logoutAction } from "@/server/actions";
-import { acceptInviteAction, rememberInviteTokenAction, type InviteActionState } from "@/server/actions/invites";
+import { acceptInviteAction, forgetInviteTokenAction, rememberInviteTokenAction, type InviteActionState } from "@/server/actions/invites";
 import { AuthSubmit } from "@/components/auth/auth-submit";
 import { Button } from "@/components/ui/button";
 
@@ -33,9 +33,11 @@ export function InviteView({
   const [state, action, pending] = useActionState(acceptInviteAction, initial);
   const path = token ? invitePath(token) : "";
 
+  const live = Boolean(token && preview && preview.status === "pending");
   useEffect(() => {
-    if (token) void rememberInviteTokenAction(token);
-  }, [token]);
+    if (live) void rememberInviteTokenAction(token);
+    else void forgetInviteTokenAction();
+  }, [live, token]);
 
   if (!preview || preview.status === "revoked" || preview.status === "expired" || !token) {
     const reason =
@@ -48,8 +50,9 @@ export function InviteView({
       <>
         <h1>Invito non disponibile</h1>
         <p className="lede">{reason}</p>
+        <p className="field-hint">Chi ti ha invitato può mandartene uno nuovo da Impostazioni, Team.</p>
         <p>
-          <Link href={session ? "/app/overview" : "/login"}>{session ? "Vai alla panoramica" : "Accedi"}</Link>
+          <Link href={session ? "/app/overview" : "/login"}>{session ? "Continua" : "Accedi"}</Link>
         </p>
       </>
     );

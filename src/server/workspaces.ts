@@ -57,6 +57,8 @@ export type WorkspaceSummary = {
   trialEndsAt: number | null;
   onboardingCompletedAt: number | null;
   onboardingStep: number;
+  /** When this user finished or skipped the invited-member welcome tour; null = still to show. */
+  welcomedAt: number | null;
 };
 
 export type AccessFailure = "not_found" | "forbidden";
@@ -138,6 +140,7 @@ export async function createWorkspace(
     userId: input.userId,
     role: "owner",
     createdAt: now,
+    welcomedAt: now,
   });
   return {
     id,
@@ -151,6 +154,7 @@ export async function createWorkspace(
     trialEndsAt: trialEndsAt ? trialEndsAt.getTime() : null,
     onboardingCompletedAt: onboardingCompletedAt ? onboardingCompletedAt.getTime() : null,
     onboardingStep: 0,
+    welcomedAt: now.getTime(),
   };
 }
 
@@ -168,6 +172,7 @@ export async function listWorkspaces(db: AppDatabase, userId: string): Promise<W
       trialEndsAt: workspaces.trialEndsAt,
       onboardingCompletedAt: workspaces.onboardingCompletedAt,
       onboardingStep: workspaces.onboardingStep,
+      welcomedAt: workspaceMemberships.welcomedAt,
       subPlan: subscriptions.plan,
       subStatus: subscriptions.status,
     })
@@ -180,7 +185,7 @@ export async function listWorkspaces(db: AppDatabase, userId: string): Promise<W
     const plan = summaryPlanValue(row.plan, { plan: row.subPlan, status: row.subStatus });
     if (!isPlan(plan) || !isTaxProfile(row.taxProfile) || !isRole(row.role)) return [];
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { overridePlan, overrideUntil, trialEndsAt, onboardingCompletedAt, onboardingStep, subPlan, subStatus, ...rest } = row;
+    const { overridePlan, overrideUntil, trialEndsAt, onboardingCompletedAt, onboardingStep, welcomedAt, subPlan, subStatus, ...rest } = row;
     const until = overrideUntil ? overrideUntil.getTime() : null;
     const planOverride = activePlanOverride(overridePlan, until);
     return [{
@@ -193,6 +198,7 @@ export async function listWorkspaces(db: AppDatabase, userId: string): Promise<W
       trialEndsAt: row.trialEndsAt ? row.trialEndsAt.getTime() : null,
       onboardingCompletedAt: row.onboardingCompletedAt ? row.onboardingCompletedAt.getTime() : null,
       onboardingStep: row.onboardingStep ?? 0,
+      welcomedAt: row.welcomedAt ? row.welcomedAt.getTime() : null,
     }];
   });
 }

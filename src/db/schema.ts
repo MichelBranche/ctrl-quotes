@@ -123,6 +123,8 @@ export const workspaceMemberships = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
     createdAt: timestamp("created_at").notNull(),
+    /** Set when the invited member finished or skipped the welcome tour; owners get it at creation. */
+    welcomedAt: timestamp("welcomed_at"),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.userId] }),

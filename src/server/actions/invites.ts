@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ensureMigrated, getDb } from "@/db/client";
 import { isWellFormedToken } from "@/server/link-token";
-import { acceptInvite } from "@/server/invites";
+import { acceptInvite, markWelcomed } from "@/server/invites";
+import { inviteWelcomePath } from "@/server/onboarding-path";
 import { clearInviteCookie, rememberInviteToken } from "@/server/invite-cookie";
 import { requireUser, workspaceCookieOptions } from "@/server/session";
 
@@ -24,5 +25,23 @@ export async function acceptInviteAction(_state: InviteActionState, formData: Fo
   const jar = await cookies();
   jar.set("cq_workspace", result.value.workspaceId, await workspaceCookieOptions());
   await clearInviteCookie();
-  redirect("/app/overview");
+  redirect(inviteWelcomePath(result.value.workspaceId));
+}
+
+/** The invite link is dead (expired, revoked, used): forget it so later logins do not bounce back here. */
+export async function forgetInviteTokenAction(): Promise<void> {
+  await clearInviteCookie();
+}
+
+/** End (or skip) of the invited-member welcome tour: mark it seen and open the invited workspace. */
+export async function finishInviteWelcomeAction(workspaceId: string, target: "overview" | "quote" = "overview"): Promise<void> {
+  await ensureMigrated();
+  const session = await requireUser();
+  const marked = await markWelcomed(getDb(), session.user.id, workspaceId);
+  if (marked) {
+    const jar = await cookies();
+    jar.set("cq_workspace", workspaceId, await workspaceCookieOptions());
+  }
+  await clearInviteCookie();
+  redirect(target === "quote" ? "/app/quotes/new" : "/app/overview");
 }
