@@ -13,7 +13,7 @@ import { writeAuditLog } from "@/server/audit";
 import { clientIp } from "@/server/request-meta";
 import { previewAutoVerifyEmail } from "@/server/preview-auth";
 import { passesCaptcha } from "@/server/turnstile";
-import { requireUser, readSession, workspaceCookieOptions } from "@/server/session";
+import { requireUser, workspaceCookieOptions } from "@/server/session";
 import { pathAfterAuth } from "@/server/onboarding-path";
 import { safeInvitePath } from "@/domain/invite-path";
 import { readInviteCookiePath, resolveInviteNext } from "@/server/invite-cookie";
@@ -50,11 +50,13 @@ export async function loginAction(_state: FormState, formData: FormData): Promis
     .safeParse({ email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { error: messages.auth.invalidForm };
   if (!(await captchaOk(formData))) return { error: messages.auth.captchaFailed };
+  let userId: string;
   try {
-    await getAuth().api.signInEmail({
+    const signedIn = await getAuth().api.signInEmail({
       body: parsed.data,
       headers: await headers(),
     });
+    userId = signedIn.user.id;
   } catch (error) {
     if (error instanceof APIError && error.status === 429) return { error: messages.auth.tooMany };
     // Better Auth throws this only after the password matched, so it reveals nothing to a guesser:
@@ -63,7 +65,7 @@ export async function loginAction(_state: FormState, formData: FormData): Promis
     if (error instanceof APIError) return { error: messages.auth.invalidLogin };
     throw error;
   }
-  redirect(await postAuthPath(formData));
+  redirect(await postAuthPath(formData, userId));
 }
 
 function isEmailNotVerified(error: unknown): boolean {
@@ -83,11 +85,10 @@ async function sendCodeAndVerifyPath(email: string, formData: FormData): Promise
   return registerNext(email, formData);
 }
 
-async function postAuthPath(formData: FormData): Promise<string> {
+async function postAuthPath(formData: FormData, userId: string): Promise<string> {
+  // The new session cookie is not readable in this same request: use the id from the sign-in.
   const next = resolveInviteNext(String(formData.get("next") ?? ""), await readInviteCookiePath());
-  const session = await readSession();
-  if (!session) return next ?? "/login";
-  return pathAfterAuth(session.user.id, next);
+  return pathAfterAuth(userId, next);
 }
 
 export async function registerAction(_state: FormState, formData: FormData): Promise<FormState> {
