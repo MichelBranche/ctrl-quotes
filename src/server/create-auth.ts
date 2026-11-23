@@ -70,6 +70,12 @@ export function createAuth(options: CreateAuthOptions) {
       autoSignIn: false,
       revokeSessionsOnPasswordReset: true,
       resetPasswordTokenExpiresIn: RESET_PASSWORD_EXPIRES_IN_SECONDS,
+      // The reset link reached this inbox, so the address is proven: confirm it. Otherwise a user who
+      // never typed the signup code resets the password and still cannot sign in.
+      onPasswordReset: async ({ user: resetUser }) => {
+        if (resetUser.emailVerified) return;
+        await options.db.update(user).set({ emailVerified: true, updatedAt: new Date() }).where(eq(user.id, resetUser.id));
+      },
       sendResetPassword: async ({ user, url }) => {
         const rendered = renderResetPasswordEmail({ url, assetBase: emailAssetBase() });
         await options.email.send({

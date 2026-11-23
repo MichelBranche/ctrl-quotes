@@ -57,10 +57,30 @@ export async function loginAction(_state: FormState, formData: FormData): Promis
     });
   } catch (error) {
     if (error instanceof APIError && error.status === 429) return { error: messages.auth.tooMany };
+    // Better Auth throws this only after the password matched, so it reveals nothing to a guesser:
+    // send a fresh code and open the code page instead of a misleading "wrong password".
+    if (isEmailNotVerified(error)) redirect(await sendCodeAndVerifyPath(parsed.data.email, formData));
     if (error instanceof APIError) return { error: messages.auth.invalidLogin };
     throw error;
   }
   redirect(await postAuthPath(formData));
+}
+
+function isEmailNotVerified(error: unknown): boolean {
+  if (!(error instanceof APIError)) return false;
+  const code = (error.body as { code?: unknown } | undefined)?.code;
+  return code === "EMAIL_NOT_VERIFIED";
+}
+
+async function sendCodeAndVerifyPath(email: string, formData: FormData): Promise<string> {
+  if (!previewAutoVerifyEmail()) {
+    try {
+      await getAuth().api.sendVerificationOTP({ body: { email, type: "email-verification" } });
+    } catch {
+      // Rate limited or mail down: the code page still offers "Invia di nuovo".
+    }
+  }
+  return registerNext(email, formData);
 }
 
 async function postAuthPath(formData: FormData): Promise<string> {

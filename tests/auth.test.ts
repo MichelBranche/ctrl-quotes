@@ -151,3 +151,34 @@ describe("auth", () => {
     ).rejects.toBeInstanceOf(APIError);
   });
 });
+
+describe("auth: email non confermata", () => {
+  it("il login con la password giusta dice EMAIL_NOT_VERIFIED, e il reset conferma l'email", async () => {
+    const db = await createTestDb();
+    const email = new MemoryEmailDriver();
+    const auth = createAuth({ db, email, secret, baseURL: "http://127.0.0.1:3000", rateLimit: false });
+    await auth.api.signUpEmail({ body: { name: "Luca Bianchi", email: "luca.bianchi@example.com", password: "Iniziale123" } });
+
+    const wrong = await auth.api
+      .signInEmail({ body: { email: "luca.bianchi@example.com", password: "Sbagliata123" } })
+      .catch((error: unknown) => error);
+    expect((wrong as APIError).body?.code).toBe("INVALID_EMAIL_OR_PASSWORD");
+
+    const right = await auth.api
+      .signInEmail({ body: { email: "luca.bianchi@example.com", password: "Iniziale123" } })
+      .catch((error: unknown) => error);
+    expect(right).toBeInstanceOf(APIError);
+    expect((right as APIError).body?.code).toBe("EMAIL_NOT_VERIFIED");
+
+    await auth.api.requestPasswordReset({
+      body: { email: "luca.bianchi@example.com", redirectTo: "http://127.0.0.1:3000/reset-password" },
+    });
+    const resetMail = email.messages.at(-1)!;
+    await auth.api.resetPassword({ body: { newPassword: "Nuova12345", token: tokenFrom(resetMail.text) } });
+
+    const row = await db.select().from(user).where(eq(user.email, "luca.bianchi@example.com"));
+    expect(row[0]?.emailVerified).toBe(true);
+    const signedIn = await auth.api.signInEmail({ body: { email: "luca.bianchi@example.com", password: "Nuova12345" } });
+    expect(signedIn.user.email).toBe("luca.bianchi@example.com");
+  });
+});
