@@ -64,7 +64,7 @@
 .hp-results-empty { margin: 0; padding: 16px; font-size: 14px; color: var(--cq-muted); text-align: center; }
 
 /* Three quick cards: compact rows */
-.hp-quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.hp-quick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .hp-quick-card {
   display: flex;
   align-items: center;
@@ -74,30 +74,95 @@
   text-decoration: none;
   transition: transform var(--cq-motion-hover), box-shadow var(--cq-motion-hover);
 }
-a.hp-quick-card:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgb(15 15 20 / 0.07); }
+a.hp-quick-card:hover, button.hp-quick-card:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgb(15 15 20 / 0.07); }
+button.hp-quick-card { width: 100%; margin: 0; font: inherit; text-align: left; cursor: pointer; }
 .hp-quick-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: var(--cq-accent-wash); color: var(--brand); flex-shrink: 0; }
 .hp-quick-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hp-quick-body strong { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
 .hp-quick-body > span { font-size: 13px; color: var(--cq-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hp-quick-arrow { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--cq-surface); border: 1px solid var(--cq-border); color: var(--cq-ink); flex-shrink: 0; }
-a.hp-quick-card:hover .hp-quick-arrow { color: var(--brand); border-color: var(--cq-accent-soft); }
+a.hp-quick-card:hover .hp-quick-arrow, button.hp-quick-card:hover .hp-quick-arrow { color: var(--brand); border-color: var(--cq-accent-soft); }
 
-/* Full-width tutorial player on /app/help */
-.hp-tutorial {
-  scroll-margin-top: 12px;
-  padding: 20px;
+.hp-quick-lime { border-radius: var(--cq-radius-card); background: color-mix(in srgb, var(--cq-plan-business) 32%, white); border: 1px solid color-mix(in srgb, var(--cq-plan-business) 55%, white); cursor: pointer; }
+.hp-quick-lime .hp-quick-icon { background: var(--cq-plan-business); color: var(--cq-plan-business-ink); }
+.hp-quick-lime .hp-quick-body > span { color: color-mix(in srgb, var(--cq-plan-business-ink) 70%, white); }
+.hp-quick-lime .hp-quick-arrow { border-color: transparent; color: var(--cq-plan-business-ink); }
+.hp-tutorial-thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 74px;
+  height: 42px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #111114;
+}
+.hp-tutorial-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.hp-tutorial-play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(15 15 20 / 0.28);
+}
+.hp-tutorial-play > span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding-left: 1px;
+  border-radius: 50%;
+  background: white;
+  color: var(--brand);
+  box-shadow: 0 2px 6px rgb(15 15 20 / 0.18);
+}
+.hp-tutorial-dur {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  background: var(--cq-plan-business-ink);
+  color: var(--cq-plan-business);
+}
+
+/* Contained lightbox: ~800px, fullscreen is the native video control. */
+.hp-tutorial-dialog {
+  margin: auto;
+  width: min(800px, calc(100vw - 32px));
+  max-width: min(800px, calc(100vw - 32px));
+}
+.hp-tutorial-panel {
+  width: 100%;
+  padding: 14px 14px 12px;
+  border-radius: var(--cq-radius-card);
+  background: var(--cq-surface);
+  box-shadow: var(--cq-shadow-lg);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
-.hp-tutorial-head { display: flex; flex-direction: column; gap: 4px; }
-.hp-tutorial-head h2 { margin: 0; font-size: 18px; font-weight: 750; letter-spacing: -0.03em; }
-.hp-tutorial-head p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--cq-muted); }
+dialog[open] .hp-tutorial-panel { animation: dialog-in var(--cq-motion-dialog) var(--cq-ease-out); }
+.hp-tutorial-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.hp-tutorial-dialog-head h2 { margin: 0; font-size: 16px; font-weight: 750; letter-spacing: -0.03em; }
+.hp-tutorial-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  border: 1px solid var(--cq-border);
+  border-radius: 50%;
+  background: var(--cq-surface);
+  color: var(--cq-ink-soft);
+  cursor: pointer;
+}
+.hp-tutorial-close:hover, .hp-tutorial-close:focus-visible { color: var(--brand); border-color: var(--cq-accent-soft); background: var(--cq-accent-wash); outline: none; }
 .hp-tutorial-frame {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
   background: #111114;
   border: 1px solid var(--cq-border);
@@ -115,19 +180,19 @@ a.hp-quick-card:hover .hp-quick-arrow { color: var(--brand); border-color: var(-
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 .hp-tutorial-chapters button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
+  gap: 6px;
+  padding: 5px 9px;
   border-radius: 999px;
   border: 1px solid var(--cq-border);
   background: var(--cq-surface);
   color: var(--cq-ink);
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -146,7 +211,7 @@ a.hp-quick-card:hover .hp-quick-arrow { color: var(--brand); border-color: var(-
 }
 .hp-tutorial-stamp {
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--brand);
 }
@@ -267,7 +332,6 @@ a.hp-quick-card:hover .hp-quick-arrow { color: var(--brand); border-color: var(-
   .hp-hero-orb { width: 170px; height: 170px; right: -60px; top: -50px; translate: none; }
   .hp-topic-list { grid-template-columns: minmax(0, 1fr); }
   .hp-topics { padding: 14px; }
-  .hp-tutorial { padding: 14px; }
   .hp-topic { flex-direction: row; align-items: center; }
   .hp-topic-arrow { position: static; margin-left: auto; }
   .hp-topic-body small { display: none; }
@@ -275,4 +339,5 @@ a.hp-quick-card:hover .hp-quick-arrow { color: var(--brand); border-color: var(-
 }
 @media (prefers-reduced-motion: reduce) {
   .hp-quick-card, .hp-topic, .hp-topic-arrow { transition: none; }
+  dialog[open] .hp-tutorial-panel { animation: none; }
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { ArrowRight, Play, X } from "lucide-react";
 
 const CHAPTERS = [
   { time: 0, stamp: "0:00", label: "Overview" },
@@ -16,6 +17,9 @@ const CHAPTERS = [
   { time: 311, stamp: "5:11", label: "Workspace e Aiuto" },
 ] as const;
 
+const POSTER = "/videos/ctrl-quotes-tutorial-poster.webp";
+const SRC = "/videos/ctrl-quotes-tutorial.mp4";
+
 function chapterIndexAt(seconds: number): number {
   let index = 0;
   for (let i = 0; i < CHAPTERS.length; i++) {
@@ -24,12 +28,42 @@ function chapterIndexAt(seconds: number): number {
   return index;
 }
 
-/** Native HTML5 player with chapter jump buttons for the CTRL Quotes tutorial. */
-export function HelpTutorialPlayer() {
+function stopPlayback(video: HTMLVideoElement | null) {
+  if (!video) return;
+  video.pause();
+  video.currentTime = 0;
+}
+
+/** Compact /app/help trigger card; the player opens in a contained lightbox. */
+export function HelpTutorialCard() {
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const titleId = useId();
 
   useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const scroller = document.querySelector("main.page") as HTMLElement | null;
+    const prevBody = document.body.style.overflow;
+    const prevPage = scroller?.style.overflow ?? "";
+    document.body.style.overflow = "hidden";
+    if (scroller) scroller.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevBody;
+      if (scroller) scroller.style.overflow = prevPage;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const video = videoRef.current;
     if (!video) return;
     const sync = () => setActive(chapterIndexAt(video.currentTime));
@@ -39,7 +73,30 @@ export function HelpTutorialPlayer() {
       video.removeEventListener("timeupdate", sync);
       video.removeEventListener("seeked", sync);
     };
+  }, [open]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || "closedBy" in HTMLDialogElement.prototype) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!dialog.open) return;
+      const bounds = dialog.getBoundingClientRect();
+      const outside =
+        event.clientX < bounds.left ||
+        event.clientX > bounds.right ||
+        event.clientY < bounds.top ||
+        event.clientY > bounds.bottom;
+      if (outside) dialog.close();
+    };
+    dialog.addEventListener("pointerdown", onPointerDown);
+    return () => dialog.removeEventListener("pointerdown", onPointerDown);
   }, []);
+
+  function close() {
+    stopPlayback(videoRef.current);
+    setActive(0);
+    setOpen(false);
+  }
 
   function jump(index: number) {
     const video = videoRef.current;
@@ -50,43 +107,84 @@ export function HelpTutorialPlayer() {
   }
 
   return (
-    <section className="hp-tutorial card" id="video-tutorial" aria-labelledby="hp-tutorial-title">
-      <div className="hp-tutorial-head">
-        <h2 id="hp-tutorial-title">Video tutorial</h2>
-        <p>Il tour completo di CTRL® Quotes: impostazioni, editor del PDF, fatturazione B2B e piani.</p>
-      </div>
-      <div className="hp-tutorial-frame">
-        <video
-          ref={videoRef}
-          controls
-          playsInline
-          preload="metadata"
-          poster="/videos/ctrl-quotes-tutorial-poster.webp"
-          src="/videos/ctrl-quotes-tutorial.mp4"
-          aria-label="Video tutorial di CTRL Quotes"
-        >
-          Il tuo browser non supporta la riproduzione video.
-        </video>
-      </div>
-      <ol className="hp-tutorial-chapters">
-        {CHAPTERS.map((chapter, index) => {
-          const current = index === active;
-          return (
-            <li key={chapter.stamp}>
-              <button
-                type="button"
-                className={current ? "is-active" : undefined}
-                aria-current={current ? "true" : undefined}
-                aria-label={`Vai a ${chapter.stamp} ${chapter.label}`}
-                onClick={() => jump(index)}
+    <>
+      <button
+        type="button"
+        className="hp-quick-card hp-quick-lime"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen(true)}
+      >
+        <span className="hp-tutorial-thumb">
+          <img src={POSTER} alt="" width={74} height={42} />
+          <span className="hp-tutorial-play" aria-hidden="true">
+            <span>
+              <Play size={11} fill="currentColor" strokeWidth={0} />
+            </span>
+          </span>
+        </span>
+        <span className="hp-quick-body">
+          <strong>
+            Video tutorial <span className="hp-tutorial-dur">5:25</span>
+          </strong>
+          <span>Guarda il video tutorial</span>
+        </span>
+        <span className="hp-quick-arrow" aria-hidden="true">
+          <ArrowRight size={16} />
+        </span>
+      </button>
+
+      <dialog
+        ref={dialogRef}
+        className="hp-tutorial-dialog"
+        aria-labelledby={titleId}
+        closedby="any"
+        onClose={close}
+      >
+        <div className="hp-tutorial-panel">
+          <div className="hp-tutorial-dialog-head">
+            <h2 id={titleId}>Video tutorial</h2>
+            <button type="button" className="hp-tutorial-close" aria-label="Chiudi" onClick={close}>
+              <X size={16} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="hp-tutorial-frame">
+            {open ? (
+              <video
+                ref={videoRef}
+                controls
+                autoPlay
+                playsInline
+                preload="metadata"
+                poster={POSTER}
+                src={SRC}
+                aria-label="Video tutorial di CTRL Quotes"
               >
-                <span className="hp-tutorial-stamp">{chapter.stamp}</span>
-                <span>{chapter.label}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
+                Il tuo browser non supporta la riproduzione video.
+              </video>
+            ) : null}
+          </div>
+          <ol className="hp-tutorial-chapters">
+            {CHAPTERS.map((chapter, index) => {
+              const current = index === active;
+              return (
+                <li key={chapter.stamp}>
+                  <button
+                    type="button"
+                    className={current ? "is-active" : undefined}
+                    aria-current={current ? "true" : undefined}
+                    aria-label={`Vai a ${chapter.stamp} ${chapter.label}`}
+                    onClick={() => jump(index)}
+                  >
+                    <span className="hp-tutorial-stamp">{chapter.stamp}</span>
+                    <span>{chapter.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </dialog>
+    </>
   );
 }
