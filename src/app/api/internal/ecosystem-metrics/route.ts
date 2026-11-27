@@ -3,7 +3,9 @@ import { collectEcosystemMetrics } from "@/server/ecosystem-metrics";
 import { bearerAuth } from "@/server/internal-auth";
 
 /**
- * Read-only aggregates for the CTRL admin Ecosistema section. No PII.
+ * Read-only metrics for the CTRL admin Ecosistema section (founder-only).
+ * Includes aggregates plus user and workspace directories (names and emails only).
+ * Never includes passwords, session tokens, or Stripe identifiers.
  * Authorization: Bearer ECOSYSTEM_METRICS_SECRET.
  */
 export async function GET(request: Request): Promise<Response> {
