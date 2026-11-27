@@ -3,7 +3,7 @@ import type { EditAnchor } from "@/domain/document-ops";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section, mayBreak } from "../model";
 import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
-import { anchor, Brand, conditionAnchor, Icon, LineTable, optionsColumns, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
+import { AcceptanceValue, anchor, Brand, conditionAnchor, Icon, LineTable, optionsColumns, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
 /** Studio Editorial: warm white paper, uppercase tracked labels, soft boxes, stone arches on the cover. */
 
@@ -365,17 +365,17 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
               </k.V>
             ))}
           </k.V>
-          <k.V hover="box" style={{ marginTop: 14, backgroundColor: c.box, borderRadius: 4, paddingVertical: 12, paddingHorizontal: 20, flexDirection: "row" }} stack>
+          <k.V hover="box" blockId={m.acceptance?.invite ? "firma-invito" : undefined} style={{ marginTop: 14, backgroundColor: c.box, borderRadius: 4, paddingVertical: 12, paddingHorizontal: 20, flexDirection: "row" }} stack>
             <k.V style={{ flex: 1 }}>
               <k.T style={{ fontSize: 9.4, fontWeight: 600, color: c.ink }}>Per accettazione</k.T>
               <k.V style={{ flexDirection: "row", alignItems: "flex-end", marginTop: 16 }}>
                 <k.T style={{ ...t.small, color: c.ink, marginRight: 6 }}>Data</k.T>
-                <k.V style={{ width: 110, borderBottomWidth: 0.6, borderBottomColor: c.ink, marginBottom: 3 }} />
+                <AcceptanceValue k={k} m={m} field="date" color={c.ink} lineStyle={{ width: 110, borderBottomWidth: 0.6, borderBottomColor: c.ink, marginBottom: 3 }} />
               </k.V>
             </k.V>
             <k.V style={{ flex: 1 }}>
               <k.T style={{ ...t.small, color: c.ink }}>{`Firma (${m.client.name})`}</k.T>
-              <k.V style={{ borderBottomWidth: 0.6, borderBottomColor: c.ink, marginTop: 26, marginRight: 30 }} />
+              <AcceptanceValue k={k} m={m} field="firma" color={c.ink} lineStyle={{ borderBottomWidth: 0.6, borderBottomColor: c.ink, marginTop: 26, marginRight: 30 }} />
             </k.V>
           </k.V>
         </k.V>,

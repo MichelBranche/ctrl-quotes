@@ -246,6 +246,7 @@ export async function createQuoteCheckoutSession(input: {
   title: string;
   number: string | null;
   amountCents: number;
+  paymentChoice?: string;
   successUrl: string;
   cancelUrl: string;
   customerEmail?: string | null;
@@ -270,9 +271,17 @@ export async function createQuoteCheckoutSession(input: {
         },
       },
     ],
-    metadata: stripeAppMetadata({ workspace_id: input.workspaceId, quote_id: input.quoteId }),
+    metadata: stripeAppMetadata({
+      workspace_id: input.workspaceId,
+      quote_id: input.quoteId,
+      ...(input.paymentChoice ? { payment_choice: input.paymentChoice } : {}),
+    }),
     payment_intent_data: {
-      metadata: stripeAppMetadata({ workspace_id: input.workspaceId, quote_id: input.quoteId }),
+      metadata: stripeAppMetadata({
+        workspace_id: input.workspaceId,
+        quote_id: input.quoteId,
+        ...(input.paymentChoice ? { payment_choice: input.paymentChoice } : {}),
+      }),
       ...(fee > 0 ? { application_fee_amount: fee } : {}),
     },
   };

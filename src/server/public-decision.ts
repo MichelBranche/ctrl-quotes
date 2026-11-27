@@ -3,8 +3,9 @@ import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { AppDatabase } from "@/db/client";
-import { quoteAcceptances, quoteEvents, quotes, quoteVersions } from "@/db/schema";
+import { assetBlobs, assets, quoteAcceptances, quoteEvents, quotes, quoteVersions } from "@/db/schema";
 import { createId } from "@/domain/ids";
+import { parseSignatureDataUrl } from "@/domain/signature";
 import { canonicalJson, headlineTotal, type QuoteSnapshot } from "@/domain/quote-snapshot";
 import { ACCEPT_CONSENT } from "@/domain/quote-consent";
 import { isOpenForClient, nextQuoteStatus, type QuoteStatus } from "@/domain/quote-status";
@@ -25,6 +26,7 @@ const inputSchema = z.object({
   signerEmail: z.string().trim().toLowerCase().email("Scrivi un indirizzo email valido.").max(254),
   note: z.string().trim().max(1000).optional(),
   consent: z.boolean(),
+  signature: z.string().optional(),
 });
 
 function sha256(value: string): string {
@@ -72,7 +74,6 @@ export async function decidePublicQuote(
   if (input.decision === "accepted" && !input.consent) {
     return { ok: false, error: "invalid_input", message: "Per accettare devi confermare di aver letto il preventivo." };
   }
-
   const resolved = await resolvePublicLink(db, token, now);
   if (resolved.state === "invalid") return { ok: false, error: "invalid", message: "Questo link non è più attivo." };
   if (resolved.state === "revoked") return { ok: false, error: "revoked", message: "Questo link è stato ritirato." };
@@ -86,6 +87,16 @@ export async function decidePublicQuote(
   const sent = await loadSentVersion(db, resolved.quote.workspaceId, resolved.quote.sentVersionId);
   if (!sent || !resolved.quote.sentVersionId) return { ok: false, error: "invalid", message: "Questo link non è più attivo." };
 
+  let signatureAssetId: string | null = null;
+  let signatureSha256: string | null = null;
+  let signatureBytes: Buffer | null = null;
+  if (input.decision === "accepted") {
+    const signature = await parseSignatureDataUrl(input.signature);
+    if (!signature.ok) return { ok: false, error: "invalid_input", message: signature.message };
+    signatureSha256 = signature.sha256;
+    signatureBytes = signature.bytes;
+  }
+
   const transition = input.decision === "accepted" ? "accept" : "reject";
   const to = nextQuoteStatus(resolved.quote.status, transition, "recipient");
   if (!to) return { ok: false, error: "conflict", message: "Questo preventivo non si può più decidere." };
@@ -96,6 +107,25 @@ export async function decidePublicQuote(
     .where(and(eq(quoteVersions.workspaceId, resolved.quote.workspaceId), eq(quoteVersions.id, resolved.quote.sentVersionId)));
   const snapshotSha = versionRows[0]?.sha ?? sha256(canonicalJson(sent.snapshot));
   const idempotencyKey = sha256(`${resolved.link.id}:${resolved.quote.sentVersionId}:${input.decision}`);
+
+  if (signatureBytes && signatureSha256) {
+    signatureAssetId = createId();
+    await db.insert(assets).values({
+      id: signatureAssetId,
+      workspaceId: resolved.quote.workspaceId,
+      blobKey: `db:${signatureAssetId}`,
+      sha256: signatureSha256,
+      mime: "image/png",
+      sizeBytes: signatureBytes.length,
+      filename: "firma-preventivo.png",
+      createdAt: now,
+    });
+    await db.insert(assetBlobs).values({
+      workspaceId: resolved.quote.workspaceId,
+      assetId: signatureAssetId,
+      data: signatureBytes,
+    });
+  }
 
   try {
     await db.insert(quoteAcceptances).values({
@@ -117,6 +147,8 @@ export async function decidePublicQuote(
       linkId: resolved.link.id,
       snapshotSha256: snapshotSha,
       note: input.decision === "rejected" ? (input.note || null) : null,
+      signatureAssetId,
+      signatureSha256,
     });
   } catch {
     return { ok: false, error: "conflict", message: "Questo preventivo è già stato deciso." };

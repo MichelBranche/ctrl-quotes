@@ -120,3 +120,22 @@
 .pq-decision-error { margin: 0; color: var(--cq-danger, #b42318); font-size: 13px; }
 .pq-decision-cancel { border: 0; background: none; color: var(--cq-mail-body); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; }
 .pq-decided { margin: 0 0 12px; padding: 11px 12px; border-radius: 12px; background: var(--cq-pub-bg); font-size: 13px; line-height: 1.45; }
+
+
+#firma { scroll-margin-top: 84px; }
+
+.pq-sign { display: flex; flex-direction: column; gap: 6px; }
+.pq-sign-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--cq-mail-body); }
+.pq-sign-frame { position: relative; border: 1px solid color-mix(in srgb, var(--cq-mail-ink) 12%, transparent); border-radius: 12px; background: linear-gradient(180deg, #fbfaf7, #f4f1ea); overflow: hidden; }
+.pq-sign-frame.is-error { border-color: var(--cq-danger, #b42318); }
+.pq-sign-canvas { display: block; width: 100%; height: 148px; touch-action: none; cursor: crosshair; }
+.pq-sign-hint { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-size: 13px; color: var(--cq-mail-muted); }
+
+.pq-pay-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
+.pq-pay-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--cq-mail-ink) 12%, transparent); background: var(--cq-pub-bg); color: inherit; text-align: left; cursor: pointer; }
+.pq-pay-choice strong { font-size: 13px; }
+.pq-pay-choice span { font: 400 20px/1.1 var(--font-serif), Georgia, serif; }
+.pq-pay-choice small { font-size: 11px; color: var(--cq-mail-muted); }
+.pq-pay-choice.is-selected { border-color: var(--cq-mail-ink); background: var(--cq-mail-paper); box-shadow: inset 0 0 0 1px var(--cq-mail-ink); }
+
+.qd [data-block-id="firma-invito"] { cursor: pointer; }

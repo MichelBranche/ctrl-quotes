@@ -5,10 +5,15 @@ import { quotePaymentEvents, quotePaymentSettings, quotes, workspacePaymentSetti
 import { createId } from "@/domain/ids";
 import {
   DEFAULT_CAUSALE_TEMPLATE,
+  amountForPaymentChoice,
+  availablePaymentChoices,
   dueAmountCents,
   formatIbanGroups,
+  inferPaymentChoice,
   isDeposit,
+  isPaymentChoice,
   isPaymentMethodId,
+  paymentChoiceLabel,
   isValidIban,
   maskIban,
   normalizeIban,
@@ -19,13 +24,18 @@ import {
   renderCausale,
   workspacePaymentsInputSchema,
   type DepositMode,
+  type PaymentChoice,
   type PaymentMethodId,
   type PaymentSnapshot,
   type PaymentStatus,
+  type PublicPaymentOption,
   type PublicPaymentView,
   type QuotePaymentsInput,
+  remainingBalanceCents,
+  resolvePaymentCharge,
   type StripeConnectStatus,
 } from "@/domain/payments";
+import { formatEuro } from "@/domain/money";
 import { can } from "@/domain/permissions";
 import { headlineParts } from "@/domain/quote-snapshot";
 import { authorize, invalid, notFound, ok, type Actor, type Result } from "@/server/access";
@@ -63,6 +73,9 @@ export type QuotePaymentsView = {
   amountDueCents: number;
   amountPaidCents: number;
   totalCents: number;
+  balanceCents: number;
+  isDeposit: boolean;
+  markChoices: Array<{ kind: "paid" | "deposit_paid"; choice: PaymentChoice; label: string; amountCents: number }>;
   available: Array<{ id: PaymentMethodId; ready: boolean; hint: string }>;
   canManageSettings: boolean;
 };
@@ -278,6 +291,31 @@ function methodHints(view: WorkspacePaymentsView): Array<{ id: PaymentMethodId; 
   ];
 }
 
+
+function snapshotFromRow(row: { snapshotJson: string | null }): PaymentSnapshot | null {
+  if (row.snapshotJson) {
+    try {
+      return JSON.parse(row.snapshotJson) as PaymentSnapshot;
+    } catch {
+      /* fall through */
+    }
+  }
+  return null;
+}
+
+function markChoicesFor(
+  snapshot: Pick<PaymentSnapshot, "depositMode" | "depositBp" | "depositCents" | "amountDueCents" | "totalCents">,
+  status: PaymentStatus,
+  amountPaidCents: number,
+): QuotePaymentsView["markChoices"] {
+  return availablePaymentChoices(snapshot, status, amountPaidCents).map((choice) => ({
+    kind: choice === "deposit" ? "deposit_paid" : "paid",
+    choice,
+    label: paymentChoiceLabel[choice],
+    amountCents: amountForPaymentChoice(snapshot, amountPaidCents, choice),
+  }));
+}
+
 export async function getQuotePayments(db: AppDatabase, actor: Actor, quoteId: string): Promise<Result<QuotePaymentsView>> {
   const access = await authorize(db, actor, "quotes.read");
   if (!access.ok) return access;
@@ -299,16 +337,46 @@ export async function getQuotePayments(db: AppDatabase, actor: Actor, quoteId: s
   const depositBp = row?.depositBp ?? null;
   const depositCents = row?.depositCents ?? null;
   const amountDueCents = row?.amountDueCents ?? dueAmountCents(totalCents, depositMode, depositBp, depositCents);
+  const amountPaidCents = row?.amountPaidCents ?? 0;
+  const paymentStatus = row ? asStatus(row.paymentStatus) : "none";
+  const snapshot = row
+    ? snapshotFromRow(row) ?? {
+        methods,
+        depositMode,
+        depositBp,
+        depositCents,
+        amountDueCents,
+        totalCents,
+        showBeforeAcceptance: row.showBeforeAcceptance,
+        iban: null,
+        paypal: null,
+        stripe: null,
+      }
+    : {
+        methods,
+        depositMode,
+        depositBp,
+        depositCents,
+        amountDueCents,
+        totalCents,
+        showBeforeAcceptance: workspace.showBeforeAcceptance,
+        iban: null,
+        paypal: null,
+        stripe: null,
+      };
   return ok({
     methods,
     depositMode,
     depositBp,
     depositCents,
     showBeforeAcceptance: row?.showBeforeAcceptance ?? workspace.showBeforeAcceptance,
-    paymentStatus: row ? asStatus(row.paymentStatus) : "none",
+    paymentStatus,
     amountDueCents,
-    amountPaidCents: row?.amountPaidCents ?? 0,
+    amountPaidCents,
     totalCents,
+    balanceCents: remainingBalanceCents(totalCents, amountPaidCents),
+    isDeposit: isDeposit(depositMode, amountDueCents, totalCents),
+    markChoices: markChoicesFor(snapshot, paymentStatus, amountPaidCents),
     available: methodHints(workspace).filter((item) => item.ready || item.id === "stripe"),
     canManageSettings: access.value.role === "owner" || access.value.role === "admin",
   });
@@ -444,34 +512,60 @@ export async function freezeQuotePaymentSnapshot(db: AppDatabase, workspaceId: s
   }
 }
 
+function paypalForAmount(snapshot: PaymentSnapshot, amountCents: number, causale: string): PublicPaymentOption["paypal"] {
+  if (!snapshot.paypal) return null;
+  if (snapshot.paypal.mode === "me" && snapshot.paypal.handle) {
+    return { mode: "me", href: paypalMePaymentHref(snapshot.paypal.handle, amountCents), label: "Paga con PayPal" };
+  }
+  return { mode: "email", href: paypalEmailMailto(snapshot.paypal.value, amountCents, causale), label: "Paga con PayPal" };
+}
+
+function causaleForAmount(snapshot: PaymentSnapshot, amountCents: number): string {
+  const frozen = snapshot.iban?.causale ?? renderCausale(DEFAULT_CAUSALE_TEMPLATE, { importoCents: amountCents });
+  if (amountCents === snapshot.amountDueCents) return frozen;
+  const from = formatEuro(snapshot.amountDueCents);
+  const to = formatEuro(amountCents);
+  return frozen.includes(from) ? frozen.replace(from, to) : frozen;
+}
+
+function optionFor(snapshot: PaymentSnapshot, amountPaidCents: number, choice: PaymentChoice): PublicPaymentOption {
+  const amountCents = amountForPaymentChoice(snapshot, amountPaidCents, choice);
+  const causale = causaleForAmount(snapshot, amountCents);
+  return {
+    choice,
+    amountCents,
+    label: paymentChoiceLabel[choice],
+    hint:
+      choice === "deposit"
+        ? `su un totale di ${formatEuro(snapshot.totalCents)}`
+        : choice === "balance"
+          ? `già versati ${formatEuro(amountPaidCents)} su un totale di ${formatEuro(snapshot.totalCents)}`
+          : null,
+    causale,
+    paypal: paypalForAmount(snapshot, amountCents, causale),
+  };
+}
+
 export function publicPaymentView(snapshot: PaymentSnapshot, status: PaymentStatus, amountPaidCents: number): PublicPaymentView {
-  const causale = snapshot.iban?.causale ?? renderCausale(DEFAULT_CAUSALE_TEMPLATE, { importoCents: snapshot.amountDueCents });
-  const paypal = snapshot.paypal
-    ? snapshot.paypal.mode === "me" && snapshot.paypal.handle
-      ? {
-          mode: "me" as const,
-          href: paypalMePaymentHref(snapshot.paypal.handle, snapshot.amountDueCents),
-          label: "Paga con PayPal",
-        }
-      : {
-          mode: "email" as const,
-          href: paypalEmailMailto(snapshot.paypal.value, snapshot.amountDueCents, causale),
-          label: "Paga con PayPal",
-        }
-    : null;
+  const options = availablePaymentChoices(snapshot, status, amountPaidCents).map((choice) =>
+    optionFor(snapshot, amountPaidCents, choice),
+  );
+  const current = options[0] ?? null;
+  const causale = current?.causale ?? snapshot.iban?.causale ?? renderCausale(DEFAULT_CAUSALE_TEMPLATE, { importoCents: snapshot.amountDueCents });
   return {
     methods: snapshot.methods,
-    amountDueCents: snapshot.amountDueCents,
+    amountDueCents: current?.amountCents ?? remainingBalanceCents(snapshot.totalCents, amountPaidCents),
     totalCents: snapshot.totalCents,
     isDeposit: isDeposit(snapshot.depositMode, snapshot.amountDueCents, snapshot.totalCents),
     causale,
     iban: snapshot.iban
       ? { holder: snapshot.iban.holder, iban: snapshot.iban.iban, ibanGrouped: formatIbanGroups(snapshot.iban.iban), bic: snapshot.iban.bic }
       : null,
-    paypal,
+    paypal: current?.paypal ?? null,
     stripe: snapshot.stripe ? { available: snapshot.stripe.ready } : null,
     status,
     amountPaidCents,
+    options,
   };
 }
 
@@ -520,9 +614,23 @@ export async function markQuotePaid(
   if (!row) return notFound("Questo preventivo non ha un pagamento da confermare.");
   const current = asStatus(row.paymentStatus);
   if (current === "paid") return invalid("Questo preventivo risulta già pagato.");
-  const amount = row.amountDueCents ?? 0;
-  const status: PaymentStatus = kind === "deposit_paid" ? "deposit_paid" : "paid";
-  const paidCents = kind === "deposit_paid" ? amount : (row.amountDueCents ?? amount);
+  let snapshot: PaymentSnapshot;
+  try {
+    snapshot = JSON.parse(row.snapshotJson ?? "{}") as PaymentSnapshot;
+  } catch {
+    return invalid("I dati di pagamento di questo preventivo non sono leggibili.");
+  }
+  if (!snapshot.totalCents) snapshot = { ...snapshot, totalCents: row.amountDueCents ?? 0, amountDueCents: row.amountDueCents ?? 0, depositMode: asDepositMode(row.depositMode), depositBp: row.depositBp ?? null, depositCents: row.depositCents ?? null };
+  const choice = kind === "deposit_paid" ? "deposit" : current === "deposit_paid" ? "balance" : "full";
+  const resolved = resolvePaymentCharge({
+    snapshot,
+    status: current,
+    amountPaidCents: row.amountPaidCents ?? 0,
+    choice,
+  });
+  if (!resolved.ok) return invalid(resolved.message);
+  const status = resolved.nextStatus;
+  const paidCents = (row.amountPaidCents ?? 0) + resolved.amountCents;
   const now = new Date();
   await db
     .update(quotePaymentSettings)
@@ -534,7 +642,7 @@ export async function markQuotePaid(
     quoteId,
     method,
     kind: "marked_paid",
-    amountCents: paidCents,
+    amountCents: resolved.amountCents,
     actorUserId: actor.userId,
     createdAt: now,
   });
@@ -547,7 +655,7 @@ export async function markQuotePaid(
     type: status === "paid" ? "payment_paid" : "payment_deposit_paid",
     actor: "user",
     actorUserId: actor.userId,
-    meta: JSON.stringify({ method, amountCents: paidCents, source: "manual" }),
+    meta: JSON.stringify({ method, amountCents: resolved.amountCents, totalPaidCents: paidCents, choice: resolved.choice, source: "manual" }),
     createdAt: now,
   });
   await writeAuditLog(db, {
@@ -556,7 +664,7 @@ export async function markQuotePaid(
     action: status === "paid" ? "payments.marked_paid" : "payments.marked_deposit",
     entityType: "quote",
     entityId: quoteId,
-    meta: { method, amountCents: paidCents },
+    meta: { method, amountCents: resolved.amountCents, totalPaidCents: paidCents, choice: resolved.choice },
   });
   await notifyQuoteOwner(db, {
     workspaceId: access.value.id,
@@ -576,6 +684,7 @@ export async function recordStripePayment(
     amountCents: number;
     sessionId: string | null;
     paymentIntentId: string | null;
+    choice?: string | null;
   },
 ): Promise<{ status: PaymentStatus; changed: boolean }> {
   const row = (
@@ -588,13 +697,39 @@ export async function recordStripePayment(
   if (!row) return { status: "none", changed: false };
   const current = asStatus(row.paymentStatus);
   if (current === "paid") return { status: "paid", changed: false };
-  const due = row.amountDueCents ?? input.amountCents;
-  const isPartial = due < (JSON.parse(row.snapshotJson ?? "{}") as PaymentSnapshot).totalCents && due > 0;
-  const status: PaymentStatus = isPartial ? "deposit_paid" : "paid";
+  const alreadyRecorded = (
+    await db
+      .select({ kind: quotePaymentEvents.kind, sessionId: quotePaymentEvents.stripeSessionId, intentId: quotePaymentEvents.stripePaymentIntentId })
+      .from(quotePaymentEvents)
+      .where(and(eq(quotePaymentEvents.workspaceId, input.workspaceId), eq(quotePaymentEvents.quoteId, input.quoteId)))
+  ).some(
+    (event) =>
+      (event.kind === "paid" || event.kind === "deposit_paid") &&
+      ((input.sessionId && event.sessionId === input.sessionId) || (input.paymentIntentId && event.intentId === input.paymentIntentId)),
+  );
+  if (alreadyRecorded) return { status: current, changed: false };
+  let snapshot: PaymentSnapshot;
+  try {
+    snapshot = JSON.parse(row.snapshotJson ?? "{}") as PaymentSnapshot;
+  } catch {
+    return { status: current, changed: false };
+  }
+  const paidSoFar = row.amountPaidCents ?? 0;
+  const choice =
+    (isPaymentChoice(input.choice) ? input.choice : null) ??
+    inferPaymentChoice(snapshot, current, paidSoFar, input.amountCents);
+  const resolved = resolvePaymentCharge({ snapshot, status: current, amountPaidCents: paidSoFar, choice });
+  if (!resolved.ok) return { status: current, changed: false };
+  if (input.amountCents > 0 && input.amountCents !== resolved.amountCents) {
+    return { status: current, changed: false };
+  }
+  const status = resolved.nextStatus;
+  const charged = resolved.amountCents;
+  const paidCents = paidSoFar + charged;
   const now = new Date();
   await db
     .update(quotePaymentSettings)
-    .set({ paymentStatus: status, amountPaidCents: input.amountCents || due, updatedAt: now })
+    .set({ paymentStatus: status, amountPaidCents: paidCents, updatedAt: now })
     .where(and(eq(quotePaymentSettings.workspaceId, input.workspaceId), eq(quotePaymentSettings.quoteId, input.quoteId)));
   await db.insert(quotePaymentEvents).values({
     id: createId(),
@@ -602,7 +737,7 @@ export async function recordStripePayment(
     quoteId: input.quoteId,
     method: "stripe",
     kind: status === "paid" ? "paid" : "deposit_paid",
-    amountCents: input.amountCents || due,
+    amountCents: charged,
     stripeSessionId: input.sessionId,
     stripePaymentIntentId: input.paymentIntentId,
     createdAt: now,
@@ -615,7 +750,7 @@ export async function recordStripePayment(
     quoteId: input.quoteId,
     type: status === "paid" ? "payment_paid" : "payment_deposit_paid",
     actor: "recipient",
-    meta: JSON.stringify({ method: "stripe", amountCents: input.amountCents || due, source: "stripe" }),
+    meta: JSON.stringify({ method: "stripe", amountCents: charged, totalPaidCents: paidCents, choice: resolved.choice, source: "stripe" }),
     createdAt: now,
   });
   await writeAuditLog(db, {
@@ -623,7 +758,7 @@ export async function recordStripePayment(
     action: status === "paid" ? "payments.stripe_paid" : "payments.stripe_deposit",
     entityType: "quote",
     entityId: input.quoteId,
-    meta: { amountCents: input.amountCents || due },
+    meta: { amountCents: charged, totalPaidCents: paidCents, choice: resolved.choice },
   });
   const { workspaces } = await import("@/db/schema");
   const [ws] = await db.select({ name: workspaces.name }).from(workspaces).where(eq(workspaces.id, input.workspaceId)).limit(1);

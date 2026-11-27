@@ -102,6 +102,7 @@ async function applyRecordedConnectEvent(
       amountCents: amount,
       sessionId,
       paymentIntentId,
+      choice: meta.payment_choice ?? null,
     });
     if (!result.changed) safeLog("info", "Stripe Connect: pagamento già registrato", { quoteId });
     return { applied: result.changed, skipped: !result.changed, workspaceId };

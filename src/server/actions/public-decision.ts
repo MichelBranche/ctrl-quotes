@@ -10,7 +10,7 @@ import { clientIp } from "@/server/request-meta";
 
 export async function decidePublicQuoteAction(
   token: unknown,
-  input: { decision: "accepted" | "rejected"; signerName: string; signerEmail: string; note?: string; consent: boolean },
+  input: { decision: "accepted" | "rejected"; signerName: string; signerEmail: string; note?: string; consent: boolean; signature?: string },
 ): Promise<DecisionResult> {
   await ensureMigrated();
   const clean = typeof token === "string" ? token.slice(0, 64) : "";

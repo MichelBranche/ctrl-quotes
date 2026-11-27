@@ -13,6 +13,7 @@ import { revokeQuoteLink, sendQuote } from "@/server/quote-send";
 import { createQuote, getQuoteEditor } from "@/server/quotes";
 import { createTestDb } from "./helpers/db";
 import { ownerWithWorkspace } from "./helpers/actors";
+import { blankSignature, inkedSignature } from "./helpers/signature";
 
 function must<T>(result: { ok: true; value: T } | { ok: false; message: string }): T {
   if (!result.ok) throw new Error(result.message);
@@ -31,6 +32,10 @@ const signer = {
   signerEmail: "luca@atelier.example",
   consent: true,
 };
+
+async function acceptedSigner() {
+  return { ...signer, decision: "accepted" as const, signature: await inkedSignature() };
+}
 
 describe("accettazione e avvisi al titolare", () => {
   let db: AppDatabase;
@@ -54,7 +59,7 @@ describe("accettazione e avvisi al titolare", () => {
 
   it("accetta: stato, riga di accettazione, data e avviso in app ed email", async () => {
     const now = new Date("2026-11-14T22:00:00.000Z");
-    const result = await decidePublicQuote(db, token, { ...signer, decision: "accepted" }, { ip, userAgent: "Mozilla/5.0" }, now);
+    const result = await decidePublicQuote(db, token, await acceptedSigner(), { ip, userAgent: "Mozilla/5.0" }, now);
     expect(result).toEqual({ ok: true, status: "accepted", decidedAt: now });
     const [quote] = await db.select().from(quotes).where(eq(quotes.id, quoteId));
     expect(quote).toMatchObject({ status: "accepted" });
@@ -98,25 +103,25 @@ describe("accettazione e avvisi al titolare", () => {
 
   it("rifiuta link scaduto, revocato o già deciso", async () => {
     await db.update(quotePublicLinks).set({ expiresAt: new Date("2020-01-01T00:00:00Z") });
-    const expired = await decidePublicQuote(db, token, { ...signer, decision: "accepted" }, { ip, userAgent: null });
+    const expired = await decidePublicQuote(db, token, await acceptedSigner(), { ip, userAgent: null });
     expect(expired.ok).toBe(false);
     if (expired.ok) return;
     expect(expired.error).toBe("expired");
     await db.update(quotePublicLinks).set({ expiresAt: null });
     await db.update(quotes).set({ status: "pending" }).where(eq(quotes.id, quoteId));
     must(await revokeQuoteLink(db, alpha, quoteId));
-    const revoked = await decidePublicQuote(db, token, { ...signer, decision: "accepted" }, { ip, userAgent: null });
+    const revoked = await decidePublicQuote(db, token, await acceptedSigner(), { ip, userAgent: null });
     expect(revoked.ok).toBe(false);
     if (revoked.ok) return;
     expect(revoked.error).toBe("revoked");
-    const missing = await decidePublicQuote(db, "z".repeat(43), { ...signer, decision: "accepted" }, { ip: "198.51.100.2", userAgent: null });
+    const missing = await decidePublicQuote(db, "z".repeat(43), await acceptedSigner(), { ip: "198.51.100.2", userAgent: null });
     expect(missing.ok).toBe(false);
     if (missing.ok) return;
     expect(missing.error).toBe("invalid");
   });
 
   it("dopo un'accettazione un secondo tentativo è in conflitto", async () => {
-    const first = await decidePublicQuote(db, token, { ...signer, decision: "accepted" }, { ip, userAgent: null });
+    const first = await decidePublicQuote(db, token, await acceptedSigner(), { ip, userAgent: null });
     expect(first.ok).toBe(true);
     const second = await decidePublicQuote(db, token, { ...signer, decision: "rejected", consent: true }, { ip, userAgent: null });
     expect(second).toMatchObject({ ok: false, error: "conflict" });
@@ -144,4 +149,22 @@ describe("accettazione e avvisi al titolare", () => {
     expect(notices[0]?.type).toBe("quote_viewed");
     expect(await db.select().from(outboxJobs)).toHaveLength(0);
   });
+
+  it("rifiuta un'accettazione senza firma o con un riquadro vuoto", async () => {
+    const missing = await decidePublicQuote(db, token, { ...signer, decision: "accepted" }, { ip, userAgent: null });
+    expect(missing).toMatchObject({ ok: false, error: "invalid_input" });
+    const empty = await decidePublicQuote(db, token, { ...signer, decision: "accepted", signature: await blankSignature() }, { ip, userAgent: null });
+    expect(empty).toMatchObject({ ok: false, error: "invalid_input" });
+    expect(await db.select().from(quoteAcceptances)).toHaveLength(0);
+  });
+
+  it("salva la firma grafica insieme all'accettazione", async () => {
+    const signature = await inkedSignature();
+    const result = await decidePublicQuote(db, token, { ...signer, decision: "accepted", signature }, { ip, userAgent: "Mozilla/5.0" });
+    expect(result.ok).toBe(true);
+    const [row] = await db.select().from(quoteAcceptances);
+    expect(row?.signatureAssetId).toBeTruthy();
+    expect(row?.signatureSha256).toHaveLength(64);
+  });
+
 });

@@ -260,6 +260,21 @@ export function QuoteEditor({
           {data.quote.status === "draft" ? "Il tuo ruolo permette solo la consultazione." : "Questo preventivo non è più una bozza: i contenuti sono in sola lettura."}
         </p>
       ) : null}
+      {data.acceptance ? (
+        <section className="acceptance-summary" aria-label="Accettazione">
+          <div>
+            <p className="acceptance-summary-label">Accettato da {data.acceptance.signerName}</p>
+            <p className="muted small">il {data.acceptance.dateLabel}</p>
+          </div>
+          {data.acceptance.signatureSrc ? (
+            <figure className="acceptance-summary-sign">
+              {/* The signature is a PNG already stored in the workspace, shown inline. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={data.acceptance.signatureSrc} alt={`Firma di ${data.acceptance.signerName}`} />
+            </figure>
+          ) : null}
+        </section>
+      ) : null}
 
       <div className="editor-tabbar">
         <div className="tabs editor-tabs" role="tablist" aria-label="Sezioni dell'editor">
@@ -460,7 +475,7 @@ export function QuoteEditor({
                 </span>
               </div>
               <div ref={previewRef} className={cn("preview-scroll", device === "mobile" && "is-mobile")} tabIndex={0} role="region" aria-label="Documento in anteprima">
-                <QuoteDocumentView snapshot={snapshot} logoSrc={logoUrl} watermark="Bozza" activeBlockId={selectedId} layout={device === "mobile" ? "flow" : "sheet"} imagePlaceholder={imagePlaceholder} />
+                <QuoteDocumentView snapshot={snapshot} logoSrc={logoUrl} watermark="Bozza" activeBlockId={selectedId} layout={device === "mobile" ? "flow" : "sheet"} imagePlaceholder={imagePlaceholder} acceptance={data.acceptance} />
               </div>
             </section>
           </div>

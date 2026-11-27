@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { and, asc, count, desc, eq, inArray, isNull, max, or, sql, type SQL } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
+import type { AcceptanceOverlay } from "@/components/quote-render/model";
+import { loadQuoteAcceptance, toAcceptanceOverlay } from "@/server/acceptance";
 import {
   assetBlobs,
   assets,
@@ -121,6 +123,7 @@ export type QuoteEditorData = {
   canDelete: boolean;
   canEdit: boolean;
   canSend: boolean;
+  acceptance: (AcceptanceOverlay & { decidedAt: string }) | null;
 };
 
 const PAGE_MAX = 50;
@@ -663,6 +666,12 @@ export async function getQuoteEditor(db: AppDatabase, actor: Actor, quoteId: str
     canEdit: can(role, "quotes.write") && isEditable(status),
     canSend: can(role, "quotes.send") && status !== "accepted",
     canDelete: can(role, "quotes.delete") || (quote.ownerId === actor.userId && status === "draft" && versions.length === 0),
+    acceptance: await (async () => {
+      if (status !== "accepted") return null;
+      const view = await loadQuoteAcceptance(db, actor.workspaceId, quoteId);
+      const overlay = toAcceptanceOverlay(view, false);
+      return overlay && view ? { ...overlay, decidedAt: view.decidedAt.toISOString() } : null;
+    })(),
   });
 }
 

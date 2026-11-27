@@ -9,7 +9,7 @@ import { IdScopeProvider, SheetProvider, webKit } from "./kit-web";
 import { fontCssHref } from "@/domain/fonts";
 import { fontsInFormats } from "@/domain/text-format";
 import { brandFontRef, formatContext, withFormats } from "./format";
-import { buildModel, type LogoInfo, type Resources } from "./model";
+import { buildModel, type AcceptanceOverlay, type LogoInfo, type Resources } from "./model";
 import { renderers } from "./templates";
 
 /**
@@ -41,6 +41,10 @@ export type QuoteDocumentProps = {
    * so a block just added is there to see. The PDF never gets it.
    */
   imagePlaceholder?: string;
+  /** Acceptance overlay (date, signature or public invite). Does not change the snapshot. */
+  acceptance?: AcceptanceOverlay | null;
+  /** Public page: the "Firma il preventivo" invite was chosen. */
+  onSignInvite?: () => void;
 };
 
 const placeholderAsset = "__editor-placeholder__";
@@ -159,6 +163,8 @@ export function QuoteDocumentView({
   kit = webKit,
   zoom,
   imagePlaceholder,
+  acceptance = null,
+  onSignInvite,
 }: QuoteDocumentProps) {
   const logo = useLogo(logoSrc);
   const root = useRef<HTMLDivElement>(null);
@@ -185,8 +191,8 @@ export function QuoteDocumentView({
           },
         }
       : snapshot;
-    return buildModel(source, resources, renderer.numbering);
-  }, [snapshot, logo, assetBase, watermark, versionLabel, renderer.numbering, imagePlaceholder]);
+    return buildModel(source, resources, renderer.numbering, undefined, acceptance);
+  }, [snapshot, logo, assetBase, watermark, versionLabel, renderer.numbering, imagePlaceholder, acceptance]);
   const formats = useMemo(() => formatContext(snapshot.document, snapshot.brand), [snapshot.document, snapshot.brand]);
   const fontHref = useMemo(
     () =>
@@ -200,6 +206,18 @@ export function QuoteDocumentView({
   );
   const pages = renderer.render(withFormats(kit, formats), model);
   useReveal(root, animate, `${snapshot.template}:${pages.length}`);
+  useEffect(() => {
+    const node = root.current;
+    if (!node || !onSignInvite) return;
+    const onClick = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target.closest("[data-block-id='firma-invito']") : null;
+      if (!target || !node.contains(target)) return;
+      event.preventDefault();
+      onSignInvite();
+    };
+    node.addEventListener("click", onClick);
+    return () => node.removeEventListener("click", onClick);
+  }, [root, onSignInvite, snapshot.template]);
   return (
     <div
       ref={root}

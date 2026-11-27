@@ -2,7 +2,7 @@ import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
 import path from "node:path";
 import { Document, Font, renderToBuffer } from "@react-pdf/renderer";
-import { buildModel, type LogoInfo, type Resources } from "@/components/quote-render/model";
+import { buildModel, type AcceptanceOverlay, type LogoInfo, type Resources } from "@/components/quote-render/model";
 import { renderers } from "@/components/quote-render/templates";
 import type { QuoteSnapshot } from "@/domain/quote-snapshot";
 import { emptyPlan, improves, nextStep, pageEdges, readPages, tallTags, withTall, type LayoutNode, type PrintPage, type PrintPlan } from "./fit";
@@ -77,6 +77,7 @@ export type PdfOptions = {
   watermark: string | null;
   /** "v3" for a frozen version, null for a draft. */
   versionLabel?: string | null;
+  acceptance?: AcceptanceOverlay | null;
 };
 
 export async function renderQuotePdf(snapshot: QuoteSnapshot, options: PdfOptions): Promise<Buffer> {
@@ -103,7 +104,7 @@ export async function renderQuotePdfPlan(snapshot: QuoteSnapshot, options: PdfOp
   let kit: Kit = withFormats(pdfKit, formatContext(snapshot.document, snapshot.brand, (ref) => usable.has(ref)));
   const title = [snapshot.quote.number, snapshot.quote.title].filter(Boolean).join(" · ");
   const pass = async (plan: PrintPlan): Promise<Pass> => {
-    const model = buildModel(snapshot, resources, renderer.numbering, plan);
+    const model = buildModel(snapshot, resources, renderer.numbering, plan, options.acceptance ?? null);
     let layout: LayoutNode | null = null;
     // onRender hands back the laid out pages: where every element landed, used by the fit pass.
     const onRender = (result: { _INTERNAL__LAYOUT__DATA_?: LayoutNode }) => {

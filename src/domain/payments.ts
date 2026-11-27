@@ -10,6 +10,15 @@ export type PaymentStatus = (typeof paymentStatuses)[number];
 export const depositModes = ["full", "percent", "amount"] as const;
 export type DepositMode = (typeof depositModes)[number];
 
+export const paymentChoices = ["deposit", "full", "balance"] as const;
+export type PaymentChoice = (typeof paymentChoices)[number];
+
+export const paymentChoiceLabel: Record<PaymentChoice, string> = {
+  deposit: "Paga l'acconto",
+  full: "Paga il totale",
+  balance: "Paga il saldo",
+};
+
 export const paypalModes = ["me", "email"] as const;
 export type PaypalMode = (typeof paypalModes)[number];
 
@@ -217,6 +226,15 @@ export type PaymentSnapshot = {
   stripe: StripeSnapshot | null;
 };
 
+export type PublicPaymentOption = {
+  choice: PaymentChoice;
+  amountCents: number;
+  label: string;
+  hint: string | null;
+  causale: string;
+  paypal: { mode: PaypalMode; href: string; label: string } | null;
+};
+
 export type PublicPaymentView = {
   methods: PaymentMethodId[];
   amountDueCents: number;
@@ -228,7 +246,107 @@ export type PublicPaymentView = {
   stripe: { available: boolean } | null;
   status: PaymentStatus;
   amountPaidCents: number;
+  options: PublicPaymentOption[];
 };
+
+export function isPaymentChoice(value: unknown): value is PaymentChoice {
+  return typeof value === "string" && (paymentChoices as readonly string[]).includes(value);
+}
+
+export function remainingBalanceCents(totalCents: number, amountPaidCents: number): number {
+  return Math.max(0, Math.max(0, totalCents) - Math.max(0, amountPaidCents));
+}
+
+export function depositAmountCents(
+  totalCents: number,
+  mode: DepositMode,
+  depositBp: number | null,
+  depositCents: number | null,
+): number {
+  return dueAmountCents(totalCents, mode, depositBp, depositCents);
+}
+
+export function availablePaymentChoices(
+  snapshot: Pick<PaymentSnapshot, "depositMode" | "depositBp" | "depositCents" | "amountDueCents" | "totalCents">,
+  status: PaymentStatus,
+  amountPaidCents: number,
+): PaymentChoice[] {
+  if (status === "paid") return [];
+  const remaining = remainingBalanceCents(snapshot.totalCents, amountPaidCents);
+  if (remaining <= 0) return [];
+  if (status === "deposit_paid") return ["balance"];
+  const deposit = snapshot.amountDueCents || depositAmountCents(snapshot.totalCents, snapshot.depositMode, snapshot.depositBp, snapshot.depositCents);
+  if (isDeposit(snapshot.depositMode, deposit, snapshot.totalCents)) return ["deposit", "full"];
+  return ["full"];
+}
+
+export function amountForPaymentChoice(
+  snapshot: Pick<PaymentSnapshot, "depositMode" | "depositBp" | "depositCents" | "amountDueCents" | "totalCents">,
+  amountPaidCents: number,
+  choice: PaymentChoice,
+): number {
+  if (choice === "deposit") {
+    return snapshot.amountDueCents || depositAmountCents(snapshot.totalCents, snapshot.depositMode, snapshot.depositBp, snapshot.depositCents);
+  }
+  if (choice === "balance") return remainingBalanceCents(snapshot.totalCents, amountPaidCents);
+  return Math.max(0, snapshot.totalCents);
+}
+
+export function resolvePaymentCharge(input: {
+  snapshot: Pick<PaymentSnapshot, "depositMode" | "depositBp" | "depositCents" | "amountDueCents" | "totalCents">;
+  status: PaymentStatus;
+  amountPaidCents: number;
+  choice: unknown;
+}):
+  | { ok: true; choice: PaymentChoice; amountCents: number; nextStatus: PaymentStatus }
+  | { ok: false; message: string } {
+  const { snapshot, status, amountPaidCents } = input;
+  const remaining = remainingBalanceCents(snapshot.totalCents, amountPaidCents);
+  if (status === "paid" || remaining <= 0) {
+    return { ok: false, message: "Questo preventivo risulta già pagato." };
+  }
+  if (!isPaymentChoice(input.choice)) {
+    const available = availablePaymentChoices(snapshot, status, amountPaidCents);
+    if (available.length === 1) {
+      return resolvePaymentCharge({ ...input, choice: available[0] });
+    }
+    return { ok: false, message: "Scegli se pagare l'acconto o il totale." };
+  }
+  const available = availablePaymentChoices(snapshot, status, amountPaidCents);
+  if (!available.includes(input.choice)) {
+    if (input.choice === "deposit" && status === "deposit_paid") {
+      return { ok: false, message: "L'acconto è già stato pagato. Puoi pagare il saldo rimanente." };
+    }
+    if (input.choice === "full" && status === "deposit_paid") {
+      return { ok: false, message: "L'acconto è già stato pagato. Puoi pagare il saldo rimanente." };
+    }
+    if (input.choice === "balance" && status !== "deposit_paid") {
+      return { ok: false, message: "Il saldo si paga dopo l'acconto." };
+    }
+    return { ok: false, message: "Questa scelta di pagamento non è disponibile." };
+  }
+  const amountCents = amountForPaymentChoice(snapshot, amountPaidCents, input.choice);
+  if (amountCents <= 0) return { ok: false, message: "Non c'è un importo da pagare." };
+  return {
+    ok: true,
+    choice: input.choice,
+    amountCents,
+    nextStatus: input.choice === "deposit" ? "deposit_paid" : "paid",
+  };
+}
+
+export function inferPaymentChoice(
+  snapshot: Pick<PaymentSnapshot, "depositMode" | "depositBp" | "depositCents" | "amountDueCents" | "totalCents">,
+  status: PaymentStatus,
+  amountPaidCents: number,
+  amountCents: number,
+): PaymentChoice | null {
+  if (amountCents <= 0) return null;
+  for (const choice of availablePaymentChoices(snapshot, status, amountPaidCents)) {
+    if (amountForPaymentChoice(snapshot, amountPaidCents, choice) === amountCents) return choice;
+  }
+  return null;
+}
 
 export function asStripeConnectStatus(value: unknown): StripeConnectStatus {
   if (value === "pending" || value === "active") return value;

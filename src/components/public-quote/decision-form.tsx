@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { ACCEPT_CONSENT } from "@/domain/quote-consent";
 import { decidePublicQuoteAction } from "@/server/actions/public-decision";
 import { BusyMark } from "@/components/ui/async-status";
+import { SignaturePad } from "./signature-pad";
 
 const longDate = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Rome" });
 
@@ -26,10 +28,35 @@ export function PublicDecisionForm({
   const [signerEmail, setSignerEmail] = useState(defaultEmail);
   const [note, setNote] = useState("");
   const [consent, setConsent] = useState(false);
+  const [signature, setSignature] = useState<string | null>(null);
+  const [signatureError, setSignatureError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<"accepted" | "rejected" | null>(status === "accepted" || status === "rejected" ? status : null);
   const [doneAt, setDoneAt] = useState<string | null>(decidedAt);
   const [pending, start] = useTransition();
+  const router = useRouter();
+
+  useEffect(() => {
+    function openSign() {
+      setDecision("accepted");
+      window.requestAnimationFrame(() => {
+        document.getElementById("firma")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    function onHash() {
+      if (window.location.hash === "#firma") openSign();
+    }
+    function onInvite() {
+      openSign();
+    }
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("ctrl:open-sign", onInvite);
+    if (window.location.hash === "#firma") openSign();
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("ctrl:open-sign", onInvite);
+    };
+  }, []);
 
   if (done) {
     const when = doneAt ? longDate.format(new Date(doneAt)) : null;
@@ -43,6 +70,11 @@ export function PublicDecisionForm({
 
   function submit(next: "accepted" | "rejected") {
     setError(null);
+    if (next === "accepted" && !signature) {
+      setSignatureError("Per accettare devi firmare il preventivo.");
+      return;
+    }
+    setSignatureError(null);
     start(async () => {
       const result = await decidePublicQuoteAction(token, {
         decision: next,
@@ -50,6 +82,7 @@ export function PublicDecisionForm({
         signerEmail,
         note: next === "rejected" ? note : undefined,
         consent: next === "accepted" ? consent : true,
+        signature: next === "accepted" ? (signature ?? undefined) : undefined,
       });
       if (!result.ok) {
         setError(result.message);
@@ -57,11 +90,12 @@ export function PublicDecisionForm({
       }
       setDone(result.status === "accepted" ? "accepted" : "rejected");
       setDoneAt(typeof result.decidedAt === "string" ? result.decidedAt : result.decidedAt.toISOString());
+      router.refresh();
     });
   }
 
   return (
-    <form className="pq-decision" onSubmit={(event) => event.preventDefault()}>
+    <form id="firma" className="pq-decision" onSubmit={(event) => event.preventDefault()}>
       <div className="pq-decision-acts">
         <button type="button" className="pq-btn dark block" disabled={pending} onClick={() => setDecision("accepted")}>
           <Check size={16} aria-hidden="true" /> Accetta
@@ -86,10 +120,21 @@ export function PublicDecisionForm({
               <textarea name="note" value={note} maxLength={1000} rows={3} onChange={(event) => setNote(event.target.value)} />
             </label>
           ) : (
-            <label className="pq-consent">
-              <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-              <span>{ACCEPT_CONSENT}</span>
-            </label>
+            <>
+              <SignaturePad
+                value={signature}
+                onChange={(next) => {
+                  setSignature(next);
+                  if (next) setSignatureError(null);
+                }}
+                error={signatureError}
+                disabled={pending}
+              />
+              <label className="pq-consent">
+                <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
+                <span>{ACCEPT_CONSENT}</span>
+              </label>
+            </>
           )}
           {error ? (
             <p className="pq-decision-error" role="alert">
@@ -104,7 +149,16 @@ export function PublicDecisionForm({
           >
             {pending ? <><BusyMark /> Invio in corso…</> : decision === "accepted" ? "Conferma accettazione" : "Conferma rifiuto"}
           </button>
-          <button type="button" className="pq-decision-cancel" disabled={pending} onClick={() => setDecision(null)}>
+          <button
+            type="button"
+            className="pq-decision-cancel"
+            disabled={pending}
+            onClick={() => {
+              setDecision(null);
+              setSignatureError(null);
+              setError(null);
+            }}
+          >
             Annulla
           </button>
         </div>

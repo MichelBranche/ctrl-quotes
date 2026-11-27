@@ -10,6 +10,10 @@ import {
   paypalMePaymentHref,
   renderCausale,
   DEFAULT_CAUSALE_TEMPLATE,
+  availablePaymentChoices,
+  inferPaymentChoice,
+  remainingBalanceCents,
+  resolvePaymentCharge,
 } from "@/domain/payments";
 
 describe("IBAN", () => {
@@ -79,5 +83,47 @@ describe("causale e acconto", () => {
 describe("fee piattaforma", () => {
   it("tiene a zero la commissione di piattaforma sui preventivi", () => {
     expect(CONNECT_APPLICATION_FEE_AMOUNT).toBe(0);
+  });
+});
+
+
+const depositSnapshot = {
+  depositMode: "percent" as const,
+  depositBp: 3000,
+  depositCents: null,
+  amountDueCents: 3000,
+  totalCents: 10000,
+};
+
+describe("scelta acconto, totale e saldo", () => {
+  it("calcola il saldo rimanente dopo un acconto", () => {
+    expect(remainingBalanceCents(10000, 3000)).toBe(7000);
+    expect(remainingBalanceCents(10000, 10000)).toBe(0);
+  });
+
+  it("offre acconto e totale prima del pagamento, e solo il saldo dopo l'acconto", () => {
+    expect(availablePaymentChoices(depositSnapshot, "awaiting", 0)).toEqual(["deposit", "full"]);
+    expect(availablePaymentChoices(depositSnapshot, "deposit_paid", 3000)).toEqual(["balance"]);
+    expect(availablePaymentChoices(depositSnapshot, "paid", 10000)).toEqual([]);
+    expect(availablePaymentChoices({ ...depositSnapshot, depositMode: "full", amountDueCents: 10000 }, "awaiting", 0)).toEqual(["full"]);
+  });
+
+  it("calcola gli importi lato server e rifiuta una seconda volta l'acconto", () => {
+    const deposit = resolvePaymentCharge({ snapshot: depositSnapshot, status: "awaiting", amountPaidCents: 0, choice: "deposit" });
+    expect(deposit).toEqual({ ok: true, choice: "deposit", amountCents: 3000, nextStatus: "deposit_paid" });
+    const full = resolvePaymentCharge({ snapshot: depositSnapshot, status: "awaiting", amountPaidCents: 0, choice: "full" });
+    expect(full).toEqual({ ok: true, choice: "full", amountCents: 10000, nextStatus: "paid" });
+    const balance = resolvePaymentCharge({ snapshot: depositSnapshot, status: "deposit_paid", amountPaidCents: 3000, choice: "balance" });
+    expect(balance).toEqual({ ok: true, choice: "balance", amountCents: 7000, nextStatus: "paid" });
+    const again = resolvePaymentCharge({ snapshot: depositSnapshot, status: "deposit_paid", amountPaidCents: 3000, choice: "deposit" });
+    expect(again.ok).toBe(false);
+    if (!again.ok) expect(again.message).toMatch(/acconto è già stato pagato/i);
+  });
+
+  it("riconosce la scelta dall'importo incassato", () => {
+    expect(inferPaymentChoice(depositSnapshot, "awaiting", 0, 3000)).toBe("deposit");
+    expect(inferPaymentChoice(depositSnapshot, "awaiting", 0, 10000)).toBe("full");
+    expect(inferPaymentChoice(depositSnapshot, "deposit_paid", 3000, 7000)).toBe("balance");
+    expect(inferPaymentChoice(depositSnapshot, "deposit_paid", 3000, 3000)).toBeNull();
   });
 });

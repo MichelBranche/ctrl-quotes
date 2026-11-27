@@ -5,6 +5,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import { QuoteDocumentView } from "@/components/quote-render/quote-document";
 import { EmptyState, Skeleton, StatusBadge } from "@/components/ui/status";
 import { logoSrc } from "@/domain/quote-snapshot";
+import { loadQuoteAcceptance, toAcceptanceOverlay } from "@/server/acceptance";
 import { requireContext } from "@/server/context";
 import { getDraftSnapshot, getVersionSnapshot } from "@/server/quotes";
 
@@ -35,6 +36,7 @@ async function PreviewContent({ params, searchParams }: { params: Params; search
   if (!result.ok) return <EmptyState title="Anteprima non disponibile" body={result.message} />;
   const snapshot = "snapshot" in result.value ? result.value.snapshot : result.value;
   const pdfHref = versionNo ? `/api/quotes/${id}/pdf?v=${versionNo}` : `/api/quotes/${id}/pdf`;
+  const acceptance = toAcceptanceOverlay(await loadQuoteAcceptance(db, actor.workspaceId, id), false);
   return (
     <div className="preview-page">
       <header className="preview-bar">
@@ -57,7 +59,7 @@ async function PreviewContent({ params, searchParams }: { params: Params; search
         </a>
       </header>
       <div className="preview-paper">
-        <QuoteDocumentView snapshot={snapshot} logoSrc={logoSrc(snapshot)} watermark={versionNo ? null : "Bozza"} versionLabel={versionNo ? `v${versionNo}` : null} layout="auto" />
+        <QuoteDocumentView snapshot={snapshot} logoSrc={logoSrc(snapshot)} watermark={versionNo ? null : "Bozza"} versionLabel={versionNo ? `v${versionNo}` : null} layout="auto" acceptance={acceptance} />
       </div>
     </div>
   );

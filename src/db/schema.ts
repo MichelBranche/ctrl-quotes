@@ -618,6 +618,8 @@ export const quoteAcceptances = sqliteTable("quote_acceptances", {
   linkId: text("link_id"),
   snapshotSha256: text("snapshot_sha256"),
   note: text("note"),
+  signatureAssetId: text("signature_asset_id"),
+  signatureSha256: text("signature_sha256"),
 }, (table) => [
   /** One decision per version (phase 4): after a rejection a new version can be sent and decided. */
   uniqueIndex("quote_acceptances_version_uq").on(table.workspaceId, table.versionId),

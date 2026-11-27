@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, Copy, CreditCard, Landmark, Wallet } from "lucide-react";
 import { formatEuro } from "@/domain/money";
-import { paymentStatusLabel, type PublicPaymentView } from "@/domain/payments";
+import { paymentStatusLabel, type PaymentChoice, type PublicPaymentView } from "@/domain/payments";
 import { BusyMark } from "@/components/ui/async-status";
 
 async function copyText(text: string): Promise<boolean> {
@@ -38,14 +38,22 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 export function PublicPaymentSection({ token, payment }: { token: string; payment: PublicPaymentView }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [choice, setChoice] = useState<PaymentChoice | null>(payment.options[0]?.choice ?? null);
   const paid = payment.status === "paid";
-  const dueLabel = payment.isDeposit ? "Acconto richiesto" : "Importo da pagare";
+  const selected = useMemo(
+    () => payment.options.find((option) => option.choice === choice) ?? payment.options[0] ?? null,
+    [payment.options, choice],
+  );
 
-  async function payWithCard() {
+  async function payWithCard(next: PaymentChoice) {
     setError(null);
     setPending(true);
     try {
-      const response = await fetch(`/api/q/${token}/pay`, { method: "POST" });
+      const response = await fetch(`/api/q/${token}/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ choice: next }),
+      });
       const body = (await response.json()) as { url?: string; error?: string };
       if (!response.ok || !body.url) {
         setError(body.error ?? "Non è stato possibile aprire il pagamento con carta.");
@@ -59,12 +67,16 @@ export function PublicPaymentSection({ token, payment }: { token: string; paymen
     }
   }
 
+  const amount = selected?.amountCents ?? payment.amountDueCents;
+  const causale = selected?.causale ?? payment.causale;
+  const paypal = selected?.paypal ?? payment.paypal;
+
   return (
     <section className="pq-card pq-pay" aria-label="Pagamento">
-      <span className="pq-eyebrow">{paid ? "Pagamento" : dueLabel}</span>
+      <span className="pq-eyebrow">{paid ? "Pagamento" : selected?.label ?? (payment.isDeposit ? "Acconto richiesto" : "Importo da pagare")}</span>
       <p className="pq-total">
-        {formatEuro(paid ? payment.amountPaidCents || payment.amountDueCents : payment.amountDueCents)}
-        {payment.isDeposit && !paid ? <small>su un totale di {formatEuro(payment.totalCents)}</small> : null}
+        {formatEuro(paid ? payment.amountPaidCents || payment.totalCents : amount)}
+        {!paid && selected?.hint ? <small>{selected.hint}</small> : null}
       </p>
       {paid ? (
         <p className="pq-decided" role="status">
@@ -72,8 +84,27 @@ export function PublicPaymentSection({ token, payment }: { token: string; paymen
         </p>
       ) : payment.status === "deposit_paid" ? (
         <p className="pq-decided" role="status">
-          {paymentStatusLabel.deposit_paid} ({formatEuro(payment.amountPaidCents)}).
+          {paymentStatusLabel.deposit_paid} ({formatEuro(payment.amountPaidCents)}). Resta da pagare {formatEuro(payment.amountDueCents)}.
         </p>
+      ) : null}
+
+      {!paid && payment.options.length > 1 ? (
+        <div className="pq-pay-choices" role="radiogroup" aria-label="Importo da pagare">
+          {payment.options.map((option) => (
+            <button
+              key={option.choice}
+              type="button"
+              role="radio"
+              aria-checked={selected?.choice === option.choice}
+              className={selected?.choice === option.choice ? "pq-pay-choice is-selected" : "pq-pay-choice"}
+              onClick={() => setChoice(option.choice)}
+            >
+              <strong>{option.label}</strong>
+              <span>{formatEuro(option.amountCents)}</span>
+              {option.hint ? <small>{option.hint}</small> : null}
+            </button>
+          ))}
+        </div>
       ) : null}
 
       {!paid && payment.iban ? (
@@ -106,25 +137,32 @@ export function PublicPaymentSection({ token, payment }: { token: string; paymen
               </div>
             ) : null}
             <div>
+              <dt>Importo</dt>
+              <dd>
+                {formatEuro(amount)}
+                <CopyButton value={(amount / 100).toFixed(2).replace(".", ",")} label="Copia importo" />
+              </dd>
+            </div>
+            <div>
               <dt>Causale</dt>
               <dd>
-                {payment.causale}
-                <CopyButton value={payment.causale} label="Copia causale" />
+                {causale}
+                <CopyButton value={causale} label="Copia causale" />
               </dd>
             </div>
           </dl>
         </div>
       ) : null}
 
-      {!paid && payment.paypal ? (
-        <a className="pq-btn dark block pq-pay-btn" href={payment.paypal.href} target="_blank" rel="noopener noreferrer">
-          <Wallet size={16} aria-hidden="true" /> {payment.paypal.label}
+      {!paid && paypal ? (
+        <a className="pq-btn dark block pq-pay-btn" href={paypal.href} target="_blank" rel="noopener noreferrer">
+          <Wallet size={16} aria-hidden="true" /> {paypal.label}
         </a>
       ) : null}
 
-      {!paid && payment.stripe?.available !== false && payment.methods.includes("stripe") ? (
-        <button type="button" className="pq-btn dark block pq-pay-btn" onClick={() => void payWithCard()} disabled={pending}>
-          {pending ? <BusyMark /> : <CreditCard size={16} aria-hidden="true" />} {pending ? "Apro Stripe…" : "Paga con carta"}
+      {!paid && payment.stripe?.available !== false && payment.methods.includes("stripe") && selected ? (
+        <button type="button" className="pq-btn dark block pq-pay-btn" onClick={() => void payWithCard(selected.choice)} disabled={pending}>
+          {pending ? <BusyMark /> : <CreditCard size={16} aria-hidden="true" />} {pending ? "Apro Stripe…" : selected.label}
         </button>
       ) : null}
       {error ? (

@@ -13,6 +13,7 @@ import {
   paymentMethodLabel,
   paymentStatusLabel,
   type DepositMode,
+  type PaymentChoice,
   type PaymentMethodId,
   type PaymentStatus,
 } from "@/domain/payments";
@@ -50,7 +51,7 @@ export function PaymentOptions({
   onChange: (value: PaymentOptionsValue) => void;
   disabled?: boolean;
   compact?: boolean;
-  onMarkPaid?: (kind: "paid" | "deposit_paid", method: PaymentMethodId) => void;
+  onMarkPaid?: (kind: "paid" | "deposit_paid", method: PaymentMethodId, choice: PaymentChoice) => void;
   markPending?: boolean;
 }) {
   const ready = view.available.filter((item) => item.ready);
@@ -155,18 +156,28 @@ export function PaymentOptions({
           {view.amountPaidCents > 0 ? ` · ${formatEuro(view.amountPaidCents)}` : null}
         </p>
       ) : null}
-      {onMarkPaid && view.paymentStatus !== "paid" && value.methods.some((id) => id === "iban" || id === "paypal") ? (
+      {onMarkPaid && view.paymentStatus !== "paid" && view.markChoices.length > 0 && value.methods.some((id) => id === "iban" || id === "paypal") ? (
         <div className="pay-connect-actions">
-          {value.methods.includes("iban") ? (
-            <Button type="button" variant="secondary" loading={markPending} disabled={disabled} onClick={() => onMarkPaid("paid", "iban")}>
-              Segna il bonifico come pagato
-            </Button>
-          ) : null}
-          {value.methods.includes("paypal") ? (
-            <Button type="button" variant="secondary" loading={markPending} disabled={disabled} onClick={() => onMarkPaid("paid", "paypal")}>
-              Segna PayPal come pagato
-            </Button>
-          ) : null}
+          {(["iban", "paypal"] as const).flatMap((method) =>
+            value.methods.includes(method)
+              ? view.markChoices.map((item) => (
+                  <Button
+                    key={`${method}-${item.choice}`}
+                    type="button"
+                    variant="secondary"
+                    loading={markPending}
+                    disabled={disabled}
+                    onClick={() => onMarkPaid(item.kind, method, item.choice)}
+                  >
+                    {item.choice === "deposit"
+                      ? `Segna l'acconto come pagato (${method === "iban" ? "bonifico" : "PayPal"}, ${formatEuro(item.amountCents)})`
+                      : item.choice === "balance"
+                        ? `Segna il saldo come pagato (${method === "iban" ? "bonifico" : "PayPal"}, ${formatEuro(item.amountCents)})`
+                        : `Segna il totale come pagato (${method === "iban" ? "bonifico" : "PayPal"}, ${formatEuro(item.amountCents)})`}
+                  </Button>
+                ))
+              : [],
+          )}
         </div>
       ) : null}
     </div>

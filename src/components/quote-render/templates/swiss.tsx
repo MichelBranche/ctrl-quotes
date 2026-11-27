@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section, mayBreak } from "../model";
 import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
-import { anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
+import { AcceptanceValue, anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
 /** Swiss Minimal: typographic, white, numbered 01 to 08, one accent dot. Measured on the reference mockup. */
 
@@ -337,13 +337,13 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
               </k.V>
             ))}
           </k.V>
-          <k.V style={{ marginTop: 22, borderTopWidth: 0.6, borderTopColor: c.rule, paddingTop: 14 }}>
+          <k.V blockId={m.acceptance?.invite ? "firma-invito" : undefined} style={{ marginTop: 22, borderTopWidth: 0.6, borderTopColor: c.rule, paddingTop: 14 }}>
             <k.T style={{ fontSize: 10, fontWeight: 600, color: c.ink }}>Per accettazione</k.T>
             <k.V style={{ flexDirection: "row", marginTop: 20 }}>
-              {["Data", "Firma"].map((label, index) => (
+              {(["Data", "Firma"] as const).map((label, index) => (
                 <k.V key={label} style={{ flex: 1, flexDirection: "row", alignItems: "flex-end", marginLeft: index ? 50 : 0 }}>
                   <k.T style={{ ...t.small, marginRight: 8 }}>{label}</k.T>
-                  <k.V style={{ flexGrow: 1, borderBottomWidth: 0.6, borderBottomColor: c.ink, marginBottom: 3, maxWidth: 170 }} />
+                  <AcceptanceValue k={k} m={m} field={label === "Data" ? "date" : "firma"} color={c.ink} lineStyle={{ flexGrow: 1, borderBottomWidth: 0.6, borderBottomColor: c.ink, marginBottom: 3, maxWidth: 170 }} />
                 </k.V>
               ))}
             </k.V>

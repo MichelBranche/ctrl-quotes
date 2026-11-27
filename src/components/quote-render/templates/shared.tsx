@@ -359,3 +359,47 @@ export function RowColumns({
     </k.V>
   );
 }
+
+
+/** Date or signature written on the acceptance line, or a discreet invite to sign. */
+export function AcceptanceValue({
+  k,
+  m,
+  field,
+  color,
+  lineStyle,
+}: {
+  k: Kit;
+  m: DocModel;
+  field: "date" | "firma";
+  color: string;
+  lineStyle: Style;
+}): ReactElement {
+  const acceptance = m.acceptance;
+  const dateLabel = field === "date" ? acceptance?.dateLabel : null;
+  const signatureSrc = field === "firma" ? acceptance?.signatureSrc : null;
+  const signerName = field === "firma" ? acceptance?.signerName : null;
+  const invite = field === "firma" && Boolean(acceptance?.invite);
+  const filled = Boolean(dateLabel || signatureSrc || invite || (field === "firma" && signerName));
+  return (
+    <k.V
+      blockId={invite ? "firma-invito" : undefined}
+      style={{ ...lineStyle, ...(filled ? { minHeight: 28, justifyContent: "flex-end" } : {}) }}
+    >
+      {dateLabel ? <k.T style={{ fontSize: 10, fontWeight: 600, color }}>{dateLabel}</k.T> : null}
+      {signatureSrc ? (
+        <k.Img
+          src={signatureSrc}
+          alt={signerName ? `Firma di ${signerName}` : "Firma"}
+          style={{ height: 28, width: 130, objectFit: "contain", objectPosition: "left bottom" }}
+        />
+      ) : null}
+      {invite ? (
+        <k.T style={{ fontSize: 9.6, fontWeight: 600, color, paddingBottom: 2 }}>Firma il preventivo</k.T>
+      ) : null}
+      {!signatureSrc && !invite && field === "firma" && signerName ? (
+        <k.T style={{ fontSize: 11, fontStyle: "italic", color, paddingBottom: 1 }}>{signerName}</k.T>
+      ) : null}
+    </k.V>
+  );
+}

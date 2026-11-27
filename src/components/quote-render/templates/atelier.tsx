@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, mix, subtitleLines, titleLines, type DocModel, type MoneyGroup, type Section, mayBreak } from "../model";
 import { chartType, ChartBody, type ChartTheme } from "./charts";
-import { anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
+import { AcceptanceValue, anchor, Brand, conditionAnchor, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
 /** Editorial Atelier: ivory paper, large serif, full-bleed architecture photo, terracotta figures, olive signature band. */
 
@@ -375,13 +375,13 @@ function Block({ k, m, s, first, col }: { k: Kit; m: DocModel; s: Section; first
               </k.V>
             ))}
           </k.V>
-          <k.V hover="box" wrap={false} style={{ marginTop: 14, marginHorizontal: -6, backgroundColor: c.olive, paddingVertical: 14, paddingHorizontal: 22 }}>
+          <k.V hover="box" wrap={false} blockId={m.acceptance?.invite ? "firma-invito" : undefined} style={{ marginTop: 14, marginHorizontal: -6, backgroundColor: c.olive, paddingVertical: 14, paddingHorizontal: 22 }}>
             <k.T style={{ fontFamily: serif, fontStyle: "italic", fontSize: 17, color: c.cream }}>Per accettazione</k.T>
             <k.V style={{ flexDirection: "row", marginTop: 12 }} stack>
-              {["Data", "Firma"].map((label) => (
+              {(["Data", "Firma"] as const).map((label) => (
                 <k.V key={label} style={{ flex: 1, flexDirection: "row", alignItems: "flex-end", paddingRight: 20 }}>
                   <k.T style={{ fontSize: 9.4, color: c.cream, marginRight: 14 }}>{label}</k.T>
-                  <k.V style={{ flexGrow: 1, borderBottomWidth: 0.6, borderBottomColor: c.cream, marginBottom: 3 }} />
+                  <AcceptanceValue k={k} m={m} field={label === "Data" ? "date" : "firma"} color={c.cream} lineStyle={{ flexGrow: 1, borderBottomWidth: 0.6, borderBottomColor: c.cream, marginBottom: 3 }} />
                 </k.V>
               ))}
             </k.V>

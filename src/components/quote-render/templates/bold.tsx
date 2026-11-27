@@ -3,7 +3,7 @@ import type { EditAnchor } from "@/domain/document-ops";
 import { fonts, type Kit, type Style } from "../kit";
 import { euro, fitTitle, mix, subtitleLines, type DocModel, type MoneyGroup, type Section, mayBreak } from "../model";
 import { chartPalette, chartType, ChartBody, type ChartTheme } from "./charts";
-import { anchor, Brand, conditionAnchor, highlightGlyph, Icon, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
+import { AcceptanceValue, anchor, Brand, conditionAnchor, highlightGlyph, Icon, LineTable, optionsColumns, pad, Paras, RowColumns, servicesColumns, Watermark } from "./shared";
 
 /** Bold Impact: black and orange, giant display type, a parametric glowing arc, dark bands on the last page. */
 
@@ -401,12 +401,12 @@ function Block({ k, m, s, first, last, col }: { k: Kit; m: DocModel; s: Item; fi
                 {party.missing ? <k.T style={{ ...t.small, color: c.secondary }}>{party.missing}</k.T> : null}
               </k.V>
             ))}
-            <k.V hover="box" style={{ width: "33%", backgroundColor: m.accent, borderRadius: 7, paddingVertical: 13, paddingHorizontal: 14, marginLeft: 8 }}>
+            <k.V hover="box" blockId={m.acceptance?.invite ? "firma-invito" : undefined} style={{ width: "33%", backgroundColor: m.accent, borderRadius: 7, paddingVertical: 13, paddingHorizontal: 14, marginLeft: 8 }}>
               <k.T style={{ fontSize: 10, fontWeight: 800, color: m.onAccent }}>Per accettazione</k.T>
-              {["Data", "Firma"].map((label) => (
+              {(["Data", "Firma"] as const).map((label) => (
                 <k.V key={label} style={{ flexDirection: "row", alignItems: "flex-end", marginTop: 13 }}>
                   <k.T style={{ fontSize: 9.4, color: m.onAccent, width: 34 }}>{label}</k.T>
-                  <k.V style={{ flexGrow: 1, borderBottomWidth: 0.7, borderBottomColor: m.onAccent, marginBottom: 2 }} />
+                  <AcceptanceValue k={k} m={m} field={label === "Data" ? "date" : "firma"} color={m.onAccent} lineStyle={{ flexGrow: 1, borderBottomWidth: 0.7, borderBottomColor: m.onAccent, marginBottom: 2 }} />
                 </k.V>
               ))}
             </k.V>

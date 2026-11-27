@@ -109,7 +109,7 @@ export async function openSentVersion(db: AppDatabase, token: string, ip: string
     return null;
   }
   const sent = await loadSentVersion(db, resolved.quote.workspaceId, resolved.quote.sentVersionId);
-  return sent ? { ...sent, workspaceId: resolved.quote.workspaceId } : null;
+  return sent ? { ...sent, workspaceId: resolved.quote.workspaceId, quoteId: resolved.quote.id } : null;
 }
 
 /** An uploaded image of the sent version. Assets not used by that version are never served. */

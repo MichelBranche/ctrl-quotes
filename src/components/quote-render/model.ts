@@ -148,6 +148,14 @@ type SectionInput = Section extends infer S ? (S extends Section ? Omit<S, "no">
 
 export type Breakdown = Array<{ id: string; name: string; cents: number; share: number; percent: string }>;
 
+/** Overlay shown on Date/Firma lines. Never stored in the immutable quote snapshot. */
+export type AcceptanceOverlay = {
+  dateLabel: string | null;
+  signerName: string | null;
+  signatureSrc: string | null;
+  invite: boolean;
+};
+
 export type DocModel = {
   key: TemplateKey;
   ordinario: boolean;
@@ -182,6 +190,8 @@ export type DocModel = {
   monthlyLabel: string | null;
   /** PDF pagination decisions (see src/server/pdf/fit.ts). Always empty on the web. */
   print: PrintPlan;
+  /** Acceptance date, signer and signature, or a public invite to sign. */
+  acceptance: AcceptanceOverlay | null;
 };
 
 /**
@@ -471,7 +481,7 @@ export function normalizeSnapshot(snapshot: QuoteSnapshot): QuoteSnapshot {
   return parsed.success ? { ...snapshot, template: asTemplateKey(snapshot.template), document: parsed.data } : { ...snapshot, template: asTemplateKey(snapshot.template) };
 }
 
-export function buildModel(source: QuoteSnapshot, resources: Resources, numbering: NumberingScheme, print: PrintPlan = emptyPlan): DocModel {
+export function buildModel(source: QuoteSnapshot, resources: Resources, numbering: NumberingScheme, print: PrintPlan = emptyPlan, acceptance: AcceptanceOverlay | null = null): DocModel {
   const snapshot = normalizeSnapshot(source);
   const key = snapshot.template;
   const accent = resolveAccent(snapshot, key);
@@ -551,6 +561,7 @@ export function buildModel(source: QuoteSnapshot, resources: Resources, numberin
     oneTimeCents: snapshot.totals.main.oneTime.netCents,
     monthlyLabel,
     print,
+    acceptance,
   };
 }
 

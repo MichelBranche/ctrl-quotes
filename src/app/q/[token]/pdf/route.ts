@@ -1,4 +1,5 @@
 import { ensureMigrated, getDb } from "@/db/client";
+import { loadQuoteAcceptance, toAcceptanceOverlay } from "@/server/acceptance";
 import { pdfFilename, renderQuotePdf } from "@/server/pdf/quote-pdf";
 import { openSentVersion } from "@/server/public-quote";
 import { loadSnapshotImagesFor } from "@/server/quotes";
@@ -13,7 +14,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   if (sent && "limited" in sent) return new Response("Troppe richieste, riprova tra poco.", { status: 429 });
   if (!sent) return new Response("Link non attivo", { status: 404 });
   const images = await loadSnapshotImagesFor(db, sent.workspaceId, sent.snapshot);
-  const pdf = await renderQuotePdf(sent.snapshot, { images, watermark: null, versionLabel: `v${sent.versionNo}` });
+  const acceptance = toAcceptanceOverlay(await loadQuoteAcceptance(db, sent.workspaceId, sent.quoteId), false);
+  const pdf = await renderQuotePdf(sent.snapshot, { images, watermark: null, versionLabel: `v${sent.versionNo}`, acceptance });
   return new Response(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",

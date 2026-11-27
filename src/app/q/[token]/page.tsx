@@ -4,10 +4,11 @@ import { headers } from "next/headers";
 import { connection } from "next/server";
 import { Clock, Download, Lock, Mail } from "lucide-react";
 import { PublicDecisionForm } from "@/components/public-quote/decision-form";
+import { PublicQuoteDocument } from "@/components/public-quote/document";
 import { PublicPaymentSection } from "@/components/public-quote/payment-section";
-import { QuoteDocumentView } from "@/components/quote-render/quote-document";
 import { ensureMigrated, getDb } from "@/db/client";
 import { headlineTotal, logoSrc } from "@/domain/quote-snapshot";
+import { loadQuoteAcceptance, toAcceptanceOverlay } from "@/server/acceptance";
 import { loadQuotePaymentForPublic } from "@/server/payments";
 import { loadPublicQuote, type PublicQuoteView } from "@/server/public-quote";
 import { clientIp } from "@/server/request-meta";
@@ -47,6 +48,10 @@ async function PublicQuoteContent({ params }: { params: Params }) {
   const accepted = view.status === "accepted";
   const total = headlineTotal(snapshot.totals);
   const payment = await loadQuotePaymentForPublic(getDb(), view.workspaceId, view.quoteId, accepted);
+  const acceptance = toAcceptanceOverlay(
+    accepted ? await loadQuoteAcceptance(getDb(), view.workspaceId, view.quoteId) : null,
+    !accepted && view.status !== "rejected",
+  );
   const contactFirst = view.contactName?.trim().split(/\s+/)[0] ?? null;
   const subtitle = [snapshot.client ? `Per ${snapshot.client.name}` : null, `versione ${versionNo}${view.sentAt ? ` del ${longDate.format(view.sentAt)}` : ""}`].filter(Boolean).join(" · ");
 
@@ -83,7 +88,7 @@ async function PublicQuoteContent({ params }: { params: Params }) {
       <main className="pq-main">
         <div className="pq-doc">
           <div className="preview-paper">
-            <QuoteDocumentView snapshot={snapshot} assetBase={`/q/${clean}/img/`} logoSrc={logoSrc(snapshot)} watermark={null} versionLabel={`v${versionNo}`} layout="auto" />
+            <PublicQuoteDocument snapshot={snapshot} assetBase={`/q/${clean}/img/`} logoSrc={logoSrc(snapshot)} watermark={null} versionLabel={`v${versionNo}`} layout="auto" acceptance={acceptance} />
           </div>
         </div>
 
