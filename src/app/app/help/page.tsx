@@ -1,8 +1,9 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, BookOpen, CircleHelp, Headset, LifeBuoy, Megaphone, PlayCircle, Activity, MessageCircle } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, CircleHelp, Headset, LifeBuoy, Megaphone, Activity, MessageCircle } from "lucide-react";
 import { HelpHero } from "@/components/help/help-hero";
+import { HelpTutorialPlayer } from "@/components/help/help-tutorial-player";
 import { topicIcons } from "@/components/help/help-icons";
 import { LegalLinks } from "@/components/legal/legal-links";
 import { PageHeader } from "@/components/ui/status";
@@ -18,6 +19,8 @@ export default function HelpPage() {
 
       <HelpHero items={helpSearchIndex()} />
 
+      <HelpTutorialPlayer />
+
       <div className="hp-quick">
         <Link href="/app/help/guide" className="hp-quick-card card">
           <span className="hp-quick-icon"><BookOpen size={20} aria-hidden="true" /></span>
@@ -27,14 +30,6 @@ export default function HelpPage() {
           </span>
           <span className="hp-quick-arrow"><ArrowRight size={16} aria-hidden="true" /></span>
         </Link>
-        <div className="hp-quick-card hp-quick-lime" title="I video tutorial sono in arrivo">
-          <span className="hp-quick-icon"><PlayCircle size={20} aria-hidden="true" /></span>
-          <span className="hp-quick-body">
-            <strong>Video tutorial <span className="hp-soon">In arrivo</span></strong>
-            <span>Brevi video su editor, invio e pagamenti.</span>
-          </span>
-          <span className="hp-quick-arrow is-off" aria-hidden="true"><ArrowRight size={16} /></span>
-        </div>
         <a href={supportMailto("Supporto CTRL® Quotes")} className="hp-quick-card card">
           <span className="hp-quick-icon"><Headset size={20} aria-hidden="true" /></span>
           <span className="hp-quick-body">
