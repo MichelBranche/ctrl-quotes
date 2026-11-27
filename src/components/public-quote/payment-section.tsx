@@ -15,7 +15,7 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-function CopyButton({ value, label }: { value: string; label: string }) {
+export function CopyButton({ value, label }: { value: string; label: string }) {
   const [done, setDone] = useState(false);
   return (
     <button
@@ -67,13 +67,31 @@ export function PublicPaymentSection({ token, payment }: { token: string; paymen
     }
   }
 
+  if (payment.lockedByInvoice) {
+    return (
+      <section className="pq-card pq-pay" aria-label="Pagamento">
+        <span className="pq-eyebrow">Pagamento</span>
+        <p className="pq-total">
+          {formatEuro(payment.isDeposit ? payment.amountDueCents : payment.totalCents)}
+          <small>{payment.isDeposit ? `acconto su un totale di ${formatEuro(payment.totalCents)}` : "importo del preventivo"}</small>
+        </p>
+        <p className="pq-decided pq-pay-locked" role="status">
+          In attesa di fattura. Le istruzioni per pagare compaiono qui appena lo studio emette la fattura.
+        </p>
+      </section>
+    );
+  }
+
   const amount = selected?.amountCents ?? payment.amountDueCents;
   const causale = selected?.causale ?? payment.causale;
   const paypal = selected?.paypal ?? payment.paypal;
 
   return (
     <section className="pq-card pq-pay" aria-label="Pagamento">
-      <span className="pq-eyebrow">{paid ? "Pagamento" : selected?.label ?? (payment.isDeposit ? "Acconto richiesto" : "Importo da pagare")}</span>
+      <span className="pq-eyebrow">
+        {paid ? "Pagamento" : selected?.label ?? (payment.isDeposit ? "Acconto richiesto" : "Importo da pagare")}
+        {payment.invoiceNumber ? ` · Fattura ${payment.invoiceNumber}` : null}
+      </span>
       <p className="pq-total">
         {formatEuro(paid ? payment.amountPaidCents || payment.totalCents : amount)}
         {!paid && selected?.hint ? <small>{selected.hint}</small> : null}

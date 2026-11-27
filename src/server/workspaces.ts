@@ -15,6 +15,7 @@ import {
   notificationPrefs,
   outboxJobs,
   quoteAcceptances,
+  quoteInvoices,
   quoteChangeRequests,
   quoteDrafts,
   quoteEvents,
@@ -354,6 +355,7 @@ export async function deleteWorkspace(
     await tx.delete(quoteDrafts).where(eq(quoteDrafts.workspaceId, id));
     await tx.delete(quoteEvents).where(eq(quoteEvents.workspaceId, id));
     await tx.delete(quoteAcceptances).where(eq(quoteAcceptances.workspaceId, id));
+    await tx.delete(quoteInvoices).where(eq(quoteInvoices.workspaceId, id));
     await tx.delete(quoteChangeRequests).where(eq(quoteChangeRequests.workspaceId, id));
     await tx.delete(quotePublicLinks).where(eq(quotePublicLinks.workspaceId, id));
     // Production (and the migrations) keep quote_versions append-only via a BEFORE DELETE

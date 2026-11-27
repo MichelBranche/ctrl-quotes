@@ -354,7 +354,7 @@ export function QuoteEditor({
                 </dl>
                 <details className="ve-doc-more">
                   <summary>Pagamenti del preventivo</summary>
-                  <QuotePaymentsPanel quoteId={data.quote.id} disabled={readOnly} showMarkPaid />
+                  <QuotePaymentsPanel quoteId={data.quote.id} disabled={readOnly} manageDisabled={!data.canManagePayments} showMarkPaid />
                 </details>
               </div>
             }
@@ -529,7 +529,7 @@ export function QuoteEditor({
           <p className="muted small">
             Il numero viene assegnato alla creazione secondo la <Link href="/app/settings/numbering">numerazione del workspace</Link> e non viene mai riutilizzato.
           </p>
-          <QuotePaymentsPanel quoteId={data.quote.id} disabled={readOnly} showMarkPaid />
+          <QuotePaymentsPanel quoteId={data.quote.id} disabled={readOnly} manageDisabled={!data.canManagePayments} showMarkPaid />
         </section>
       ) : null}
 

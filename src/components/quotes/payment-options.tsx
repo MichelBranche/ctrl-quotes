@@ -10,6 +10,17 @@ import { Button } from "@/components/ui/button";
 import { formatEuro } from "@/domain/money";
 import { getQuotePaymentsAction, markQuotePaidAction, saveQuotePaymentsAction } from "@/server/actions/payments";
 import {
+  billingModeHint,
+  billingModeLabel,
+  billingStatusLabel,
+  depositPatchForMode,
+  paymentTermIds,
+  paymentTermLabel,
+  type BillingMode,
+  type PaymentTermId,
+} from "@/domain/invoicing";
+import { QuoteInvoicePanel } from "@/components/quotes/invoice-panel";
+import {
   paymentMethodLabel,
   paymentStatusLabel,
   type DepositMode,
@@ -25,6 +36,9 @@ export type PaymentOptionsValue = {
   depositBp: number | null;
   depositCents: number | null;
   showBeforeAcceptance: boolean;
+  billingMode: BillingMode;
+  paymentTerms: PaymentTermId | null;
+  paymentTermsCustom: string;
 };
 
 export function toPaymentOptionsValue(view: QuotePaymentsView): PaymentOptionsValue {
@@ -34,7 +48,100 @@ export function toPaymentOptionsValue(view: QuotePaymentsView): PaymentOptionsVa
     depositBp: view.depositBp,
     depositCents: view.depositCents,
     showBeforeAcceptance: view.showBeforeAcceptance,
+    billingMode: view.billingMode,
+    paymentTerms: view.paymentTerms,
+    paymentTermsCustom: view.paymentTermsCustom,
   };
+}
+
+/**
+ * Selecting "Acconto in percentuale" starts from a real 30% (depositBp 3000), so what the field
+ * shows is what gets saved, without retyping it.
+ */
+export function withDepositMode(value: PaymentOptionsValue, mode: DepositMode): PaymentOptionsValue {
+  return { ...value, ...depositPatchForMode(mode, value) };
+}
+
+function BillingOptions({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: PaymentOptionsValue;
+  onChange: (value: PaymentOptionsValue) => void;
+  disabled?: boolean;
+}) {
+  const [custom, setCustom] = useState(value.paymentTermsCustom);
+  const [savedCustom, setSavedCustom] = useState(value.paymentTermsCustom);
+  if (savedCustom !== value.paymentTermsCustom) {
+    setSavedCustom(value.paymentTermsCustom);
+    setCustom(value.paymentTermsCustom);
+  }
+  return (
+    <div className="pay-billing">
+      <SelectField
+        label="Fatturazione"
+        value={value.billingMode}
+        disabled={disabled}
+        onChange={(event) => onChange({ ...value, billingMode: event.target.value === "invoice" ? "invoice" : "direct" })}
+        options={[
+          { value: "invoice", label: billingModeLabel.invoice },
+          { value: "direct", label: billingModeLabel.direct },
+        ]}
+      />
+      <p className="field-hint">{billingModeHint[value.billingMode]}</p>
+      <SelectField
+        label="Termini di pagamento"
+        value={value.paymentTerms ?? ""}
+        disabled={disabled}
+        onChange={(event) => {
+          const next = event.target.value;
+          onChange({ ...value, paymentTerms: (paymentTermIds as readonly string[]).includes(next) ? (next as PaymentTermId) : null });
+        }}
+        options={[{ value: "", label: "Non indicati" }, ...paymentTermIds.map((id) => ({ value: id, label: paymentTermLabel[id] }))]}
+      />
+      {value.paymentTerms === "custom" ? (
+        <TextField
+          label="Termini personalizzati"
+          value={custom}
+          maxLength={200}
+          disabled={disabled}
+          placeholder="Es. 30% acconto su fattura, saldo a consegna"
+          onChange={(event) => setCustom(event.target.value)}
+          onBlur={() => {
+            if (custom.trim() !== value.paymentTermsCustom.trim()) onChange({ ...value, paymentTermsCustom: custom.trim() });
+          }}
+          hint="Compaiono nelle Condizioni del preventivo, nel PDF e sulla pagina del cliente."
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function PercentField({ bp, disabled, onBp }: { bp: number | null; disabled?: boolean; onBp: (bp: number) => void }) {
+  const shown = bp != null && bp > 0 ? String(Math.round(bp / 100)) : "30";
+  const [text, setText] = useState(shown);
+  const [lastShown, setLastShown] = useState(shown);
+  if (lastShown !== shown) {
+    setLastShown(shown);
+    setText(shown);
+  }
+  return (
+    <TextField
+      label="Percentuale di acconto"
+      inputMode="numeric"
+      value={text}
+      disabled={disabled}
+      onChange={(event) => {
+        const digits = event.target.value.replace(/\D/g, "").slice(0, 3);
+        setText(digits);
+        const n = Number(digits);
+        if (digits && n >= 1 && n <= 100) onBp(n * 100);
+      }}
+      onBlur={() => setText(shown)}
+      hint="Tra 1 e 100."
+    />
+  );
 }
 
 export function PaymentOptions({
@@ -45,6 +152,7 @@ export function PaymentOptions({
   compact = false,
   onMarkPaid,
   markPending = false,
+  manageDisabled,
 }: {
   view: QuotePaymentsView;
   value: PaymentOptionsValue;
@@ -53,6 +161,8 @@ export function PaymentOptions({
   compact?: boolean;
   onMarkPaid?: (kind: "paid" | "deposit_paid", method: PaymentMethodId, choice: PaymentChoice) => void;
   markPending?: boolean;
+  /** Mark-paid buttons: follow the write permission, not the read-only document after acceptance. */
+  manageDisabled?: boolean;
 }) {
   const ready = view.available.filter((item) => item.ready);
   const set = (patch: Partial<PaymentOptionsValue>) => onChange({ ...value, ...patch });
@@ -73,11 +183,16 @@ export function PaymentOptions({
             "Chiedi a un amministratore di configurare bonifico, PayPal o Stripe."
           )}
         </p>
+        {!compact ? <BillingOptions value={value} onChange={onChange} disabled={disabled} /> : null}
+        {view.billingStatus !== "none" ? (
+          <p className="pay-status">
+            Fatturazione: <strong>{billingStatusLabel[view.billingStatus]}</strong>
+          </p>
+        ) : null}
       </div>
     );
   }
 
-  const percent = value.depositBp != null ? String(Math.round(value.depositBp / 100)) : "30";
   const amount = value.depositCents != null ? (value.depositCents / 100).toFixed(2).replace(".", ",") : "";
 
   return (
@@ -109,7 +224,7 @@ export function PaymentOptions({
             label="Importo richiesto"
             value={value.depositMode}
             disabled={disabled}
-            onChange={(event) => set({ depositMode: event.target.value as DepositMode })}
+            onChange={(event) => onChange(withDepositMode(value, event.target.value as DepositMode))}
             options={[
               { value: "full", label: `Intero importo (${formatEuro(view.totalCents)})` },
               { value: "percent", label: "Acconto in percentuale" },
@@ -117,17 +232,7 @@ export function PaymentOptions({
             ]}
           />
           {value.depositMode === "percent" ? (
-            <TextField
-              label="Percentuale di acconto"
-              inputMode="numeric"
-              value={percent}
-              disabled={disabled}
-              onChange={(event) => {
-                const n = Number(event.target.value.replace(/\D/g, ""));
-                set({ depositBp: Number.isFinite(n) ? Math.min(100, Math.max(1, n)) * 100 : 3000 });
-              }}
-              hint="Tra 1 e 100."
-            />
+            <PercentField bp={value.depositBp} disabled={disabled} onBp={(bp) => set({ depositBp: bp })} />
           ) : null}
           {value.depositMode === "amount" ? (
             <TextField
@@ -148,12 +253,18 @@ export function PaymentOptions({
             disabled={disabled}
             onChange={(checked) => set({ showBeforeAcceptance: checked })}
           />
+          <BillingOptions value={value} onChange={onChange} disabled={disabled} />
         </>
       ) : null}
-      {view.paymentStatus !== "none" ? (
+      {view.billingStatus === "awaiting_invoice" && view.paymentStatus !== "paid" ? (
+        <p className="pay-status">
+          Stato: <strong>{billingStatusLabel.awaiting_invoice}</strong>
+        </p>
+      ) : view.paymentStatus !== "none" ? (
         <p className="pay-status">
           Stato: <strong>{paymentStatusLabel[view.paymentStatus as PaymentStatus]}</strong>
           {view.amountPaidCents > 0 ? ` · ${formatEuro(view.amountPaidCents)}` : null}
+          {view.billingStatus === "invoice_issued" ? ` · ${billingStatusLabel.invoice_issued}` : null}
         </p>
       ) : null}
       {onMarkPaid && view.paymentStatus !== "paid" && view.markChoices.length > 0 && value.methods.some((id) => id === "iban" || id === "paypal") ? (
@@ -166,7 +277,7 @@ export function PaymentOptions({
                     type="button"
                     variant="secondary"
                     loading={markPending}
-                    disabled={disabled}
+                    disabled={manageDisabled ?? disabled}
                     onClick={() => onMarkPaid(item.kind, method, item.choice)}
                   >
                     {item.choice === "deposit"
@@ -190,11 +301,14 @@ export function QuotePaymentsPanel({
   disabled,
   compact = false,
   showMarkPaid = false,
+  manageDisabled,
 }: {
   quoteId: string;
   disabled?: boolean;
   compact?: boolean;
   showMarkPaid?: boolean;
+  /** Invoice and mark-paid actions. Defaults to `disabled`. */
+  manageDisabled?: boolean;
 }) {
   const [view, setView] = useState<QuotePaymentsView | null>(null);
   const [value, setValue] = useState<PaymentOptionsValue | null>(null);
@@ -230,6 +344,7 @@ export function QuotePaymentsPanel({
   }
 
   return (
+    <>
     <PaymentOptions
       view={view}
       value={value}
@@ -237,6 +352,7 @@ export function QuotePaymentsPanel({
       disabled={disabled || pending}
       compact={compact}
       markPending={pending}
+      manageDisabled={manageDisabled === undefined ? undefined : manageDisabled || pending}
       onMarkPaid={
         showMarkPaid
           ? (kind, method) => {
@@ -255,5 +371,20 @@ export function QuotePaymentsPanel({
           : undefined
       }
     />
+    {showMarkPaid && (view.accepted || view.billingMode === "invoice" || view.invoiceStatus === "issued") ? (
+      <QuoteInvoicePanel
+        quoteId={quoteId}
+        disabled={manageDisabled ?? disabled}
+        onChanged={() =>
+          getQuotePaymentsAction(quoteId).then((result) => {
+            if (result.ok) {
+              setView(result.value);
+              setValue(toPaymentOptionsValue(result.value));
+            }
+          })
+        }
+      />
+    ) : null}
+    </>
   );
 }

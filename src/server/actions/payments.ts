@@ -12,6 +12,13 @@ import {
   type QuotePaymentsView,
   type WorkspacePaymentsView,
 } from "@/server/payments";
+import {
+  getQuoteInvoice,
+  removeQuoteInvoicePdf,
+  reopenQuoteInvoice,
+  saveQuoteInvoice,
+  type StudioInvoiceView,
+} from "@/server/invoicing";
 import { refreshConnectedAccountStatus, startConnectOnboarding } from "@/server/stripe/connect";
 import type { PaymentMethodId, PaymentStatus, StripeConnectStatus } from "@/domain/payments";
 
@@ -67,4 +74,30 @@ export async function markQuotePaidAction(
   const result = await markQuotePaid(db, actor, id(quoteId), input.kind, input.method);
   if (result.ok) refresh();
   return toAction(result, input.kind === "paid" ? "Pagamento registrato." : "Acconto registrato.");
+}
+
+export async function getQuoteInvoiceAction(quoteId: unknown): Promise<ActionResult<StudioInvoiceView>> {
+  const { db, actor } = await requireContext();
+  return toAction(await getQuoteInvoice(db, actor, id(quoteId)));
+}
+
+export async function saveQuoteInvoiceAction(quoteId: unknown, input: unknown): Promise<ActionResult<StudioInvoiceView>> {
+  const { db, actor } = await requireContext();
+  const result = await saveQuoteInvoice(db, actor, id(quoteId), input);
+  if (result.ok) refresh();
+  return toAction(result, "Fattura registrata. Il cliente la vede sul link del preventivo.");
+}
+
+export async function reopenQuoteInvoiceAction(quoteId: unknown): Promise<ActionResult<StudioInvoiceView>> {
+  const { db, actor } = await requireContext();
+  const result = await reopenQuoteInvoice(db, actor, id(quoteId));
+  if (result.ok) refresh();
+  return toAction(result, "Fattura riportata in attesa di emissione.");
+}
+
+export async function removeQuoteInvoicePdfAction(quoteId: unknown): Promise<ActionResult<StudioInvoiceView>> {
+  const { db, actor } = await requireContext();
+  const result = await removeQuoteInvoicePdf(db, actor, id(quoteId));
+  if (result.ok) refresh();
+  return toAction(result, "PDF della fattura rimosso.");
 }

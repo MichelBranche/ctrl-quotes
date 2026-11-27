@@ -73,6 +73,11 @@ export type Resources = {
    * added is there to see and to select. The PDF and the public page never set it.
    */
   placeholders?: boolean;
+  /**
+   * B2B billing line (mode and payment terms) added to the Pagamento column of the Condizioni.
+   * Comes from the quote payment settings at render time; never stored in the snapshot.
+   */
+  billingTerms?: string | null;
 };
 
 export type Row = {
@@ -464,13 +469,22 @@ function clientParty(snapshot: QuoteSnapshot): Party {
   return { name: client.name, lines, missing: null };
 }
 
-function conditions(block: BlockOf<"terms">, validity: string | null): Condition[] {
+function conditions(block: BlockOf<"terms">, validity: string | null, billingTerms: string | null): Condition[] {
   const columns: Condition[] = [];
-  if (block.payment.trim()) columns.push({ key: "payment", title: "Pagamento", body: block.payment.trim() });
+  const payment = [block.payment.trim(), billingTerms?.trim() ?? ""].filter(Boolean).join("\n");
+  if (payment) columns.push({ key: "payment", title: "Pagamento", body: payment });
   if (validity) columns.push({ key: "validity", title: "Validità", body: `La presente proposta è valida fino al ${validity}.` });
   if (block.notes.trim()) columns.push({ key: "notes", title: "Note", body: block.notes.trim() });
   if (block.body.trim()) columns.push({ key: "general", title: columns.length ? "Condizioni generali" : "Condizioni", body: block.body.trim() });
   return columns;
+}
+
+/** A quote without Condizioni still shows its billing terms: a Condizioni block is added before Contatti. */
+function withBillingTerms(blocks: QuoteBlock[], billingTerms: string | null): QuoteBlock[] {
+  if (!billingTerms?.trim() || blocks.some((block) => block.type === "terms")) return blocks;
+  const terms: BlockOf<"terms"> = { id: "billing-terms", visible: true, type: "terms", heading: "", body: "", payment: "", notes: "" };
+  const contacts = blocks.findIndex((block) => block.type === "contacts");
+  return contacts >= 0 ? [...blocks.slice(0, contacts), terms, ...blocks.slice(contacts)] : [...blocks, terms];
 }
 
 export type NumberingScheme = "fromCover" | "fromIntro" | "none";
@@ -488,7 +502,7 @@ export function buildModel(source: QuoteSnapshot, resources: Resources, numberin
   const ordinario = snapshot.fiscal.taxProfile === "ordinario";
   const visible = normalizeColumns(snapshot.document.blocks).filter((block) => block.visible);
   const coverBlock = visible.find((block): block is BlockOf<"cover"> => block.type === "cover") ?? null;
-  const rest = visible.filter((block) => block.type !== "cover");
+  const rest = withBillingTerms(visible.filter((block) => block.type !== "cover"), resources.billingTerms ?? null);
   const title = (coverBlock?.title.trim() || snapshot.quote.title).trim();
   const validity = formatLongDate(snapshot.quote.validUntil);
   const project = coverBlock?.project.trim() || snapshot.quote.title;
@@ -628,7 +642,7 @@ function toSection(
       return steps.length ? { kind: "timeline", id: block.id, heading: heading("Tempistiche", block.heading), steps } : null;
     }
     case "terms": {
-      const columns = conditions(block, validity);
+      const columns = conditions(block, validity, resources.billingTerms ?? null);
       return columns.length ? { kind: "terms", id: block.id, heading: heading("Condizioni", block.heading), columns } : null;
     }
     case "contacts":

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { formatEuro, roundHalfUp } from "@/domain/money";
+import { billingModes, paymentTermIds, type BillingMode, type PaymentTermId } from "@/domain/invoicing";
 
 export const paymentMethodIds = ["iban", "paypal", "stripe"] as const;
 export type PaymentMethodId = (typeof paymentMethodIds)[number];
@@ -196,6 +197,9 @@ export const workspacePaymentsInputSchema = z.object({
   stripeEnabled: z.boolean(),
   defaultMethods: z.array(z.enum(paymentMethodIds)).max(3),
   showBeforeAcceptance: z.boolean(),
+  billingMode: z.enum(billingModes).optional(),
+  paymentTerms: z.enum(paymentTermIds).nullable().optional(),
+  paymentTermsCustom: z.string().trim().max(200, { error: "I termini personalizzati possono avere al massimo 200 caratteri." }).nullable().optional(),
 });
 
 export const quotePaymentsInputSchema = z.object({
@@ -204,6 +208,9 @@ export const quotePaymentsInputSchema = z.object({
   depositBp: z.number().int().min(0).max(10_000).nullable().optional(),
   depositCents: z.number().int().min(0).nullable().optional(),
   showBeforeAcceptance: z.boolean(),
+  billingMode: z.enum(billingModes).optional(),
+  paymentTerms: z.enum(paymentTermIds).nullable().optional(),
+  paymentTermsCustom: z.string().trim().max(200, { error: "I termini personalizzati possono avere al massimo 200 caratteri." }).nullable().optional(),
 });
 
 export type WorkspacePaymentsInput = z.infer<typeof workspacePaymentsInputSchema>;
@@ -224,6 +231,10 @@ export type PaymentSnapshot = {
   iban: IbanSnapshot | null;
   paypal: PaypalSnapshot | null;
   stripe: StripeSnapshot | null;
+  /** Absent on snapshots saved before B2B billing: read as `direct` with no terms. */
+  billingMode?: BillingMode;
+  paymentTerms?: PaymentTermId | null;
+  paymentTermsCustom?: string | null;
 };
 
 export type PublicPaymentOption = {
@@ -247,6 +258,9 @@ export type PublicPaymentView = {
   status: PaymentStatus;
   amountPaidCents: number;
   options: PublicPaymentOption[];
+  /** `invoice` mode before the studio issues the invoice: instructions stay hidden. */
+  lockedByInvoice?: boolean;
+  invoiceNumber?: string | null;
 };
 
 export function isPaymentChoice(value: unknown): value is PaymentChoice {

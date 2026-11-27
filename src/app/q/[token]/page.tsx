@@ -6,10 +6,12 @@ import { Clock, Download, Lock, Mail } from "lucide-react";
 import { PublicDecisionForm } from "@/components/public-quote/decision-form";
 import { PublicQuoteDocument } from "@/components/public-quote/document";
 import { PublicPaymentSection } from "@/components/public-quote/payment-section";
+import { PublicBillingSection } from "@/components/public-quote/billing-section";
 import { ensureMigrated, getDb } from "@/db/client";
 import { headlineTotal, logoSrc } from "@/domain/quote-snapshot";
 import { loadQuoteAcceptance, toAcceptanceOverlay } from "@/server/acceptance";
 import { loadQuotePaymentForPublic } from "@/server/payments";
+import { loadBillingTermsLine, loadQuoteBillingForPublic } from "@/server/invoicing";
 import { loadPublicQuote, type PublicQuoteView } from "@/server/public-quote";
 import { clientIp } from "@/server/request-meta";
 import { LegalLinks } from "@/components/legal/legal-links";
@@ -48,6 +50,8 @@ async function PublicQuoteContent({ params }: { params: Params }) {
   const accepted = view.status === "accepted";
   const total = headlineTotal(snapshot.totals);
   const payment = await loadQuotePaymentForPublic(getDb(), view.workspaceId, view.quoteId, accepted);
+  const billing = await loadQuoteBillingForPublic(getDb(), { workspaceId: view.workspaceId, quoteId: view.quoteId, accepted, snapshot, hasPayment: Boolean(payment) });
+  const billingTerms = await loadBillingTermsLine(getDb(), view.workspaceId, view.quoteId);
   const acceptance = toAcceptanceOverlay(
     accepted ? await loadQuoteAcceptance(getDb(), view.workspaceId, view.quoteId) : null,
     !accepted && view.status !== "rejected",
@@ -88,7 +92,7 @@ async function PublicQuoteContent({ params }: { params: Params }) {
       <main className="pq-main">
         <div className="pq-doc">
           <div className="preview-paper">
-            <PublicQuoteDocument snapshot={snapshot} assetBase={`/q/${clean}/img/`} logoSrc={logoSrc(snapshot)} watermark={null} versionLabel={`v${versionNo}`} layout="auto" acceptance={acceptance} />
+            <PublicQuoteDocument snapshot={snapshot} assetBase={`/q/${clean}/img/`} logoSrc={logoSrc(snapshot)} watermark={null} versionLabel={`v${versionNo}`} layout="auto" acceptance={acceptance} billingTerms={billingTerms} />
           </div>
         </div>
 
@@ -126,6 +130,7 @@ async function PublicQuoteContent({ params }: { params: Params }) {
               <Download size={16} aria-hidden="true" /> Scarica il PDF
             </a>
           </section>
+          {billing ? <PublicBillingSection token={clean} billing={billing} /> : null}
           {payment ? <PublicPaymentSection token={clean} payment={payment} /> : null}
           {view.contactEmail ? (
             <a className="pq-contact" href={`mailto:${view.contactEmail}?subject=${encodeURIComponent(`Preventivo ${snapshot.quote.number ?? ""} ${snapshot.quote.title}`.trim())}`}>

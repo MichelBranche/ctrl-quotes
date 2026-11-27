@@ -22,3 +22,18 @@ export function deviceClass(userAgent: string | null): DeviceClass {
 export function storedUserAgent(userAgent: string | null): string | null {
   return userAgent ? userAgent.slice(0, 512) : null;
 }
+
+/**
+ * Cross-site check for JSON/binary POSTs: a browser always sends Origin on them. Without Origin
+ * (server-to-server, tests) the request goes through; with a foreign Origin it is refused.
+ */
+export function isSameOriginRequest(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+  const host = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() || request.headers.get("host") || new URL(request.url).host;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}

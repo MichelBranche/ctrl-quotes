@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { ensureMigrated, getDb } from "@/db/client";
 import { getAuth } from "@/server/auth";
 import { loadQuoteAcceptance, toAcceptanceOverlay } from "@/server/acceptance";
+import { loadBillingTermsLine } from "@/server/invoicing";
 import { renderQuotePdf, pdfFilename } from "@/server/pdf/quote-pdf";
 import { getDraftSnapshot, getVersionSnapshot, loadSnapshotImages } from "@/server/quotes";
 import { listWorkspaces } from "@/server/workspaces";
@@ -30,7 +31,8 @@ export async function GET(request: Request, context: { params: Promise<{ quoteId
   const snapshot = "snapshot" in result.value ? result.value.snapshot : result.value;
   const images = await loadSnapshotImages(db, actor, snapshot);
   const acceptance = toAcceptanceOverlay(await loadQuoteAcceptance(db, actor.workspaceId, id), false);
-  const pdf = await renderQuotePdf(snapshot, { images, watermark: versionNo ? null : "Bozza", versionLabel: versionNo ? `v${versionNo}` : null, acceptance });
+  const billingTerms = await loadBillingTermsLine(db, actor.workspaceId, id);
+  const pdf = await renderQuotePdf(snapshot, { images, watermark: versionNo ? null : "Bozza", versionLabel: versionNo ? `v${versionNo}` : null, acceptance, billingTerms });
   const disposition = url.searchParams.get("download") === "1" ? "attachment" : "inline";
   return new Response(new Uint8Array(pdf), {
     headers: {

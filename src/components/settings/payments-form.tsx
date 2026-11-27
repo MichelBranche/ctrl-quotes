@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Banknote, CreditCard, Landmark, Wallet } from "lucide-react";
+import { Banknote, CreditCard, Landmark, ReceiptText, Wallet } from "lucide-react";
 import { SettingsFrame } from "@/components/settings/settings-frame";
 import { Switch } from "@/components/data/controls";
 import { useAction } from "@/components/data/use-action";
-import { TextField } from "@/components/ui/fields";
+import { SelectField, TextField } from "@/components/ui/fields";
+import { billingModeHint, billingModeLabel, paymentTermIds, paymentTermLabel, type BillingMode, type PaymentTermId } from "@/domain/invoicing";
 import { Button } from "@/components/ui/button";
 import {
   CONNECT_ENABLE_STEPS,
@@ -94,6 +95,9 @@ export function PaymentsForm({
               stripeEnabled: values.stripeEnabled && status === "active",
               defaultMethods: values.defaultMethods,
               showBeforeAcceptance: values.showBeforeAcceptance,
+              billingMode: values.billingMode,
+              paymentTerms: values.paymentTerms,
+              paymentTermsCustom: values.paymentTerms === "custom" ? values.paymentTermsCustom : null,
             }),
           (next) => {
             setValues(toForm(next));
@@ -258,6 +262,48 @@ export function PaymentsForm({
               onChange={(checked) => set("showBeforeAcceptance", checked)}
             />
           </section>
+
+          <section className="card inset form-grid">
+            <h2 className="section-heading">
+              <ReceiptText size={16} aria-hidden="true" /> Fatturazione B2B
+            </h2>
+            <p className="field-hint">
+              Tra aziende di solito si paga su fattura. Scegli il comportamento predefinito dei nuovi preventivi: puoi cambiarlo su ogni proposta in «Come vuoi farti pagare».
+            </p>
+            <SelectField
+              label="Modalità di pagamento"
+              value={values.billingMode}
+              disabled={!canEdit}
+              onChange={(event) => set("billingMode", event.target.value === "invoice" ? "invoice" : "direct")}
+              options={[
+                { value: "invoice", label: billingModeLabel.invoice },
+                { value: "direct", label: billingModeLabel.direct },
+              ]}
+            />
+            <p className="field-hint">{billingModeHint[values.billingMode]}</p>
+            <SelectField
+              label="Termini di pagamento"
+              value={values.paymentTerms ?? ""}
+              disabled={!canEdit}
+              onChange={(event) => {
+                const next = event.target.value;
+                set("paymentTerms", (paymentTermIds as readonly string[]).includes(next) ? (next as PaymentTermId) : null);
+              }}
+              options={[{ value: "", label: "Non indicati" }, ...paymentTermIds.map((id) => ({ value: id, label: paymentTermLabel[id] }))]}
+            />
+            {values.paymentTerms === "custom" ? (
+              <TextField
+                label="Termini personalizzati"
+                name="paymentTermsCustom"
+                value={values.paymentTermsCustom}
+                maxLength={200}
+                disabled={!canEdit}
+                placeholder="Es. 30% acconto su fattura, saldo a consegna"
+                onChange={(event) => set("paymentTermsCustom", event.target.value)}
+              />
+            ) : null}
+            <p className="field-hint">I termini compaiono nelle Condizioni del preventivo, nel PDF e sulla pagina del cliente.</p>
+          </section>
         </div>
       </SettingsFrame>
     </form>
@@ -276,5 +322,8 @@ function toForm(view: WorkspacePaymentsView) {
     stripeEnabled: view.stripeEnabled,
     defaultMethods: view.defaultMethods as PaymentMethodId[],
     showBeforeAcceptance: view.showBeforeAcceptance,
+    billingMode: view.billingMode as BillingMode,
+    paymentTerms: view.paymentTerms as PaymentTermId | null,
+    paymentTermsCustom: view.paymentTermsCustom,
   };
 }

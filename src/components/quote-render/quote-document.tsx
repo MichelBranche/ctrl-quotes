@@ -43,6 +43,8 @@ export type QuoteDocumentProps = {
   imagePlaceholder?: string;
   /** Acceptance overlay (date, signature or public invite). Does not change the snapshot. */
   acceptance?: AcceptanceOverlay | null;
+  /** B2B billing line (mode and payment terms) shown in the Condizioni. Does not change the snapshot. */
+  billingTerms?: string | null;
   /** Public page: the "Firma il preventivo" invite was chosen. */
   onSignInvite?: () => void;
 };
@@ -164,6 +166,7 @@ export function QuoteDocumentView({
   zoom,
   imagePlaceholder,
   acceptance = null,
+  billingTerms = null,
   onSignInvite,
 }: QuoteDocumentProps) {
   const logo = useLogo(logoSrc);
@@ -181,6 +184,7 @@ export function QuoteDocumentView({
       versionLabel: versionLabel ?? (watermark ? "Bozza" : null),
       // The editors pass a placeholder picture; they also want charts without data to show what they need.
       placeholders: Boolean(imagePlaceholder),
+      billingTerms,
     };
     const source = imagePlaceholder
       ? {
@@ -192,7 +196,7 @@ export function QuoteDocumentView({
         }
       : snapshot;
     return buildModel(source, resources, renderer.numbering, undefined, acceptance);
-  }, [snapshot, logo, assetBase, watermark, versionLabel, renderer.numbering, imagePlaceholder, acceptance]);
+  }, [snapshot, logo, assetBase, watermark, versionLabel, renderer.numbering, imagePlaceholder, acceptance, billingTerms]);
   const formats = useMemo(() => formatContext(snapshot.document, snapshot.brand), [snapshot.document, snapshot.brand]);
   const fontHref = useMemo(
     () =>

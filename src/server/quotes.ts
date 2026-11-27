@@ -123,6 +123,8 @@ export type QuoteEditorData = {
   canDelete: boolean;
   canEdit: boolean;
   canSend: boolean;
+  /** Payments and invoices stay manageable after acceptance, when the document is read-only. */
+  canManagePayments: boolean;
   acceptance: (AcceptanceOverlay & { decidedAt: string }) | null;
 };
 
@@ -665,6 +667,7 @@ export async function getQuoteEditor(db: AppDatabase, actor: Actor, quoteId: str
     snapshot,
     canEdit: can(role, "quotes.write") && isEditable(status),
     canSend: can(role, "quotes.send") && status !== "accepted",
+    canManagePayments: can(role, "quotes.write"),
     canDelete: can(role, "quotes.delete") || (quote.ownerId === actor.userId && status === "draft" && versions.length === 0),
     acceptance: await (async () => {
       if (status !== "accepted") return null;

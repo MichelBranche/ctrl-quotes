@@ -919,6 +919,11 @@ export const workspacePaymentSettings = sqliteTable(
     stripeAccountStatus: text("stripe_account_status").notNull().default("none"),
     defaultMethods: text("default_methods").notNull().default("[]"),
     showBeforeAcceptance: integer("show_before_acceptance", { mode: "boolean" }).notNull().default(false),
+    /** `direct` or `invoice`. Null: never chosen, quotes behave as `direct`. */
+    billingMode: text("billing_mode"),
+    /** Default B2B payment terms (`immediate`, `net_15`, `net_30`, `net_60`, `custom`). Null: not shown. */
+    paymentTerms: text("payment_terms"),
+    paymentTermsCustom: text("payment_terms_custom"),
     updatedAt: timestamp("updated_at").notNull(),
   },
   (table) => [
@@ -944,6 +949,11 @@ export const quotePaymentSettings = sqliteTable(
     paymentStatus: text("payment_status").notNull().default("none"),
     amountDueCents: integer("amount_due_cents"),
     amountPaidCents: integer("amount_paid_cents").notNull().default(0),
+    /** Per-quote override of the workspace billing mode. Null: workspace default. */
+    billingMode: text("billing_mode"),
+    /** Per-quote override of the payment terms. Null: workspace default. */
+    paymentTerms: text("payment_terms"),
+    paymentTermsCustom: text("payment_terms_custom"),
     updatedAt: timestamp("updated_at").notNull(),
   },
   (table) => [
@@ -983,6 +993,46 @@ export const quotePaymentEvents = sqliteTable(
       "quote_payment_events_kind_chk",
       sql`${table.kind} in ('checkout_created', 'paid', 'deposit_paid', 'marked_paid')`,
     ),
+  ],
+);
+
+/**
+ * B2B billing for a quote: the client's billing details (submitted from the public page) and the
+ * invoice the studio issued, with its optional PDF stored in the database (validated %PDF-, max 4 MB).
+ * Values are validated by the domain layer (src/domain/invoicing.ts).
+ */
+export const quoteInvoices = sqliteTable(
+  "quote_invoices",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    quoteId: text("quote_id").notNull(),
+    billingHolder: text("billing_holder"),
+    billingVatNumber: text("billing_vat_number"),
+    billingTaxCode: text("billing_tax_code"),
+    billingSdiCode: text("billing_sdi_code"),
+    billingPec: text("billing_pec"),
+    billingAddress: text("billing_address"),
+    billingSubmittedAt: timestamp("billing_submitted_at"),
+    /** `none` or `issued`. */
+    invoiceStatus: text("invoice_status").notNull().default("none"),
+    invoiceNumber: text("invoice_number"),
+    invoiceIssueDate: text("invoice_issue_date"),
+    invoiceDueDate: text("invoice_due_date"),
+    invoiceNotes: text("invoice_notes"),
+    invoiceIssuedAt: timestamp("invoice_issued_at"),
+    pdfData: blob("pdf_data", { mode: "buffer" }),
+    pdfFilename: text("pdf_filename"),
+    pdfSizeBytes: integer("pdf_size_bytes"),
+    pdfSha256: text("pdf_sha256"),
+    pdfUploadedAt: timestamp("pdf_uploaded_at"),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.quoteId] }),
+    foreignKey({
+      columns: [table.workspaceId, table.quoteId],
+      foreignColumns: [quotes.workspaceId, quotes.id],
+    }).onDelete("cascade"),
   ],
 );
 
@@ -1033,4 +1083,5 @@ export const schema = {
   workspacePaymentSettings,
   quotePaymentSettings,
   quotePaymentEvents,
+  quoteInvoices,
 };

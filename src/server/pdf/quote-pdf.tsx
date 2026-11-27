@@ -78,6 +78,8 @@ export type PdfOptions = {
   /** "v3" for a frozen version, null for a draft. */
   versionLabel?: string | null;
   acceptance?: AcceptanceOverlay | null;
+  /** B2B billing line (mode and payment terms) for the Condizioni. Never stored in the snapshot. */
+  billingTerms?: string | null;
 };
 
 export async function renderQuotePdf(snapshot: QuoteSnapshot, options: PdfOptions): Promise<Buffer> {
@@ -94,6 +96,7 @@ export async function renderQuotePdfPlan(snapshot: QuoteSnapshot, options: PdfOp
     image: (assetId) => imageSource(options.images.get(assetId)),
     watermark: options.watermark,
     versionLabel: options.versionLabel ?? (options.watermark ? "Bozza" : null),
+    billingTerms: options.billingTerms ?? null,
   };
   const renderer = renderers[snapshot.template] ?? renderers.minimal;
   const wanted = [

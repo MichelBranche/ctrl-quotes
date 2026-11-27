@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
-import { quotePaymentEvents, quotePaymentSettings, quotes, workspacePaymentSettings } from "@/db/schema";
+import { quoteInvoices, quotePaymentEvents, quotePaymentSettings, quotes, workspacePaymentSettings } from "@/db/schema";
 import { createId } from "@/domain/ids";
 import {
   DEFAULT_CAUSALE_TEMPLATE,
@@ -36,6 +36,21 @@ import {
   type StripeConnectStatus,
 } from "@/domain/payments";
 import { formatEuro } from "@/domain/money";
+import {
+  DEFAULT_DEPOSIT_BP,
+  asBillingMode,
+  asInvoiceStatus,
+  billingStatusFor,
+  causaleWithInvoice,
+  isBillingMode,
+  isPaymentTermId,
+  paymentLockedByInvoice,
+  paymentTermsText,
+  type BillingMode,
+  type BillingStatus,
+  type InvoiceStatus,
+  type PaymentTermId,
+} from "@/domain/invoicing";
 import { can } from "@/domain/permissions";
 import { headlineParts } from "@/domain/quote-snapshot";
 import { authorize, invalid, notFound, ok, type Actor, type Result } from "@/server/access";
@@ -59,6 +74,11 @@ export type WorkspacePaymentsView = {
   stripeEnabled: boolean;
   defaultMethods: PaymentMethodId[];
   showBeforeAcceptance: boolean;
+  /** Default billing mode for new quotes (`direct` when never chosen). */
+  billingMode: BillingMode;
+  /** Default B2B payment terms. Null: not shown on quotes. */
+  paymentTerms: PaymentTermId | null;
+  paymentTermsCustom: string;
   /** Full IBAN only on the settings form for owner/admin. Never sent to lists or logs. */
   iban: string;
 };
@@ -78,6 +98,14 @@ export type QuotePaymentsView = {
   markChoices: Array<{ kind: "paid" | "deposit_paid"; choice: PaymentChoice; label: string; amountCents: number }>;
   available: Array<{ id: PaymentMethodId; ready: boolean; hint: string }>;
   canManageSettings: boolean;
+  billingMode: BillingMode;
+  paymentTerms: PaymentTermId | null;
+  paymentTermsCustom: string;
+  /** Readable terms, or null when none are set. */
+  paymentTermsText: string | null;
+  invoiceStatus: InvoiceStatus;
+  billingStatus: BillingStatus;
+  accepted: boolean;
 };
 
 const emptyWorkspace: Omit<WorkspacePaymentsView, "iban"> & { iban: string } = {
@@ -95,6 +123,9 @@ const emptyWorkspace: Omit<WorkspacePaymentsView, "iban"> & { iban: string } = {
   stripeEnabled: false,
   defaultMethods: [],
   showBeforeAcceptance: false,
+  billingMode: "direct",
+  paymentTerms: null,
+  paymentTermsCustom: "",
   iban: "",
 };
 
@@ -142,9 +173,45 @@ function viewFromRow(row: typeof workspacePaymentSettings.$inferSelect | undefin
     stripeEnabled: asStripeStatus(row.stripeAccountStatus) === "active" && Boolean(row.stripeAccountId),
     defaultMethods: parseMethods(row.defaultMethods),
     showBeforeAcceptance: row.showBeforeAcceptance,
+    billingMode: asBillingMode(row.billingMode),
+    paymentTerms: isPaymentTermId(row.paymentTerms) ? row.paymentTerms : null,
+    paymentTermsCustom: row.paymentTermsCustom ?? "",
     iban,
   };
 }
+
+/** Billing mode and terms of a quote: its own choice, else the frozen snapshot, else the workspace default. */
+export function effectiveBilling(
+  row: { billingMode: string | null; paymentTerms: string | null; paymentTermsCustom: string | null } | null | undefined,
+  snapshot: Pick<PaymentSnapshot, "billingMode" | "paymentTerms" | "paymentTermsCustom"> | null,
+  workspace: Pick<WorkspacePaymentsView, "billingMode" | "paymentTerms" | "paymentTermsCustom">,
+): { billingMode: BillingMode; paymentTerms: PaymentTermId | null; paymentTermsCustom: string | null } {
+  const mode = isBillingMode(row?.billingMode) ? row.billingMode : isBillingMode(snapshot?.billingMode) ? snapshot.billingMode : row ? "direct" : workspace.billingMode;
+  if (row && (row.paymentTerms !== null || row.billingMode !== null)) {
+    return {
+      billingMode: mode,
+      paymentTerms: isPaymentTermId(row.paymentTerms) ? row.paymentTerms : null,
+      paymentTermsCustom: row.paymentTermsCustom ?? null,
+    };
+  }
+  if (snapshot && snapshot.paymentTerms !== undefined) {
+    return { billingMode: mode, paymentTerms: isPaymentTermId(snapshot.paymentTerms) ? snapshot.paymentTerms : null, paymentTermsCustom: snapshot.paymentTermsCustom ?? null };
+  }
+  if (row) return { billingMode: mode, paymentTerms: null, paymentTermsCustom: null };
+  return { billingMode: mode, paymentTerms: workspace.paymentTerms, paymentTermsCustom: workspace.paymentTermsCustom || null };
+}
+
+export async function getQuoteInvoiceState(db: AppDatabase, workspaceId: string, quoteId: string) {
+  const rows = await db
+    .select({ invoiceStatus: quoteInvoices.invoiceStatus, invoiceNumber: quoteInvoices.invoiceNumber })
+    .from(quoteInvoices)
+    .where(and(eq(quoteInvoices.workspaceId, workspaceId), eq(quoteInvoices.quoteId, quoteId)))
+    .limit(1);
+  const row = rows[0];
+  return { invoiceStatus: asInvoiceStatus(row?.invoiceStatus), invoiceNumber: row?.invoiceNumber ?? null };
+}
+
+export const workspacePaymentsViewFromRow = viewFromRow;
 
 export async function getWorkspacePaymentRow(db: AppDatabase, workspaceId: string) {
   const rows = await db.select().from(workspacePaymentSettings).where(eq(workspacePaymentSettings.workspaceId, workspaceId)).limit(1);
@@ -226,8 +293,15 @@ export async function saveWorkspacePayments(db: AppDatabase, actor: Actor, raw: 
     stripeAccountStatus: existing?.stripeAccountStatus ?? "none",
     defaultMethods: JSON.stringify(defaultMethods),
     showBeforeAcceptance: input.showBeforeAcceptance,
+    billingMode: input.billingMode ?? existing?.billingMode ?? null,
+    paymentTerms: input.paymentTerms === undefined ? (existing?.paymentTerms ?? null) : input.paymentTerms,
+    paymentTermsCustom:
+      input.paymentTermsCustom === undefined ? (existing?.paymentTermsCustom ?? null) : input.paymentTermsCustom?.trim() || null,
     updatedAt: now,
   };
+  if (values.paymentTerms === "custom" && !values.paymentTermsCustom) {
+    return invalid("Scrivi i termini di pagamento personalizzati, per esempio «30% acconto su fattura, saldo a consegna».");
+  }
   if (existing) {
     await db.update(workspacePaymentSettings).set(values).where(eq(workspacePaymentSettings.workspaceId, access.value.id));
   } else {
@@ -364,11 +438,21 @@ export async function getQuotePayments(db: AppDatabase, actor: Actor, quoteId: s
         paypal: null,
         stripe: null,
       };
+  const billing = effectiveBilling(row, row ? snapshotFromRow(row) : null, workspace);
+  const invoice = await getQuoteInvoiceState(db, access.value.id, quoteId);
+  const accepted = quote.status === "accepted";
   return ok({
     methods,
     depositMode,
     depositBp,
     depositCents,
+    billingMode: billing.billingMode,
+    paymentTerms: billing.paymentTerms,
+    paymentTermsCustom: billing.paymentTermsCustom ?? "",
+    paymentTermsText: paymentTermsText(billing.paymentTerms, billing.paymentTermsCustom),
+    invoiceStatus: invoice.invoiceStatus,
+    billingStatus: billingStatusFor({ mode: billing.billingMode, accepted, invoiceStatus: invoice.invoiceStatus }),
+    accepted,
     showBeforeAcceptance: row?.showBeforeAcceptance ?? workspace.showBeforeAcceptance,
     paymentStatus,
     amountDueCents,
@@ -397,6 +481,10 @@ export async function saveQuotePayments(
   const workspace = viewFromRow((await getWorkspacePaymentRow(db, access.value.id)) ?? undefined);
   const ready = new Set(await availableMethods(workspace));
   const methods = parsed.data.methods.filter((method) => ready.has(method));
+  // "Acconto in percentuale" without a typed value means the 30% the field shows, never a silent full payment.
+  if (parsed.data.depositMode === "percent" && !(parsed.data.depositBp && parsed.data.depositBp > 0)) {
+    parsed.data.depositBp = DEFAULT_DEPOSIT_BP;
+  }
   const totalCents = await quoteTotalCents(db, access.value.id, quoteId);
   const amountDueCents = dueAmountCents(totalCents, parsed.data.depositMode, parsed.data.depositBp ?? null, parsed.data.depositCents ?? null);
   const now = new Date();
@@ -407,7 +495,18 @@ export async function saveQuotePayments(
       .where(and(eq(quotePaymentSettings.workspaceId, access.value.id), eq(quotePaymentSettings.quoteId, quoteId)))
       .limit(1)
   )[0];
-  const snapshot = buildSnapshot(workspace, { ...parsed.data, methods }, totalCents, quote.number, quote.title);
+  const current = effectiveBilling(existing, existing ? snapshotFromRow(existing) : null, workspace);
+  const billingMode = parsed.data.billingMode ?? current.billingMode;
+  const paymentTerms = parsed.data.paymentTerms === undefined ? current.paymentTerms : parsed.data.paymentTerms;
+  const paymentTermsCustom =
+    parsed.data.paymentTermsCustom === undefined ? current.paymentTermsCustom : parsed.data.paymentTermsCustom?.trim() || null;
+  const snapshot = buildSnapshot(
+    workspace,
+    { ...parsed.data, methods, billingMode, paymentTerms, paymentTermsCustom },
+    totalCents,
+    quote.number,
+    quote.title,
+  );
   const values = {
     workspaceId: access.value.id,
     quoteId,
@@ -416,6 +515,9 @@ export async function saveQuotePayments(
     depositBp: parsed.data.depositMode === "percent" ? (parsed.data.depositBp ?? null) : null,
     depositCents: parsed.data.depositMode === "amount" ? (parsed.data.depositCents ?? null) : null,
     showBeforeAcceptance: parsed.data.showBeforeAcceptance,
+    billingMode,
+    paymentTerms,
+    paymentTermsCustom: paymentTerms === "custom" ? paymentTermsCustom : null,
     snapshotJson: JSON.stringify(snapshot),
     paymentStatus: existing ? asStatus(existing.paymentStatus) : methods.length ? "awaiting" : "none",
     amountDueCents,
@@ -463,6 +565,12 @@ export function buildSnapshot(
     iban,
     paypal,
     stripe,
+    billingMode: input.billingMode ?? workspace.billingMode,
+    paymentTerms: input.paymentTerms === undefined ? workspace.paymentTerms : input.paymentTerms,
+    paymentTermsCustom:
+      (input.paymentTerms === undefined ? workspace.paymentTerms : input.paymentTerms) === "custom"
+        ? (input.paymentTermsCustom === undefined ? workspace.paymentTermsCustom : input.paymentTermsCustom) || null
+        : null,
   };
 }
 
@@ -480,15 +588,20 @@ export async function freezeQuotePaymentSnapshot(db: AppDatabase, workspaceId: s
   )[0];
   const ready = await availableMethods(workspace);
   const methods = row ? parseMethods(row.methods).filter((method) => ready.includes(method)) : workspace.defaultMethods.filter((method) => ready.includes(method));
-  if (methods.length === 0 && !row) return;
+  const billingConfigured = workspace.billingMode === "invoice" || workspace.paymentTerms !== null;
+  if (methods.length === 0 && !row && !billingConfigured) return;
   const totalCents = await quoteTotalCents(db, workspaceId, quoteId);
   const depositMode = row ? asDepositMode(row.depositMode) : "full";
+  const billing = effectiveBilling(row, row ? snapshotFromRow(row) : null, workspace);
   const input: QuotePaymentsInput = {
     methods,
     depositMode,
     depositBp: row?.depositBp ?? null,
     depositCents: row?.depositCents ?? null,
     showBeforeAcceptance: row?.showBeforeAcceptance ?? workspace.showBeforeAcceptance,
+    billingMode: billing.billingMode,
+    paymentTerms: billing.paymentTerms,
+    paymentTermsCustom: billing.paymentTermsCustom,
   };
   const snapshot = buildSnapshot(workspace, input, totalCents, quote.number, quote.title);
   const values = {
@@ -499,6 +612,9 @@ export async function freezeQuotePaymentSnapshot(db: AppDatabase, workspaceId: s
     depositBp: input.depositBp,
     depositCents: input.depositCents,
     showBeforeAcceptance: input.showBeforeAcceptance,
+    billingMode: billing.billingMode,
+    paymentTerms: billing.paymentTerms,
+    paymentTermsCustom: billing.paymentTerms === "custom" ? billing.paymentTermsCustom : null,
     snapshotJson: JSON.stringify(snapshot),
     paymentStatus: row && asStatus(row.paymentStatus) !== "none" ? asStatus(row.paymentStatus) : methods.length ? "awaiting" : "none",
     amountDueCents: snapshot.amountDueCents,
@@ -546,10 +662,24 @@ function optionFor(snapshot: PaymentSnapshot, amountPaidCents: number, choice: P
   };
 }
 
-export function publicPaymentView(snapshot: PaymentSnapshot, status: PaymentStatus, amountPaidCents: number): PublicPaymentView {
-  const options = availablePaymentChoices(snapshot, status, amountPaidCents).map((choice) =>
-    optionFor(snapshot, amountPaidCents, choice),
-  );
+export function publicPaymentView(
+  snapshot: PaymentSnapshot,
+  status: PaymentStatus,
+  amountPaidCents: number,
+  invoice: { billingMode: BillingMode; invoiceStatus: InvoiceStatus; invoiceNumber: string | null } = {
+    billingMode: "direct",
+    invoiceStatus: "none",
+    invoiceNumber: null,
+  },
+): PublicPaymentView {
+  const locked = paymentLockedByInvoice(invoice.billingMode, invoice.invoiceStatus) && status !== "paid";
+  const invoiceNumber = invoice.invoiceStatus === "issued" ? invoice.invoiceNumber : null;
+  const options = locked
+    ? []
+    : availablePaymentChoices(snapshot, status, amountPaidCents).map((choice) => {
+        const option = optionFor(snapshot, amountPaidCents, choice);
+        return invoiceNumber ? { ...option, causale: causaleWithInvoice(option.causale, invoiceNumber) } : option;
+      });
   const current = options[0] ?? null;
   const causale = current?.causale ?? snapshot.iban?.causale ?? renderCausale(DEFAULT_CAUSALE_TEMPLATE, { importoCents: snapshot.amountDueCents });
   return {
@@ -566,6 +696,8 @@ export function publicPaymentView(snapshot: PaymentSnapshot, status: PaymentStat
     status,
     amountPaidCents,
     options,
+    lockedByInvoice: locked,
+    invoiceNumber,
   };
 }
 
@@ -591,7 +723,14 @@ export async function loadQuotePaymentForPublic(
   }
   if (!snapshot.methods?.length) return null;
   if (!accepted && !snapshot.showBeforeAcceptance) return null;
-  return publicPaymentView(snapshot, asStatus(row.paymentStatus), row.amountPaidCents);
+  const workspace = viewFromRow((await getWorkspacePaymentRow(db, workspaceId)) ?? undefined);
+  const billing = effectiveBilling(row, snapshot, workspace);
+  const invoice = await getQuoteInvoiceState(db, workspaceId, quoteId);
+  return publicPaymentView(snapshot, asStatus(row.paymentStatus), row.amountPaidCents, {
+    billingMode: billing.billingMode,
+    invoiceStatus: invoice.invoiceStatus,
+    invoiceNumber: invoice.invoiceNumber,
+  });
 }
 
 export async function markQuotePaid(

@@ -33,6 +33,9 @@ export async function POST(request: Request, context: { params: Params }): Promi
   if (!payment?.methods.includes("stripe") || !payment.stripe) {
     return NextResponse.json({ error: "Il pagamento con carta non è disponibile su questo preventivo." }, { status: 400 });
   }
+  if (payment.lockedByInvoice) {
+    return NextResponse.json({ error: "Il pagamento si apre quando lo studio avrà emesso la fattura." }, { status: 409 });
+  }
   if (payment.status === "paid") {
     return NextResponse.json({ error: "Questo preventivo risulta già pagato." }, { status: 409 });
   }

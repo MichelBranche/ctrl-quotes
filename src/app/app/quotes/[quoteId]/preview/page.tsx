@@ -6,6 +6,7 @@ import { QuoteDocumentView } from "@/components/quote-render/quote-document";
 import { EmptyState, Skeleton, StatusBadge } from "@/components/ui/status";
 import { logoSrc } from "@/domain/quote-snapshot";
 import { loadQuoteAcceptance, toAcceptanceOverlay } from "@/server/acceptance";
+import { loadBillingTermsLine } from "@/server/invoicing";
 import { requireContext } from "@/server/context";
 import { getDraftSnapshot, getVersionSnapshot } from "@/server/quotes";
 
@@ -37,6 +38,7 @@ async function PreviewContent({ params, searchParams }: { params: Params; search
   const snapshot = "snapshot" in result.value ? result.value.snapshot : result.value;
   const pdfHref = versionNo ? `/api/quotes/${id}/pdf?v=${versionNo}` : `/api/quotes/${id}/pdf`;
   const acceptance = toAcceptanceOverlay(await loadQuoteAcceptance(db, actor.workspaceId, id), false);
+  const billingTerms = await loadBillingTermsLine(db, actor.workspaceId, id);
   return (
     <div className="preview-page">
       <header className="preview-bar">
@@ -59,7 +61,7 @@ async function PreviewContent({ params, searchParams }: { params: Params; search
         </a>
       </header>
       <div className="preview-paper">
-        <QuoteDocumentView snapshot={snapshot} logoSrc={logoSrc(snapshot)} watermark={versionNo ? null : "Bozza"} versionLabel={versionNo ? `v${versionNo}` : null} layout="auto" acceptance={acceptance} />
+        <QuoteDocumentView snapshot={snapshot} logoSrc={logoSrc(snapshot)} watermark={versionNo ? null : "Bozza"} versionLabel={versionNo ? `v${versionNo}` : null} layout="auto" acceptance={acceptance} billingTerms={billingTerms} />
       </div>
     </div>
   );

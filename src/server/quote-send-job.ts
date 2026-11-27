@@ -35,13 +35,18 @@ const payloadSchema = z.object({
 
 const longDate = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Rome" });
 
-export type PdfRenderer = (db: AppDatabase, workspaceId: string, snapshot: QuoteSnapshot, versionNo: number) => Promise<{ filename: string; content: Buffer }>;
+export type PdfRenderer = (db: AppDatabase, workspaceId: string, snapshot: QuoteSnapshot, versionNo: number, quoteId?: string) => Promise<{ filename: string; content: Buffer }>;
 
 /** Default renderer: the same PDF the editor downloads for a version, with its images. */
-const renderVersionPdf: PdfRenderer = async (db, workspaceId, snapshot, versionNo) => {
-  const [{ renderQuotePdf, pdfFilename }, { loadSnapshotImagesFor }] = await Promise.all([import("@/server/pdf/quote-pdf"), import("@/server/quotes")]);
+const renderVersionPdf: PdfRenderer = async (db, workspaceId, snapshot, versionNo, quoteId) => {
+  const [{ renderQuotePdf, pdfFilename }, { loadSnapshotImagesFor }, { loadBillingTermsLine }] = await Promise.all([
+    import("@/server/pdf/quote-pdf"),
+    import("@/server/quotes"),
+    import("@/server/invoicing"),
+  ]);
   const images = await loadSnapshotImagesFor(db, workspaceId, snapshot);
-  return { filename: pdfFilename(snapshot, versionNo), content: await renderQuotePdf(snapshot, { images, watermark: null, versionLabel: `v${versionNo}` }) };
+  const billingTerms = quoteId ? await loadBillingTermsLine(db, workspaceId, quoteId) : null;
+  return { filename: pdfFilename(snapshot, versionNo), content: await renderQuotePdf(snapshot, { images, watermark: null, versionLabel: `v${versionNo}`, billingTerms }) };
 };
 
 async function markDelivery(db: AppDatabase, deliveryId: string, status: string, error: string | null) {
@@ -77,7 +82,7 @@ export async function deliverQuoteEmail(
       brandColor: snapshot.brand.colorPrimary,
       isUpdate: payload.isUpdate,
     });
-    const attachment = payload.attachPdf ? await (deps.renderPdf ?? renderVersionPdf)(db, payload.workspaceId, snapshot, version.versionNo) : null;
+    const attachment = payload.attachPdf ? await (deps.renderPdf ?? renderVersionPdf)(db, payload.workspaceId, snapshot, version.versionNo, payload.quoteId) : null;
     await (deps.driver ?? getEmailDriver()).send({
       to: payload.to,
       cc: payload.cc,
